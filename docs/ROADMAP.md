@@ -47,6 +47,7 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [x] Plot Model
 - [x] LogMag / Phase / Real / Imag
 - [x] Linear Mag / Unwrapped Phase / Group Delay / SWR / Impedance formats
+- [x] Add Trace / Format Selection
 - [ ] Smith / Polar
 - [ ] Marker
 - [ ] Autoscale
