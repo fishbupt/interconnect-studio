@@ -292,7 +292,7 @@ uv run interconnect-studio
 uv run python -m interconnect_studio.app.main
 ```
 
-当前 GUI 已支持第一个完整流程：
+当前 GUI 已支持 Touchstone 查看与 Add Trace 流程：
 
 ```text
 File → Open Touchstone
@@ -301,9 +301,17 @@ File → Open Touchstone
         ↓
 读取 Network
         ↓
-生成 S11 / S21 LogMag
+默认生成 S11 / S21 LogMag
         ↓
 中央 Plot Area 显示曲线
+        ↓
+Add Trace
+        ↓
+选择 S11 / S21 / S12 / S22
+        ↓
+选择支持的 Format
+        ↓
+追加到当前 Plot，或在单位不兼容时切换当前 Plot
 ```
 
 主界面当前包括：
@@ -315,6 +323,22 @@ File → Open Touchstone
 - 底部 Log Panel
 
 当前 Open 对话框第一版聚焦 `.s2p`。
+
+Add Trace 当前支持的 Cartesian Format 包括：
+
+- Log Mag
+- Linear Mag
+- Phase
+- Unwrapped Phase
+- Group Delay
+- Real
+- Imaginary
+- SWR（仅 S11/S22）
+- Impedance Real / Imaginary / Magnitude / Angle（仅 S11/S22）
+- Quality Factor / Dissipation Factor（仅 S11/S22）
+
+当前 Plot 使用单 Y 轴：若新 Trace 与现有 Plot 的 Y 单位不一致，例如从 LogMag(dB)
+切换到 Phase(degree)，应用会将当前 Plot 切换为新格式，而不会把不同物理单位硬叠加在同一 Y 轴。
 
 ---
 
