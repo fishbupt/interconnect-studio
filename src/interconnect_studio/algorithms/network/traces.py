@@ -1,10 +1,11 @@
 """Bridge between S-parameter formatting and plot domain models."""
 
+from interconnect_studio.core import Network, PlotKind, Trace
+
 from interconnect_studio.algorithms.network.formats import (
     SParameterFormat,
     format_s_parameter,
 )
-from interconnect_studio.core import Network, PlotKind, Trace
 
 
 _Y_UNITS: dict[SParameterFormat, str] = {
@@ -36,7 +37,11 @@ def create_s_parameter_trace(
 ) -> Trace:
     """Create a plot-ready Trace for one formatted S-parameter."""
 
-    fmt = data_format if isinstance(data_format, SParameterFormat) else SParameterFormat(data_format)
+    fmt = (
+        data_format
+        if isinstance(data_format, SParameterFormat)
+        else SParameterFormat(data_format)
+    )
     values = format_s_parameter(network, response_port, source_port, fmt)
     parameter_name = f"S{response_port + 1}{source_port + 1}"
     name = f"{parameter_name} {format_display_name(fmt)}"
