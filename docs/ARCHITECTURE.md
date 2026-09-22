@@ -150,8 +150,39 @@ docs/adr/
 
 # 10. Open Decisions
 
-- [ ] pyqtgraph / matplotlib / custom plot
+- [x] 第一版 Cartesian Plot 使用 PyQt6 QPainter 自绘；后续是否迁移 pyqtgraph / matplotlib 仍可独立评估
 - [ ] Qt Designer `.ui` 或纯 Python UI
 - [ ] Project 文件格式
 - [ ] 是否采用 pydantic
 - [ ] Plugin 机制
+
+
+## First GUI Flow
+
+首个端到端 UI 流程：
+
+```text
+MainWindow
+  ↓
+File / Open Touchstone
+  ↓
+TouchstonePlotService
+  ↓
+read_touchstone()
+  ↓
+Network
+  ↓
+create_s_parameter_trace(S11/S21, LogMag)
+  ↓
+PlotModel
+  ↓
+CartesianPlotWidget
+```
+
+约束：
+
+- MainWindow 不直接解析 Touchstone。
+- UI 不直接执行 S 参数格式转换。
+- Service 负责编排 IO 与算法。
+- Plot Widget 只消费 PlotModel。
+- 第一版 Plot Widget 使用 PyQt6 QPainter，不引入第三方绘图库。
