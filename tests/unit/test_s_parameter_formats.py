@@ -54,7 +54,7 @@ def test_unwrapped_phase_is_continuous_degrees() -> None:
 
 
 def test_group_delay_for_linear_phase() -> None:
-    delay_s = 2.5e-9
+    delay_s = 0.25e-9
     frequencies_hz = np.array([1.0e9, 1.2e9, 1.7e9, 2.0e9])
     trace = np.exp(-1j * 2.0 * np.pi * frequencies_hz * delay_s)
     network = make_two_port(frequencies_hz.tolist(), [0j] * 4, list(trace))
