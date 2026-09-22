@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from interconnect_studio.core import InputValidationError, PlotKind, PlotModel, Trace
