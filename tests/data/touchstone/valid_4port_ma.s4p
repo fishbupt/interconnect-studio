@@ -1,7 +1,9 @@
-! One frequency point. Values encode matrix position.
+! One frequency point. Values encode matrix position as <row><column>.
+! Touchstone 1.x uses row-major order for 3 or more ports:
+! each line below is one row of the S matrix.
 # GHz S MA R 50
 1
-11 0 21 0 31 0 41 0
-12 0 22 0 32 0 42 0
-13 0 23 0 33 0 43 0
-14 0 24 0 34 0 44 0
+11 0 12 0 13 0 14 0
+21 0 22 0 23 0 24 0
+31 0 32 0 33 0 34 0
+41 0 42 0 43 0 44 0

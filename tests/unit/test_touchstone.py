@@ -22,7 +22,7 @@ def test_read_touchstone_2port_ri_restores_standard_parameter_order() -> None:
     assert network.s[0, 1, 1] == pytest.approx(0.20 - 0.02j)
 
 
-def test_read_touchstone_4port_uses_column_major_touchstone_order() -> None:
+def test_read_touchstone_4port_uses_row_major_touchstone_order() -> None:
     network = read_touchstone(DATA_DIR / "valid_4port_ma.s4p")
 
     assert network.n_ports == 4
@@ -30,6 +30,17 @@ def test_read_touchstone_4port_uses_column_major_touchstone_order() -> None:
         for column in range(4):
             expected = 10 * (row + 1) + (column + 1)
             assert network.s[0, row, column] == pytest.approx(expected + 0.0j)
+
+
+def test_read_touchstone_4port_does_not_transpose_matrix() -> None:
+    """A transposed reader passes every symmetric test, so assert asymmetry."""
+
+    network = read_touchstone(DATA_DIR / "valid_4port_ma.s4p")
+
+    assert network.s[0, 1, 0] == pytest.approx(21.0 + 0.0j)
+    assert network.s[0, 0, 1] == pytest.approx(12.0 + 0.0j)
+    assert network.s[0, 3, 0] == pytest.approx(41.0 + 0.0j)
+    assert network.s[0, 0, 3] == pytest.approx(14.0 + 0.0j)
 
 
 def test_read_touchstone_db_converts_to_complex(tmp_path: Path) -> None:
@@ -168,6 +179,42 @@ def test_touchstone_writer_preserves_4port_parameter_order(tmp_path: Path) -> No
     restored = read_touchstone(path)
 
     np.testing.assert_allclose(restored.s, original.s)
+
+
+def test_touchstone_writer_4port_emits_row_major_order(tmp_path: Path) -> None:
+    """Round-trip is blind to a symmetric read/write error, so check the text."""
+
+    original = read_touchstone(DATA_DIR / "valid_4port_ma.s4p")
+    path = tmp_path / "row_major.s4p"
+
+    write_touchstone(original, path, data_format="ri", frequency_unit="ghz")
+
+    data_line = [
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith(("!", "#"))
+    ][0]
+    real_parts = [float(token) for token in data_line.split()[1::2]]
+
+    assert real_parts[:4] == [11.0, 12.0, 13.0, 14.0]
+
+
+def test_touchstone_writer_2port_emits_column_major_order(tmp_path: Path) -> None:
+    """Two ports are the Touchstone 1.x special case: S11 S21 S12 S22."""
+
+    original = read_touchstone(DATA_DIR / "valid_2port_ri.s2p")
+    path = tmp_path / "column_major.s2p"
+
+    write_touchstone(original, path, data_format="ri", frequency_unit="mhz")
+
+    data_line = [
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith(("!", "#"))
+    ][0]
+    real_parts = [float(token) for token in data_line.split()[1::2]]
+
+    assert real_parts == pytest.approx([0.10, 0.80, 0.02, 0.20])
 
 
 def test_touchstone_writer_rejects_suffix_port_mismatch(tmp_path: Path) -> None:
