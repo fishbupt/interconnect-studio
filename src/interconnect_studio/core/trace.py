@@ -3,12 +3,12 @@
 from dataclasses import dataclass, field
 
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
+import numpy.typing as npt
 
-from .errors import InputValidationError
+from interconnect_studio.core.errors import InputValidationError
 
 
-TraceValues = NDArray[np.float64] | NDArray[np.complex128]
+TraceValues = npt.NDArray[np.float64] | npt.NDArray[np.complex128]
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -16,7 +16,7 @@ class Trace:
     """Immutable one-dimensional data series ready for plotting."""
 
     name: str
-    x: NDArray[np.float64]
+    x: npt.NDArray[np.float64]
     y: TraceValues
     x_unit: str
     y_unit: str
@@ -25,8 +25,8 @@ class Trace:
     def __init__(
         self,
         name: str,
-        x: ArrayLike,
-        y: ArrayLike,
+        x: npt.ArrayLike,
+        y: npt.ArrayLike,
         *,
         x_unit: str = "",
         y_unit: str = "",
@@ -71,7 +71,7 @@ class Trace:
         return np.iscomplexobj(self.y)
 
     @staticmethod
-    def _validate_arrays(x: NDArray[np.float64], y: TraceValues) -> None:
+    def _validate_arrays(x: npt.NDArray[np.float64], y: TraceValues) -> None:
         if x.ndim != 1:
             raise InputValidationError("Trace x must be one-dimensional.")
         if y.ndim != 1:
