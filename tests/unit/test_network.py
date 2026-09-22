@@ -147,3 +147,67 @@ def test_network_rejects_non_tuple_port_names() -> None:
     port_names = ["A", "B"]
     with pytest.raises(InputValidationError, match="tuple"):
         Network([1.0], make_s(1, 2), z0=50.0, port_names=port_names)  # type: ignore[arg-type]
+
+
+def test_network_s_parameter_returns_requested_trace() -> None:
+    s = np.zeros((3, 2, 2), dtype=np.complex128)
+    s[:, 1, 0] = [0.1 + 0.2j, 0.3 + 0.4j, 0.5 + 0.6j]
+    network = Network([1.0, 2.0, 3.0], s, z0=50.0)
+
+    s21 = network.s_parameter(1, 0)
+
+    np.testing.assert_array_equal(
+        s21,
+        np.array([0.1 + 0.2j, 0.3 + 0.4j, 0.5 + 0.6j]),
+    )
+
+
+def test_network_s_parameter_uses_zero_based_response_source_semantics() -> None:
+    s = np.empty((1, 2, 2), dtype=np.complex128)
+    s[0, 0, 0] = 11
+    s[0, 1, 0] = 21
+    s[0, 0, 1] = 12
+    s[0, 1, 1] = 22
+    network = Network([1.0], s, z0=50.0)
+
+    assert network.s_parameter(0, 0)[0] == 11
+    assert network.s_parameter(1, 0)[0] == 21
+    assert network.s_parameter(0, 1)[0] == 12
+    assert network.s_parameter(1, 1)[0] == 22
+
+
+def test_network_s_parameter_returns_read_only_view() -> None:
+    network = Network([1.0, 2.0], make_s(2, 2), z0=50.0)
+
+    trace = network.s_parameter(1, 0)
+
+    assert trace.flags.writeable is False
+    with pytest.raises(ValueError):
+        trace[0] = 1.0
+
+
+@pytest.mark.parametrize(
+    ("response_port", "source_port", "message"),
+    [
+        (-1, 0, "response_port"),
+        (2, 0, "response_port"),
+        (0, -1, "source_port"),
+        (0, 2, "source_port"),
+    ],
+)
+def test_network_s_parameter_rejects_out_of_range_ports(
+    response_port: int,
+    source_port: int,
+    message: str,
+) -> None:
+    network = Network([1.0], make_s(1, 2), z0=50.0)
+
+    with pytest.raises(InputValidationError, match=message):
+        network.s_parameter(response_port, source_port)
+
+
+def test_network_s_parameter_rejects_boolean_port_index() -> None:
+    network = Network([1.0], make_s(1, 2), z0=50.0)
+
+    with pytest.raises(InputValidationError, match="integer"):
+        network.s_parameter(True, 0)
