@@ -104,17 +104,46 @@ remap_ports(network, port_order)
 
 # 6. Trace
 
+`Trace` 是 UI 无关、不可变的一维绘图数据模型。
+
 ```python
-@dataclass
-class Trace:
-    name: str
-    x: NDArray
-    y: NDArray
-    x_unit: str
-    y_unit: str
+Trace(
+    name,
+    x,
+    y,
+    x_unit="",
+    y_unit="",
+)
 ```
 
-显示格式与 Trace 的关系：`<TODO>`
+约定：
+
+- `x` 为 `float64`、一维、非空、有限、严格递增。
+- `y` 为一维，允许 `float64` 或 `complex128`。
+- `x/y` 点数必须一致。
+- 为兼容 LogMag(0)、SWR/阻抗奇点，`y` 允许出现 `inf/NaN`。
+- 构造时复制输入数组并设为只读。
+- `Smith/Polar` 使用 complex Trace；普通 Cartesian 格式使用 real Trace。
+- S 参数到 Trace 的桥接由算法层 `create_s_parameter_trace(...)` 完成。
+
+## Plot Model
+
+`PlotModel` 是 UI 无关、不可变的单绘图区模型。
+
+支持绘图类型：
+
+- `PlotKind.CARTESIAN`
+- `PlotKind.POLAR`
+- `PlotKind.SMITH`
+
+约定：
+
+- 一个 PlotModel 保存零条或多条 Trace。
+- Cartesian 只接受 real Trace。
+- Polar / Smith 只接受 complex Trace。
+- 同一 PlotModel 内所有 Trace 必须使用相同 `x_unit` 与 `y_unit`。
+- `add_trace()` / `remove_trace()` 返回新的 PlotModel，不修改原对象。
+- PlotModel 不依赖 PyQt6 或具体绘图库。
 
 # 7. Mixed Mode
 
