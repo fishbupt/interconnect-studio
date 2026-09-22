@@ -152,3 +152,47 @@ Correctness → Determinism → Maintainability → Performance
 ```
 
 性能优化前必须 benchmark。
+
+
+## S-Parameter Display Formats
+
+Frequency-domain S-parameter format conversion is implemented in:
+
+```python
+format_s_parameter(network, response_port, source_port, data_format)
+```
+
+Supported formats:
+
+- Log Mag
+- Linear Mag
+- Phase
+- Unwrapped Phase
+- Group Delay
+- Real
+- Imaginary
+- Smith
+- Polar
+- SWR
+- Impedance Real
+- Impedance Imaginary
+- Impedance Magnitude
+- Impedance Imaginary Magnitude
+- Impedance Angle
+- Quality Factor
+- Dissipation Factor
+
+Conventions:
+
+- Ports use the internal 0-based response/source convention.
+- Log Mag = `20*log10(abs(S))`, in dB.
+- Phase is wrapped phase in degrees.
+- Unwrapped Phase is continuous phase in degrees.
+- Group Delay = `-1/(2*pi) * d(phi)/df`, returned in seconds.
+- Smith and Polar retain the complex S-parameter coefficient; the plot layer determines geometry.
+- SWR and impedance-derived formats are reflection-only.
+- Reflection impedance uses `Z = z0 * (1 + Gamma) / (1 - Gamma)`.
+- Quality Factor uses `abs(Im(Z)) / Re(Z)`.
+- Dissipation Factor uses `Re(Z) / abs(Im(Z))`.
+
+The format layer performs numerical conversion only and does not own plot scaling or UI rendering.
