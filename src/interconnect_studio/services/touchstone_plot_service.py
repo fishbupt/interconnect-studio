@@ -9,7 +9,13 @@ from interconnect_studio.algorithms.network import (
     plot_kind_for_s_parameter_format,
 )
 from interconnect_studio.algorithms.network.traces import format_display_name
-from interconnect_studio.core import InputValidationError, Network, PlotKind, PlotModel
+from interconnect_studio.core import (
+    InputValidationError,
+    Network,
+    PlotKind,
+    PlotModel,
+    PlotTrace,
+)
 from interconnect_studio.io import read_touchstone
 
 
@@ -48,11 +54,11 @@ class TouchstonePlotService:
         s21 = create_s_parameter_trace(network, 1, 0, "log_mag")
 
         plot = PlotModel(
-            traces=(s11, s21),
+            entries=(PlotTrace(s11), PlotTrace(s21)),
             kind=PlotKind.CARTESIAN,
             title=file_path.name,
             x_label="Frequency",
-            y_label="Log Magnitude",
+            y_label_left="Log Magnitude",
         )
         return LoadedTouchstonePlot(path=file_path, network=network, plot=plot)
 
@@ -94,11 +100,11 @@ class TouchstonePlotService:
             replaced_plot = False
         else:
             plot = PlotModel(
-                traces=(trace,),
+                entries=(PlotTrace(trace),),
                 kind=kind,
                 title=loaded.path.name,
                 x_label="Frequency",
-                y_label=format_display_name(fmt),
+                y_label_left=format_display_name(fmt),
             )
             replaced_plot = True
 

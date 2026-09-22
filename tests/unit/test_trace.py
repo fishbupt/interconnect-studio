@@ -66,3 +66,20 @@ def test_trace_rejects_invalid_arrays(
 def test_trace_rejects_empty_name() -> None:
     with pytest.raises(InputValidationError, match="name"):
         Trace("  ", [1.0], [1.0])
+
+
+def test_trace_defaults_to_no_source() -> None:
+    trace = Trace("S21", [1.0, 2.0], [1.0, 2.0])
+
+    assert trace.source_id == ""
+
+
+def test_trace_keeps_source_id() -> None:
+    trace = Trace("S21", [1.0, 2.0], [1.0, 2.0], source_id="file-1")
+
+    assert trace.source_id == "file-1"
+
+
+def test_trace_rejects_non_string_source_id() -> None:
+    with pytest.raises(InputValidationError, match="source_id"):
+        Trace("S21", [1.0, 2.0], [1.0, 2.0], source_id=1)  # type: ignore[arg-type]

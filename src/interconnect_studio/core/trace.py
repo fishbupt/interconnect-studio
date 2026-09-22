@@ -12,13 +12,18 @@ TraceValues = npt.NDArray[np.float64] | npt.NDArray[np.complex128]
 
 @dataclass(frozen=True, slots=True, init=False)
 class Trace:
-    """Immutable one-dimensional data series ready for plotting."""
+    """Immutable one-dimensional data series ready for plotting.
+
+    ``source_id`` identifies the ``DataFile`` this trace was derived from.
+    It is empty for traces not attached to any file.
+    """
 
     name: str
     x: npt.NDArray[np.float64]
     y: TraceValues
     x_unit: str
     y_unit: str
+    source_id: str
     _n_points: int = field(repr=False)
 
     def __init__(
@@ -29,11 +34,14 @@ class Trace:
         *,
         x_unit: str = "",
         y_unit: str = "",
+        source_id: str = "",
     ) -> None:
         if not isinstance(name, str) or not name.strip():
             raise InputValidationError("Trace name must be a non-empty string.")
         if not isinstance(x_unit, str) or not isinstance(y_unit, str):
             raise InputValidationError("Trace units must be strings.")
+        if not isinstance(source_id, str):
+            raise InputValidationError("Trace source_id must be a string.")
 
         x_values = np.asarray(x, dtype=np.float64)
         raw_y = np.asarray(y)
@@ -55,6 +63,7 @@ class Trace:
         object.__setattr__(self, "y", owned_y)
         object.__setattr__(self, "x_unit", x_unit)
         object.__setattr__(self, "y_unit", y_unit)
+        object.__setattr__(self, "source_id", source_id)
         object.__setattr__(self, "_n_points", owned_x.size)
 
     @property

@@ -155,7 +155,7 @@ class CartesianPlotWidget(QWidget):
             Qt.AlignmentFlag.AlignCenter,
             x_label,
         )
-        y_label = self._model.y_label or "Y"
+        y_label = self._model.y_label_left or "Y"
         if self._model.traces and self._model.traces[0].y_unit:
             y_label = f"{y_label} ({self._model.traces[0].y_unit})"
         label_width = metrics.horizontalAdvance(y_label)
