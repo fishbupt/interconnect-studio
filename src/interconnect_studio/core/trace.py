@@ -7,7 +7,6 @@ import numpy.typing as npt
 
 from interconnect_studio.core.errors import InputValidationError
 
-
 TraceValues = npt.NDArray[np.float64] | npt.NDArray[np.complex128]
 
 
