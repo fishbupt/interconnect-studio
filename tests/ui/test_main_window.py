@@ -80,16 +80,37 @@ def test_data_browser_shows_fixed_three_level_hierarchy(qtbot: QtBot) -> None:
 
     window.load_touchstone_file(S2P)
 
-    group = window.data_browser.tree.topLevelItem(0)
-    assert group is not None
-    assert group.text(0) == "Group 1"
+    groups = window.data_browser.groups
+    assert len(groups) == 1
+    assert groups[0].name == "Group 1"
+    assert groups[0].measurements[0].name == "Measurement 1"
+    assert groups[0].measurements[0].files[0].name == "valid_2port_ri.s2p"
 
-    measurement = group.child(0)
-    assert measurement.text(0) == "Measurement 1"
 
-    data_file = measurement.child(0)
-    assert data_file.text(0) == "valid_2port_ri.s2p"
-    assert data_file.childCount() == 0
+def test_loading_selects_the_new_data_file(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.load_touchstone_file(S2P)
+
+    current = window.data_browser.current_file()
+    assert current is not None
+    assert current.name == "valid_2port_ri.s2p"
+    assert current.network.n_ports == 2
+
+
+def test_loading_twice_appends_under_the_same_measurement(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.load_touchstone_file(S2P)
+    window.load_touchstone_file(S2P)
+
+    groups = window.data_browser.groups
+    assert len(groups) == 1
+    files = groups[0].measurements[0].files
+    assert len(files) == 2
+    assert files[0].id != files[1].id
 
 
 def test_main_window_enables_add_trace_after_loading(qtbot: QtBot) -> None:

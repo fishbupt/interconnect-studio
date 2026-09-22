@@ -1,9 +1,10 @@
 """Data browser panel: Group -> Measurement -> DataFile."""
 
-from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
+from PyQt6.QtCore import QItemSelection, pyqtSignal
+from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QWidget
 
-DEFAULT_GROUP = "Group 1"
-DEFAULT_MEASUREMENT = "Measurement 1"
+from interconnect_studio.core import DataFile, Group
+from interconnect_studio.ui.models import DataBrowserModel
 
 
 class DataBrowserPanel(QWidget):
@@ -13,33 +14,52 @@ class DataBrowserPanel(QWidget):
     parameter/format panel.
     """
 
+    current_file_changed = pyqtSignal(object)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self.tree = QTreeWidget(self)
+        self.model = DataBrowserModel(parent=self)
+        self.tree = QTreeView(self)
+        self.tree.setModel(self.model)
         self.tree.setHeaderHidden(True)
+        self.tree.setExpandsOnDoubleClick(False)
+
+        selection = self.tree.selectionModel()
+        if selection is not None:
+            selection.selectionChanged.connect(self._on_selection_changed)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tree)
 
-    def clear(self) -> None:
-        """Remove every node."""
+    @property
+    def groups(self) -> tuple[Group, ...]:
+        """Hierarchy currently shown."""
 
-        self.tree.clear()
+        return self.model.groups
 
-    def show_data_file(
-        self,
-        file_name: str,
-        group: str = DEFAULT_GROUP,
-        measurement: str = DEFAULT_MEASUREMENT,
-    ) -> None:
-        """Show a single data file under the given group and measurement."""
+    def set_groups(self, groups: tuple[Group, ...]) -> None:
+        """Replace the hierarchy and expand it."""
 
-        self.tree.clear()
-        group_item = QTreeWidgetItem([group])
-        measurement_item = QTreeWidgetItem([measurement])
-        measurement_item.addChild(QTreeWidgetItem([file_name]))
-        group_item.addChild(measurement_item)
-        self.tree.addTopLevelItem(group_item)
+        self.model.set_groups(groups)
         self.tree.expandAll()
+
+    def current_file(self) -> DataFile | None:
+        """Data file currently selected, if any."""
+
+        return self.model.data_file_at(self.tree.currentIndex())
+
+    def select_data_file(self, file_id: str) -> None:
+        """Select a data file by id."""
+
+        index = self.model.index_of_data_file(file_id)
+        if index.isValid():
+            self.tree.setCurrentIndex(index)
+
+    def _on_selection_changed(self, selected: QItemSelection, deselected: QItemSelection) -> None:
+        self.current_file_changed.emit(self.current_file())
+
+
+DEFAULT_GROUP = "Group 1"
+DEFAULT_MEASUREMENT = "Measurement 1"

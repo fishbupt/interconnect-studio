@@ -1,5 +1,6 @@
 """Main application window."""
 
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
@@ -21,10 +22,18 @@ from PyQt6.QtWidgets import (
 )
 
 from interconnect_studio.algorithms.network import SParameterFormat
-from interconnect_studio.core import DataFormatError, InputValidationError
+from interconnect_studio.core import (
+    DataFile,
+    DataFormatError,
+    Group,
+    InputValidationError,
+    Measurement,
+)
 from interconnect_studio.services import LoadedTouchstonePlot, TouchstonePlotService
 from interconnect_studio.ui.dialogs import AddTraceDialog
 from interconnect_studio.ui.panels import (
+    DEFAULT_GROUP,
+    DEFAULT_MEASUREMENT,
     DataBrowserPanel,
     MessageLogPanel,
     ParameterFormatPanel,
@@ -52,6 +61,7 @@ class MainWindow(QMainWindow):
         self._service = service or TouchstonePlotService()
         self._loaded: LoadedTouchstonePlot | None = None
         self._theme = DEFAULT_THEME
+        self._next_file_number = 1
 
         self.setWindowTitle("Interconnect Studio")
         self.resize(1200, 760)
@@ -91,6 +101,7 @@ class MainWindow(QMainWindow):
 
         loaded = self._service.load_s2p(path)
         self._loaded = loaded
+        self._add_to_hierarchy(loaded)
         self._apply(loaded)
         self._log(f"Loaded: {loaded.path}")
         self._log("Default traces: S11 Log Mag, S21 Log Mag")
@@ -166,9 +177,42 @@ class MainWindow(QMainWindow):
             self._log(f"Error: {exc}")
             QMessageBox.critical(self, "Open Touchstone Failed", str(exc))
 
+    def _add_to_hierarchy(self, loaded: LoadedTouchstonePlot) -> None:
+        """Append the loaded file under the default group and measurement.
+
+        Project management does not exist yet, so everything lands in one
+        default group and measurement.
+        """
+
+        data_file = DataFile(
+            id=f"file-{self._next_file_number}",
+            name=loaded.path.name,
+            network=loaded.network,
+            source_path=loaded.path,
+            imported_at=datetime.now(),
+        )
+        self._next_file_number += 1
+
+        groups = self.data_browser.groups
+        if groups:
+            group = groups[0]
+            measurement = group.measurements[0]
+            measurement = Measurement(
+                name=measurement.name,
+                files=(*measurement.files, data_file),
+            )
+            group = Group(name=group.name, measurements=(measurement,))
+        else:
+            group = Group(
+                name=DEFAULT_GROUP,
+                measurements=(Measurement(name=DEFAULT_MEASUREMENT, files=(data_file,)),),
+            )
+
+        self.data_browser.set_groups((group,))
+        self.data_browser.select_data_file(data_file.id)
+
     def _apply(self, loaded: LoadedTouchstonePlot) -> None:
         self.view_area.set_current_plot(loaded.plot)
-        self.data_browser.show_data_file(loaded.path.name)
         self.parameter_format.set_summary(
             loaded.path.name,
             loaded.network.n_ports,
