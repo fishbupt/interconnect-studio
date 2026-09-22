@@ -6,15 +6,15 @@
 
 # 2. Network
 
-建议初始模型：
+当前核心模型：
 
 ```python
-@dataclass
+@dataclass(frozen=True, slots=True, init=False)
 class Network:
     frequencies_hz: NDArray[np.float64]
     s: NDArray[np.complex128]
     z0: complex
-    port_names: tuple[str, ...] | None = None
+    port_names: tuple[str, ...] | None
 ```
 
 约束：
@@ -32,6 +32,17 @@ s.shape == (nfreq, nport, nport)
 一个 Network 只有一个确定的 z0。
 z0 对该 Network 的所有端口和所有频点一致。
 ```
+
+## Network Invariants
+
+- `frequencies_hz` 为一维、非空、有限、非负、严格递增。
+- 允许第一个频点为 DC（0 Hz）。
+- `s.shape == (n_freq, n_port, n_port)`，端口矩阵必须为方阵。
+- S 参数必须全部有限。
+- `z0` 为有限、非零的单一标量，可表示为 complex。
+- `port_names` 若存在，必须与端口数一致、非空且唯一。
+- Network 构造时复制输入数组；内部 `frequencies_hz` 与 `s` 设为只读。
+- Network 采用不可变语义；后续算法默认返回新的 Network。
 
 # 3. Port Convention
 
@@ -138,7 +149,7 @@ class AfrResult:
 
 # 12. Mutability
 
-推荐：算法默认返回新对象，不隐式修改原始测量数据。
+已确定：`Network` 采用不可变语义。构造时复制输入数组并将内部数组设置为只读；算法默认返回新对象，不隐式修改原始测量数据。
 
 # 13. Serialization
 
@@ -148,6 +159,7 @@ Project：JSON+binary / HDF5 / ZIP project / `<TODO>`
 # 14. Decisions To Finalize
 
 - [x] `z0` model: one scalar reference impedance per Network
+- [x] Network mutability: immutable semantics with owned read-only arrays
 - [ ] metadata schema
 - [ ] Mixed-Mode mapping convention
 - [ ] Project format
