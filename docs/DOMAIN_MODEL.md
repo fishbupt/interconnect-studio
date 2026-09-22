@@ -50,6 +50,25 @@ z0 对该 Network 的所有端口和所有频点一致。
 - UI：1-based
 - 端口转换必须在明确边界发生
 
+## Port Mapping
+
+端口重排使用纯函数：
+
+```python
+remap_ports(network, port_order)
+```
+
+约定：
+
+- `port_order` 使用 Python 内部 0-based 端口号。
+- 语义为 `new port -> old port`。
+- 例如 `(2, 0, 3, 1)` 表示新端口 0/1/2/3 分别对应原端口 2/0/3/1。
+- `port_order` 必须是完整排列：长度等于端口数、无重复、无越界。
+- S 参数矩阵的行和列必须同时重排。
+- `port_names` 若存在，也必须同步重排。
+- frequency 与 `z0` 保持不变。
+- 返回新的不可变 `Network`，不得修改源对象。
+
 # 4. Units
 
 - Frequency: Hz
