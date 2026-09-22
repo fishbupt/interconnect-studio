@@ -44,6 +44,23 @@ z0 对该 Network 的所有端口和所有频点一致。
 - Network 构造时复制输入数组；内部 `frequencies_hz` 与 `s` 设为只读。
 - Network 采用不可变语义；后续算法默认返回新的 Network。
 
+## S-parameter Access
+
+`Network` 提供通用只读访问接口：
+
+```python
+network.s_parameter(response_port, source_port)
+```
+
+约定：
+
+- 参数使用 Python 内部 0-based 端口索引。
+- `S[i, j]` 表示端口 `j` 激励时在端口 `i` 的响应。
+- 因此工程语义的 `S21` 对应 `s_parameter(1, 0)`。
+- 返回 shape 为 `(n_freq,)` 的 `complex128` 只读视图。
+- 越界、布尔值或非整数端口索引抛出 `InputValidationError`。
+- 不为固定端口数定义大量 `s11/s21/...` 属性，避免限制多端口扩展。
+
 # 3. Port Convention
 
 - Python 内部：0-based
