@@ -1,0 +1,25 @@
+name: Ruff 诊断
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@v6
+      - name: 设置 Python
+        run: uv python install 3.12
+      - name: 安装依赖
+        run: uv sync --dev
+      - name: Ruff 自动修复并显示差异
+        run: |
+          uv run ruff check src/interconnect_studio/core/trace.py src/interconnect_studio/algorithms/network/traces.py --fix || true
+          git diff -- src/interconnect_studio/core/trace.py src/interconnect_studio/algorithms/network/traces.py
