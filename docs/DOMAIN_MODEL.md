@@ -13,7 +13,7 @@
 class Network:
     frequencies_hz: NDArray[np.float64]
     s: NDArray[np.complex128]
-    z0: NDArray[np.complex128]
+    z0: complex
     port_names: tuple[str, ...] | None = None
 ```
 
@@ -24,11 +24,13 @@ frequencies_hz.shape == (nfreq,)
 s.shape == (nfreq, nport, nport)
 ```
 
-`z0` 最终内部 shape 必须统一，候选：
+`z0` 定义为该 `Network` 的单一参考阻抗标量。
+
+约束：
 
 ```text
-(nport,)
-(nfreq, nport)
+一个 Network 只有一个确定的 z0。
+z0 对该 Network 的所有端口和所有频点一致。
 ```
 
 # 3. Port Convention
@@ -46,7 +48,12 @@ s.shape == (nfreq, nport, nport)
 
 # 5. Reference Impedance
 
-不得假设恒为 50 Ω。所有 Renormalization API 必须显式考虑 `z0`。
+每个 `Network` 只有一个确定的参考阻抗 `z0`，并对该网络的所有端口、所有频点统一生效。
+
+- `z0` 是标量，不是数组。
+- 默认值是否采用 50 Ω 由构造 API 决定，但算法不得隐式假设输入一定为 50 Ω。
+- Renormalization 的结果应生成新的 `Network`，并更新为新的单一 `z0`。
+- 如未来需要支持端口相关或频率相关参考阻抗，应通过新的领域模型扩展，而不是改变当前 `Network.z0` 语义。
 
 # 6. Trace
 
@@ -140,7 +147,7 @@ Project：JSON+binary / HDF5 / ZIP project / `<TODO>`
 
 # 14. Decisions To Finalize
 
-- [ ] `z0` internal shape
+- [x] `z0` model: one scalar reference impedance per Network
 - [ ] metadata schema
 - [ ] Mixed-Mode mapping convention
 - [ ] Project format
