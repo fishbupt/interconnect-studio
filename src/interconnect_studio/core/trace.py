@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from interconnect_studio.core.errors import InputValidationError
+from .errors import InputValidationError
 
 
 TraceValues = NDArray[np.float64] | NDArray[np.complex128]
