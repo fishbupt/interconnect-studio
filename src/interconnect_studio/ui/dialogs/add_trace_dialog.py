@@ -92,7 +92,7 @@ class AddTraceDialog(QDialog):
     def _refresh_formats(self) -> None:
         self.format_combo.clear()
         response_port, source_port = self.parameter_combo.currentData()
-        formats = self._COMMON_FORMATS
+        formats: tuple[SParameterFormat, ...] = self._COMMON_FORMATS
         if response_port == source_port:
             formats = (*formats, *self._REFLECTION_ONLY_FORMATS)
 
