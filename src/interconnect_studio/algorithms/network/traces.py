@@ -1,11 +1,7 @@
 """Bridge between S-parameter formatting and plot domain models."""
 
+from interconnect_studio.algorithms.network.formats import SParameterFormat, format_s_parameter
 from interconnect_studio.core import Network, PlotKind, Trace
-
-from interconnect_studio.algorithms.network.formats import (
-    SParameterFormat,
-    format_s_parameter,
-)
 
 
 _Y_UNITS: dict[SParameterFormat, str] = {
@@ -59,7 +55,11 @@ def plot_kind_for_s_parameter_format(
 ) -> PlotKind:
     """Return the required plot geometry for an S-parameter format."""
 
-    fmt = data_format if isinstance(data_format, SParameterFormat) else SParameterFormat(data_format)
+    fmt = (
+        data_format
+        if isinstance(data_format, SParameterFormat)
+        else SParameterFormat(data_format)
+    )
     if fmt is SParameterFormat.SMITH:
         return PlotKind.SMITH
     if fmt is SParameterFormat.POLAR:
