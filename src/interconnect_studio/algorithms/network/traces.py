@@ -3,7 +3,6 @@
 from interconnect_studio.algorithms.network.formats import SParameterFormat, format_s_parameter
 from interconnect_studio.core import Network, PlotKind, Trace
 
-
 _Y_UNITS: dict[SParameterFormat, str] = {
     SParameterFormat.LOG_MAG: "dB",
     SParameterFormat.LINEAR_MAG: "",
