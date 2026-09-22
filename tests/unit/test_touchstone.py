@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from interconnect_studio.core import DataFormatError
-from interconnect_studio.io import read_touchstone
+from interconnect_studio.io import read_touchstone, write_touchstone
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "touchstone"
 
@@ -142,3 +142,62 @@ def test_read_touchstone_rejects_multiple_option_lines(tmp_path: Path) -> None:
 
     with pytest.raises(DataFormatError, match="Multiple"):
         read_touchstone(path)
+
+
+@pytest.mark.parametrize("data_format", ["ri", "ma", "db"])
+def test_touchstone_writer_round_trip_preserves_network(
+    tmp_path: Path,
+    data_format: str,
+) -> None:
+    original = read_touchstone(DATA_DIR / "valid_2port_ri.s2p")
+    path = tmp_path / "roundtrip.s2p"
+
+    write_touchstone(original, path, data_format=data_format, frequency_unit="mhz")
+    restored = read_touchstone(path)
+
+    np.testing.assert_allclose(restored.frequencies_hz, original.frequencies_hz)
+    np.testing.assert_allclose(restored.s, original.s, rtol=1e-12, atol=1e-12)
+    assert restored.z0 == original.z0
+
+
+def test_touchstone_writer_preserves_4port_parameter_order(tmp_path: Path) -> None:
+    original = read_touchstone(DATA_DIR / "valid_4port_ma.s4p")
+    path = tmp_path / "roundtrip.s4p"
+
+    write_touchstone(original, path, data_format="ri", frequency_unit="ghz")
+    restored = read_touchstone(path)
+
+    np.testing.assert_allclose(restored.s, original.s)
+
+
+def test_touchstone_writer_rejects_suffix_port_mismatch(tmp_path: Path) -> None:
+    network = read_touchstone(DATA_DIR / "valid_2port_ri.s2p")
+
+    with pytest.raises(DataFormatError, match="suffix declares 1 ports"):
+        write_touchstone(network, tmp_path / "wrong.s1p")
+
+
+def test_touchstone_writer_rejects_complex_z0(tmp_path: Path) -> None:
+    from interconnect_studio.core import Network
+
+    network = Network([1.0], np.zeros((1, 1, 1), dtype=np.complex128), z0=50.0 + 1.0j)
+
+    with pytest.raises(DataFormatError, match="real scalar"):
+        write_touchstone(network, tmp_path / "complex-z0.s1p")
+
+
+def test_touchstone_writer_rejects_invalid_precision(tmp_path: Path) -> None:
+    network = read_touchstone(DATA_DIR / "valid_2port_ri.s2p")
+
+    with pytest.raises(DataFormatError, match="precision"):
+        write_touchstone(network, tmp_path / "invalid.s2p", precision=0)
+
+
+def test_touchstone_writer_writes_expected_option_line(tmp_path: Path) -> None:
+    network = read_touchstone(DATA_DIR / "valid_2port_ri.s2p")
+    path = tmp_path / "output.s2p"
+
+    write_touchstone(network, path, data_format="ma", frequency_unit="ghz")
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert lines[1] == "# GHZ S MA R 75"
