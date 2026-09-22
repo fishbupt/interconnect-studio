@@ -33,6 +33,27 @@ class AddTraceDialog(QDialog):
         ("S22", 1, 1),
     )
 
+    _COMMON_FORMATS = (
+        SParameterFormat.LOG_MAG,
+        SParameterFormat.LINEAR_MAG,
+        SParameterFormat.PHASE,
+        SParameterFormat.UNWRAPPED_PHASE,
+        SParameterFormat.GROUP_DELAY,
+        SParameterFormat.REAL,
+        SParameterFormat.IMAGINARY,
+    )
+
+    _REFLECTION_ONLY_FORMATS = (
+        SParameterFormat.SWR,
+        SParameterFormat.IMPEDANCE_REAL,
+        SParameterFormat.IMPEDANCE_IMAGINARY,
+        SParameterFormat.IMPEDANCE_MAGNITUDE,
+        SParameterFormat.IMPEDANCE_IMAGINARY_MAGNITUDE,
+        SParameterFormat.IMPEDANCE_ANGLE,
+        SParameterFormat.QUALITY_FACTOR,
+        SParameterFormat.DISSIPATION_FACTOR,
+    )
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Add Trace")
@@ -40,10 +61,10 @@ class AddTraceDialog(QDialog):
         self.parameter_combo = QComboBox(self)
         for name, response_port, source_port in self._PARAMETERS:
             self.parameter_combo.addItem(name, (response_port, source_port))
+        self.parameter_combo.currentIndexChanged.connect(self._refresh_formats)
 
         self.format_combo = QComboBox(self)
-        for data_format in SParameterFormat:
-            self.format_combo.addItem(format_display_name(data_format), data_format.value)
+        self._refresh_formats()
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
@@ -67,3 +88,13 @@ class AddTraceDialog(QDialog):
             source_port=source_port,
             data_format=data_format,
         )
+
+    def _refresh_formats(self) -> None:
+        self.format_combo.clear()
+        response_port, source_port = self.parameter_combo.currentData()
+        formats = self._COMMON_FORMATS
+        if response_port == source_port:
+            formats = (*formats, *self._REFLECTION_ONLY_FORMATS)
+
+        for data_format in formats:
+            self.format_combo.addItem(format_display_name(data_format), data_format.value)
