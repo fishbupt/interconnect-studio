@@ -44,8 +44,10 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] `ui/` 子结构：views / widgets / panels / models / dialogs
 - [ ] ViewLayout（固定网格）与视图区
 - [ ] 外围面板改为 Qt dock
-- [ ] Measurement 与 Trace 溯源
-- [ ] Project Tree（Measurement → Parameter → Trace）
+- [ ] 数据层级模型（Group / Measurement / DataFile）与 Trace 溯源
+- [ ] Data Browser（Group → Measurement → DataFile）
+- [ ] Parameter / Format 面板
+- [ ] Property Panel 由 Parameter / Format 取代，Log Panel 收进状态栏
 - [ ] 选中态 / current 对象模型
 - [ ] 双 Y 轴支持
 
@@ -54,10 +56,10 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 ## Phase 2 — PyQt6 Application Shell
 
 - [x] Main Window
-- [x] Project Tree
+- [x] Project Tree（Phase 1.5 重做为 Data Browser）
 - [x] Plot Area
-- [x] Property Panel
-- [x] Log Panel
+- [x] Property Panel（Phase 1.5 由 Parameter / Format 取代）
+- [x] Log Panel（Phase 1.5 收进状态栏）
 - [x] File Open
 - [ ] Recent Files
 - [ ] Settings

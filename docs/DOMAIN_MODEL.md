@@ -126,7 +126,7 @@ Trace(
 - 构造时复制输入数组并设为只读。
 - `Smith/Polar` 使用 complex Trace；普通 Cartesian 格式使用 real Trace。
 - S 参数到 Trace 的桥接由算法层 `create_s_parameter_trace(...)` 完成。
-- Trace 携带所属 `Measurement` 的标识（`source_id`），用于多文件叠加时区分同名曲线（两个文件都有 S21 LogMag）与图例命名。
+- Trace 携带所属 `DataFile` 的标识（`source_id`），用于多文件叠加时区分同名曲线（两个文件都有 S21 LogMag）与图例命名。
 
 ## Plot Model
 
@@ -306,24 +306,46 @@ class FixturePair:
 - extraction method
 - algorithm version
 
-# 9. Measurement
+# 9. Data Hierarchy
 
-`Measurement` 是导入数据的基本单位，是 Project Tree 的第一层，也是多文件叠加对比的载体。
+对标 PLTS 的 Data Browser，**固定三层**：
+
+```text
+Group → Measurement → DataFile
+```
 
 ```python
 @dataclass(frozen=True, slots=True)
-class Measurement:
+class DataFile:
+    """叶子节点：一个导入的 .sNp 文件或算法产物。"""
     id: str                    # 稳定标识，Trace 通过它溯源
     name: str                  # 显示名，可由用户重命名
     network: Network
-    source_path: Path | None   # 来源文件；程序生成的结果为 None
+    source_path: Path | None   # 来源文件；算法产物为 None
     imported_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class Measurement:
+    name: str
+    files: tuple[DataFile, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Group:
+    name: str
+    measurements: tuple[Measurement, ...]
 ```
 
 约定：
 
-- `id` 在 Project 内唯一且不随重命名改变。
-- 去嵌、Mixed-Mode 等算法产物同样封装为 `Measurement`，并在 metadata 中记录来源与算法参数，使派生结果与原始测量在树中同构。
+- 层级固定为三层，不可嵌套更深，也不可跳层。
+- `Group` 与 `Measurement` 是纯容器，条目由用户创建与命名。
+- `DataFile.id` 在 Project 内唯一，且不随重命名改变。
+- 去嵌、Mixed-Mode 等算法产物同样封装为 `DataFile`，并在 metadata 中记录来源与算法参数，使派生结果与导入数据在树中同构。
+- 参数（S11/S21/...）与显示格式**不是树节点**，由 UI 的 Parameter / Format 面板承担（见 `UI_DESIGN.md` §3）。
+
+> 待确认：`Group` / `Measurement` 目前按"层级固定、条目用户可增删"建模。若 PLTS 实际为预置不可增删的分类，此节需改为枚举。
 
 # 10. Project
 
@@ -332,12 +354,13 @@ Project 保存用户工程状态，不保存 QWidget 实例。
 ```python
 @dataclass
 class Project:
-    measurements: tuple[Measurement, ...]
-    layout: ViewLayout
+    groups: tuple[Group, ...]
+    windows: tuple[Window, ...]     # 每个 window 持有自己的 ViewLayout
     fixtures: ...
     settings: ...
 ```
 
+- 一个 window 只承载单个 `DataFile` 与单一分析类型（见 `UI_DESIGN.md` §4）。
 - 布局（`ViewLayout`）持久化；选中态属于 UI 状态，不持久化。
 
 # 11. Analysis Results

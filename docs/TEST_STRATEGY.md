@@ -78,7 +78,7 @@ np.testing.assert_allclose(actual, expected, rtol=1e-8, atol=1e-10)
 
 至少覆盖：
 
-- 打开文件 → Measurement 进入 Project Tree
+- 打开文件 → DataFile 进入 Data Browser
 - 添加 Trace → 进入 current_plot
 - 切换视图网格（1×1 / 2×2）→ PlotModel 不丢失
 - 面板停靠、浮动、关闭后再打开

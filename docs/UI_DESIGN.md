@@ -15,30 +15,57 @@
 - **matplotlib** 仅用于报告导出（V1.1），不进入交互路径。
 - Smith 圆图与眼图使用 pyqtgraph 自定义 item 绘制——这两样在任何绘图库中都需自绘。
 - 现有 `plot_widget.py`（QPainter 自绘）在迁移后废弃。`PlotModel` / `Trace` 抽象不受影响。
+- 主题：深色默认、浅色可切换，见 §9.5。
+
+# 2.5 Reference
+
+面板体系与 window 约束依据 Keysight PLTS 在线帮助 "The PLTS Screen" 与 "Working with Windows, Plots, and Traces"。
+
+**功能对标 PLTS，视觉风格不对标**（见 §9.5）。
 
 # 3. Window Layout
+
+对标 PLTS 的面板体系（依据 Keysight PLTS 在线帮助 "The PLTS Screen"）。
 
 ```text
 ┌─────────────────────────────────────────────────┐
 │ Menu Bar / Tool Bar                             │
-├───────────┬─────────────────────────┬───────────┤
-│           │                         │           │
-│ Project   │   View Area             │ Property  │
-│ Tree      │   （固定网格）           │ Panel     │
-│ (dock)    │                         │ (dock)    │
-│           │                         │           │
-├───────────┴─────────────────────────┴───────────┤
-│ Log Panel (dock)                                │
-├─────────────────────────────────────────────────┤
-│ Status Bar                                      │
+├───────────────┬─────────────────────────────────┤
+│ Data Browser  │                                 │
+│ （Upper Pane）│                                 │
+│               │        View Area                │
+├───────────────┤        （固定网格）              │
+│ Parameter /   │                                 │
+│ Format        │                                 │
+│ （Lower Pane）│                                 │
+├───────────────┴─────────────────────────────────┤
+│ Status Bar（含可展开的消息面板，默认折叠）        │
 └─────────────────────────────────────────────────┘
 ```
 
 约定：
 
+- 左侧分 **Upper Pane** 与 **Lower Pane** 两个停靠区，与 PLTS 一致。
 - **View Area 使用固定网格**（行 × 列），不可手动拖拽分割。
-- **外围面板使用 Qt dock**，可浮动、关闭、重排。
-- 中央 View Area 不是 dock，不可关闭。
+- 停靠面板可浮动、关闭、重排；中央 View Area 不是 dock，不可关闭。
+
+## 与现有实现的差异
+
+PLTS 没有 Property Panel 和 Log Panel，现有 `main_window.py` 中的这两个面板按如下方式处理：
+
+- **Property Panel → 由 Parameter / Format 面板取代**。PLTS 中对应职责由该面板承担。
+- **Log Panel → 收进状态栏**，配可展开的消息面板，默认折叠。保留诊断能力，但不占常驻空间。
+
+## 面板清单
+
+本轮实现：
+
+| 面板 | 位置 | 职责 |
+|---|---|---|
+| Data Browser | Upper Pane | 数据层级导航 |
+| Parameter / Format | Lower Pane | 开新 plot、向现有 plot 加 trace、为每个 plot 选格式、数据质量检查入口 |
+
+后续功能面板（本轮只预留停靠位，不实现）：Marker、Limit Lines、Mask（眼图）、当前 plot 的表格数据。
 
 # 4. View Layout
 
@@ -53,10 +80,17 @@ class ViewLayout:
 约定：
 
 - 典型值：1×1、1×2、2×1、2×2；N×N 用于矩阵视图。
+- **上限 144 个 plot**（12×12），与 PLTS 对齐。
 - `plots` 按**行优先**顺序排列，与 Touchstone ≥3 端口的行主序一致。
 - 空槽位用空 `PlotModel` 表示，不用 `None`。
 - `ViewLayout` 不可变，变更返回新对象。
 - 不依赖 PyQt6 或 pyqtgraph。
+
+## Window 约束
+
+对标 PLTS：**一个 window 只承载单个数据文件、单一分析类型**。
+
+比较不同文件或不同分析类型需要开多个 window，而不是在同一个网格里混放。这条约束决定了 `ViewLayout` 归属于 window 而非全局。
 
 # 5. Plot Axes
 
@@ -67,27 +101,30 @@ class ViewLayout:
 - 所有 Trace 的 `x_unit` 必须一致（单 X 轴）。
 - 典型用法：幅度（左，dB）+ 相位（右，degree）同屏。
 
-# 6. Project Tree
+# 6. Data Browser
 
-层级：
+对标 PLTS 的三层结构：
 
 ```text
-Project
-└── Measurement          （一个导入的数据集）
-    └── Parameter        （S11 / S21 / SDD21 ...）
-        └── Trace        （某个显示格式的曲线）
+Group
+└── Measurement
+    └── DataFile        （导入的 .sNp 文件）
 ```
 
-- Measurement 是导入的单位，携带来源文件、名称、导入时间等元数据。
-- Trace 携带所属 Measurement 的标识，用于图例区分与叠加对比。
+- **层级固定为三层**：不可嵌套更深，也不可跳层。
+- `Group` 与 `Measurement` 是容器，条目由用户创建与命名。
+- `DataFile` 是叶子，持有 `Network` 与来源元数据。
+- 参数与显示格式的选择**不在树里**，由 Parameter / Format 面板承担（PLTS 即如此）。
 - 树使用 `QAbstractItemModel` 适配领域对象，放在 `ui/models/`。
+
+> 待确认：`Group` / `Measurement` 的"固定"目前理解为**层级固定、条目可由用户增删命名**。若 PLTS 实际是预置且不可增删的分类，此节与 `DOMAIN_MODEL.md` §9 需相应修改。
 
 # 7. Selection Model
 
 任一时刻存在三个"当前对象"：
 
 ```text
-current_measurement
+current_file        （Data Browser 中选中的 DataFile）
 current_plot        （View Area 中被选中的格子）
 current_trace
 ```
@@ -111,6 +148,27 @@ current_trace
 - 多图联动（共享 X 轴缩放）为可选项，默认关闭。
 - 长任务不得阻塞主线程超过 200 ms，超过走后台 Worker（`AGENTS.md` §8）。
 
+# 9.5 Visual Style
+
+**功能对标 PLTS，视觉不对标**——PLTS 的界面是上一代 Windows 桌面风格，这里要更现代。
+
+主题：
+
+- **深色为默认**，浅色可切换。深色是仪器 / EDA 类软件的主流，长时间看曲线负担小，深底上多条彩色 trace 区分度高。
+- 浅色主题用于截图入报告、打印场景。
+- 两套主题都必须完整覆盖，不允许只调深色、浅色放任默认。
+
+原则：
+
+- 扁平化，避免拟物渐变与厚重边框；以留白和分隔线划分区域，而不是凹凸边框。
+- 降低装饰性色彩，**颜色优先用于承载信息**（trace 配色、pass/fail 状态、越界标记）。
+- trace 配色需在两套主题下都满足可区分度，并考虑色觉障碍（不以红绿单独区分 pass/fail）。
+- 信息密度向工程工具靠拢：紧凑但不拥挤，控件尺寸与间距全局统一。
+- 图标统一一套线性图标，不混用风格。
+- pyqtgraph 的默认样式偏旧，必须统一主题化（背景、网格、坐标轴、字体），不得直接使用默认外观。
+
+具体配色、字体与间距规范待外壳实现时确定，不在本轮文档范围。
+
 # 10. Directory Layout
 
 ```text
@@ -129,4 +187,5 @@ src/interconnect_studio/ui/
 
 - [ ] 布局状态在 Project 文件中的序列化格式（待 Project 格式决策）
 - [ ] 多图联动的默认行为
-- [ ] 主题 / 配色方案
+- [ ] 具体配色值、字体与间距规范
+- [ ] `Group` / `Measurement` 是否为预置不可增删的分类（见 §6 待确认项）
