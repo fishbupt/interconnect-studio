@@ -37,7 +37,7 @@ class CartesianPlotWidget(QWidget):
         self._model = model
         self.update()
 
-    def paintEvent(self, event: QPaintEvent) -> None:
+    def paintEvent(self, event: QPaintEvent | None) -> None:
         """Paint axes, grid, legend, and all finite trace segments."""
 
         del event
