@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QMainWindow
 from pytestqt.qtbot import QtBot
 
 from interconnect_studio.ui import MainWindow
+from interconnect_studio.ui.theme import Theme
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "touchstone"
 S2P = DATA_DIR / "valid_2port_ri.s2p"
@@ -123,3 +124,22 @@ def test_main_window_switches_plot_for_incompatible_format(qtbot: QtBot) -> None
     assert loaded.plot.n_traces == 1
     assert trace_names(window) == ["S22 Phase"]
     assert "Plot switched to: S22 Phase" in window.message_log.text()
+
+
+def test_main_window_defaults_to_dark_theme(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.theme is Theme.DARK
+    assert window.plot_widget.theme is Theme.DARK
+    assert window.light_theme_action.isChecked() is False
+
+
+def test_light_theme_action_switches_theme(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.light_theme_action.setChecked(True)
+
+    assert window.theme is Theme.LIGHT
+    assert window.plot_widget.theme is Theme.LIGHT

@@ -5,6 +5,7 @@ description = "VNA and high-speed interconnect analysis platform."
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.0",
+    "pyqtgraph>=0.13",
     "PyQt6>=6.7",
     "scipy>=1.14",
 ]
@@ -44,3 +45,8 @@ python_version = "3.12"
 strict = true
 files = ["src"]
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+# pyqtgraph ships no py.typed marker.
+module = ["pyqtgraph.*"]
+ignore_missing_imports = true

@@ -5,6 +5,7 @@ import sys
 from PyQt6.QtWidgets import QApplication
 
 from interconnect_studio.ui import MainWindow
+from interconnect_studio.ui.theme import DEFAULT_THEME, apply_theme
 
 
 def main() -> int:
@@ -14,6 +15,9 @@ def main() -> int:
     owns_app = app is None
     if app is None:
         app = QApplication(sys.argv)
+
+    if isinstance(app, QApplication):
+        apply_theme(app, DEFAULT_THEME)
 
     window = MainWindow()
     window.show()

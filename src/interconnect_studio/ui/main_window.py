@@ -5,6 +5,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
+    QApplication,
     QDialog,
     QDockWidget,
     QFileDialog,
@@ -27,6 +28,7 @@ from interconnect_studio.ui.panels import (
     MessageLogPanel,
     ParameterFormatPanel,
 )
+from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, apply_theme
 from interconnect_studio.ui.widgets import CartesianPlotWidget
 
 
@@ -47,6 +49,7 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self._service = service or TouchstonePlotService()
         self._loaded: LoadedTouchstonePlot | None = None
+        self._theme = DEFAULT_THEME
 
         self.setWindowTitle("Interconnect Studio")
         self.resize(1200, 760)
@@ -54,7 +57,7 @@ class MainWindow(QMainWindow):
         self.data_browser = DataBrowserPanel(self)
         self.parameter_format = ParameterFormatPanel(self)
         self.message_log = MessageLogPanel(self)
-        self.plot_widget = CartesianPlotWidget()
+        self.plot_widget = CartesianPlotWidget(theme=self._theme)
 
         self.status_bar = QStatusBar(self)
         self.setStatusBar(self.status_bar)
@@ -219,11 +222,36 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self.parameter_format_dock.toggleViewAction())
         view_menu.addAction(self.message_dock.toggleViewAction())
 
+        view_menu.addSeparator()
+        self.light_theme_action = QAction("&Light Theme", self)
+        self.light_theme_action.setCheckable(True)
+        self.light_theme_action.setChecked(self._theme is Theme.LIGHT)
+        self.light_theme_action.toggled.connect(self._on_light_theme_toggled)
+        view_menu.addAction(self.light_theme_action)
+
         toolbar = QToolBar("Main", self)
         toolbar.setObjectName("main_toolbar")
         toolbar.addAction(open_action)
         toolbar.addAction(self.add_trace_action)
         self.addToolBar(toolbar)
+
+    @property
+    def theme(self) -> Theme:
+        """Theme currently applied."""
+
+        return self._theme
+
+    def set_theme(self, theme: Theme) -> None:
+        """Switch the application theme."""
+
+        self._theme = theme
+        self.plot_widget.apply_theme(theme)
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            apply_theme(app, theme)
+
+    def _on_light_theme_toggled(self, checked: bool) -> None:
+        self.set_theme(Theme.LIGHT if checked else Theme.DARK)
 
     def _log(self, message: str) -> None:
         self.message_log.append(message)
