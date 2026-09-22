@@ -8,18 +8,13 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDockWidget,
     QFileDialog,
-    QFormLayout,
-    QLabel,
     QMainWindow,
     QMenu,
     QMenuBar,
     QMessageBox,
-    QSplitter,
     QStatusBar,
-    QTextEdit,
     QToolBar,
-    QTreeWidget,
-    QTreeWidgetItem,
+    QToolButton,
     QWidget,
 )
 
@@ -27,11 +22,22 @@ from interconnect_studio.algorithms.network import SParameterFormat
 from interconnect_studio.core import DataFormatError, InputValidationError
 from interconnect_studio.services import LoadedTouchstonePlot, TouchstonePlotService
 from interconnect_studio.ui.dialogs import AddTraceDialog
+from interconnect_studio.ui.panels import (
+    DataBrowserPanel,
+    MessageLogPanel,
+    ParameterFormatPanel,
+)
 from interconnect_studio.ui.widgets import CartesianPlotWidget
 
 
 class MainWindow(QMainWindow):
-    """First Interconnect Studio application shell."""
+    """Application shell.
+
+    The left column holds two docking areas, matching PLTS: the data browser
+    above and the parameter/format panel below. The view area occupies the
+    centre and is not a dock. Messages live in the status bar, with a
+    collapsed panel for their history.
+    """
 
     def __init__(
         self,
@@ -45,26 +51,21 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Interconnect Studio")
         self.resize(1200, 760)
 
-        self.project_tree = QTreeWidget()
-        self.project_tree.setHeaderLabel("Project")
+        self.data_browser = DataBrowserPanel(self)
+        self.parameter_format = ParameterFormatPanel(self)
+        self.message_log = MessageLogPanel(self)
         self.plot_widget = CartesianPlotWidget()
-        self.property_panel = QWidget()
-        self.log_panel = QTextEdit()
-        self.log_panel.setReadOnly(True)
+
         self.status_bar = QStatusBar(self)
         self.setStatusBar(self.status_bar)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
 
-        self.file_value = QLabel("-")
-        self.ports_value = QLabel("-")
-        self.points_value = QLabel("-")
-        self.z0_value = QLabel("-")
-
-        self._build_property_panel()
-        self._build_central_layout()
-        self._build_log_dock()
+        self.setCentralWidget(self.plot_widget)
+        self._build_side_docks()
+        self._build_message_dock()
         self._build_actions()
+
         self.add_trace_action.setEnabled(False)
         self.status_bar.showMessage("Ready")
 
@@ -79,11 +80,9 @@ class MainWindow(QMainWindow):
 
         loaded = self._service.load_s2p(path)
         self._loaded = loaded
-        self.plot_widget.set_plot_model(loaded.plot)
-        self._update_project_tree(loaded)
-        self._update_properties(loaded)
-        self._append_log(f"Loaded: {loaded.path}")
-        self._append_log("Default traces: S11 Log Mag, S21 Log Mag")
+        self._apply(loaded)
+        self._log(f"Loaded: {loaded.path}")
+        self._log("Default traces: S11 Log Mag, S21 Log Mag")
         self.add_trace_action.setEnabled(True)
         self.status_bar.showMessage(f"Loaded {loaded.path.name}")
         return loaded
@@ -106,14 +105,13 @@ class MainWindow(QMainWindow):
             data_format,
         )
         self._loaded = update.loaded
-        self.plot_widget.set_plot_model(update.loaded.plot)
-        self._update_project_tree(update.loaded)
+        self._apply(update.loaded)
 
         trace_name = update.loaded.plot.traces[-1].name
         if update.replaced_plot:
-            self._append_log(f"Plot switched to: {trace_name}")
+            self._log(f"Plot switched to: {trace_name}")
         else:
-            self._append_log(f"Added trace: {trace_name}")
+            self._log(f"Added trace: {trace_name}")
         self.status_bar.showMessage(trace_name)
         return update.loaded
 
@@ -136,7 +134,7 @@ class MainWindow(QMainWindow):
                 selection.data_format,
             )
         except InputValidationError as exc:
-            self._append_log(f"Error: {exc}")
+            self._log(f"Error: {exc}")
             QMessageBox.warning(self, "Add Trace Failed", str(exc))
 
     def open_touchstone_dialog(self) -> None:
@@ -154,34 +152,48 @@ class MainWindow(QMainWindow):
         try:
             self.load_touchstone_file(file_name)
         except (DataFormatError, InputValidationError) as exc:
-            self._append_log(f"Error: {exc}")
+            self._log(f"Error: {exc}")
             QMessageBox.critical(self, "Open Touchstone Failed", str(exc))
 
-    def _build_property_panel(self) -> None:
-        layout = QFormLayout(self.property_panel)
-        layout.addRow("File", self.file_value)
-        layout.addRow("Ports", self.ports_value)
-        layout.addRow("Points", self.points_value)
-        layout.addRow("Z0", self.z0_value)
-        layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+    def _apply(self, loaded: LoadedTouchstonePlot) -> None:
+        self.plot_widget.set_plot_model(loaded.plot)
+        self.data_browser.show_data_file(loaded.path.name)
+        self.parameter_format.set_summary(
+            loaded.path.name,
+            loaded.network.n_ports,
+            loaded.network.n_freq,
+            loaded.network.z0,
+        )
+        self.parameter_format.set_traces(tuple(trace.name for trace in loaded.plot.traces))
 
-    def _build_central_layout(self) -> None:
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(self.project_tree)
-        splitter.addWidget(self.plot_widget)
-        splitter.addWidget(self.property_panel)
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
-        splitter.setSizes([220, 760, 220])
-        self.setCentralWidget(splitter)
+    def _build_side_docks(self) -> None:
+        self.data_browser_dock = QDockWidget("Data Browser", self)
+        self.data_browser_dock.setObjectName("data_browser_dock")
+        self.data_browser_dock.setWidget(self.data_browser)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_browser_dock)
 
-    def _build_log_dock(self) -> None:
-        dock = QDockWidget("Log", self)
-        dock.setObjectName("log_dock")
-        dock.setWidget(self.log_panel)
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
-        dock.resize(dock.width(), 150)
+        self.parameter_format_dock = QDockWidget("Parameter / Format", self)
+        self.parameter_format_dock.setObjectName("parameter_format_dock")
+        self.parameter_format_dock.setWidget(self.parameter_format)
+        self.splitDockWidget(
+            self.data_browser_dock,
+            self.parameter_format_dock,
+            Qt.Orientation.Vertical,
+        )
+
+    def _build_message_dock(self) -> None:
+        self.message_dock = QDockWidget("Messages", self)
+        self.message_dock.setObjectName("message_dock")
+        self.message_dock.setWidget(self.message_log)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.message_dock)
+        self.message_dock.hide()
+
+        self.messages_button = QToolButton(self)
+        self.messages_button.setText("Messages")
+        self.messages_button.setCheckable(True)
+        self.messages_button.toggled.connect(self.message_dock.setVisible)
+        self.message_dock.visibilityChanged.connect(self.messages_button.setChecked)
+        self.status_bar.addPermanentWidget(self.messages_button)
 
     def _build_actions(self) -> None:
         file_menu = QMenu("&File", self)
@@ -201,25 +213,17 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
+        view_menu = QMenu("&View", self)
+        self.menu_bar.addMenu(view_menu)
+        view_menu.addAction(self.data_browser_dock.toggleViewAction())
+        view_menu.addAction(self.parameter_format_dock.toggleViewAction())
+        view_menu.addAction(self.message_dock.toggleViewAction())
+
         toolbar = QToolBar("Main", self)
         toolbar.setObjectName("main_toolbar")
         toolbar.addAction(open_action)
         toolbar.addAction(self.add_trace_action)
         self.addToolBar(toolbar)
 
-    def _update_project_tree(self, loaded: LoadedTouchstonePlot) -> None:
-        self.project_tree.clear()
-        root = QTreeWidgetItem([loaded.path.name])
-        for trace in loaded.plot.traces:
-            root.addChild(QTreeWidgetItem([trace.name]))
-        self.project_tree.addTopLevelItem(root)
-        root.setExpanded(True)
-
-    def _update_properties(self, loaded: LoadedTouchstonePlot) -> None:
-        self.file_value.setText(loaded.path.name)
-        self.ports_value.setText(str(loaded.network.n_ports))
-        self.points_value.setText(str(loaded.network.n_freq))
-        self.z0_value.setText(f"{loaded.network.z0.real:g} Ω")
-
-    def _append_log(self, message: str) -> None:
-        self.log_panel.append(message)
+    def _log(self, message: str) -> None:
+        self.message_log.append(message)

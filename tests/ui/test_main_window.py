@@ -6,6 +6,12 @@ from pytestqt.qtbot import QtBot
 from interconnect_studio.ui import MainWindow
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "touchstone"
+S2P = DATA_DIR / "valid_2port_ri.s2p"
+
+
+def trace_names(window: MainWindow) -> list[str]:
+    listing = window.parameter_format.trace_list
+    return [listing.item(row).text() for row in range(listing.count())]
 
 
 def test_main_window_can_be_created(qtbot: QtBot) -> None:
@@ -14,36 +20,74 @@ def test_main_window_can_be_created(qtbot: QtBot) -> None:
 
     assert isinstance(window, QMainWindow)
     assert window.windowTitle() == "Interconnect Studio"
-    assert window.project_tree is not None
+    assert window.data_browser is not None
+    assert window.parameter_format is not None
     assert window.plot_widget is not None
-    assert window.property_panel is not None
-    assert window.log_panel is not None
+
+
+def test_view_area_is_central_and_panels_are_docks(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.centralWidget() is window.plot_widget
+    assert window.data_browser_dock.widget() is window.data_browser
+    assert window.parameter_format_dock.widget() is window.parameter_format
+
+
+def test_message_panel_is_collapsed_by_default(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.message_dock.isVisibleTo(window) is False
+    assert window.messages_button.isChecked() is False
+
+
+def test_messages_button_toggles_message_panel(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.messages_button.setChecked(True)
+    assert window.message_dock.isVisibleTo(window) is True
+
+    window.messages_button.setChecked(False)
+    assert window.message_dock.isVisibleTo(window) is False
 
 
 def test_main_window_loads_s2p_and_updates_all_primary_panels(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    loaded = window.load_touchstone_file(DATA_DIR / "valid_2port_ri.s2p")
+    loaded = window.load_touchstone_file(S2P)
 
     assert window.loaded_measurement is loaded
     assert window.plot_widget.model.n_traces == 2
-    assert window.plot_widget.model.traces[0].name == "S11 Log Mag"
-    assert window.plot_widget.model.traces[1].name == "S21 Log Mag"
+    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag"]
 
-    root = window.project_tree.topLevelItem(0)
-    assert root is not None
-    assert root.text(0) == "valid_2port_ri.s2p"
-    assert root.childCount() == 2
-    assert root.child(0).text(0) == "S11 Log Mag"
-    assert root.child(1).text(0) == "S21 Log Mag"
+    assert window.parameter_format.file_value.text() == "valid_2port_ri.s2p"
+    assert window.parameter_format.ports_value.text() == "2"
+    assert window.parameter_format.points_value.text() == "2"
+    assert window.parameter_format.z0_value.text() == "75 Ω"
 
-    assert window.file_value.text() == "valid_2port_ri.s2p"
-    assert window.ports_value.text() == "2"
-    assert window.points_value.text() == "2"
-    assert window.z0_value.text() == "75 Ω"
-    assert "Loaded:" in window.log_panel.toPlainText()
-    assert "S11 Log Mag, S21 Log Mag" in window.log_panel.toPlainText()
+    assert "Loaded:" in window.message_log.text()
+    assert "S11 Log Mag, S21 Log Mag" in window.message_log.text()
+
+
+def test_data_browser_shows_fixed_three_level_hierarchy(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.load_touchstone_file(S2P)
+
+    group = window.data_browser.tree.topLevelItem(0)
+    assert group is not None
+    assert group.text(0) == "Group 1"
+
+    measurement = group.child(0)
+    assert measurement.text(0) == "Measurement 1"
+
+    data_file = measurement.child(0)
+    assert data_file.text(0) == "valid_2port_ri.s2p"
+    assert data_file.childCount() == 0
 
 
 def test_main_window_enables_add_trace_after_loading(qtbot: QtBot) -> None:
@@ -52,7 +96,7 @@ def test_main_window_enables_add_trace_after_loading(qtbot: QtBot) -> None:
 
     assert window.add_trace_action.isEnabled() is False
 
-    window.load_touchstone_file(DATA_DIR / "valid_2port_ri.s2p")
+    window.load_touchstone_file(S2P)
 
     assert window.add_trace_action.isEnabled() is True
 
@@ -60,30 +104,22 @@ def test_main_window_enables_add_trace_after_loading(qtbot: QtBot) -> None:
 def test_main_window_adds_compatible_trace(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
-    window.load_touchstone_file(DATA_DIR / "valid_2port_ri.s2p")
+    window.load_touchstone_file(S2P)
 
     loaded = window.add_trace(0, 1, "log_mag")
 
     assert loaded.plot.n_traces == 3
-    assert loaded.plot.traces[-1].name == "S12 Log Mag"
-    root = window.project_tree.topLevelItem(0)
-    assert root is not None
-    assert root.childCount() == 3
-    assert root.child(2).text(0) == "S12 Log Mag"
-    assert "Added trace: S12 Log Mag" in window.log_panel.toPlainText()
+    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag", "S12 Log Mag"]
+    assert "Added trace: S12 Log Mag" in window.message_log.text()
 
 
 def test_main_window_switches_plot_for_incompatible_format(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
-    window.load_touchstone_file(DATA_DIR / "valid_2port_ri.s2p")
+    window.load_touchstone_file(S2P)
 
     loaded = window.add_trace(1, 1, "phase")
 
     assert loaded.plot.n_traces == 1
-    assert loaded.plot.traces[0].name == "S22 Phase"
-    root = window.project_tree.topLevelItem(0)
-    assert root is not None
-    assert root.childCount() == 1
-    assert root.child(0).text(0) == "S22 Phase"
-    assert "Plot switched to: S22 Phase" in window.log_panel.toPlainText()
+    assert trace_names(window) == ["S22 Phase"]
+    assert "Plot switched to: S22 Phase" in window.message_log.text()
