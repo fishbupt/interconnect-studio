@@ -34,14 +34,19 @@ interconnect-studio/
 │   ├── core/
 │   ├── algorithms/
 │   │   ├── network/
-│   │   ├── mixed_mode/         <planned>  Phase 1
-│   │   ├── time_domain/        <planned>  Phase 4
-│   │   ├── gating/             <planned>  Phase 5
-│   │   ├── deembedding/        <planned>  Phase 6
-│   │   └── afr/                <planned>  Phase 7
+│   │   ├── quality/            <planned>  V0.2  数据质量检查
+│   │   ├── mixed_mode/         <planned>  V0.2
+│   │   ├── time_domain/        <planned>  V1.0
+│   │   ├── gating/             <planned>  V1.0
+│   │   ├── crosstalk/          <planned>  V1.0
+│   │   ├── si_metrics/         <planned>  V1.0
+│   │   ├── deembedding/        <planned>  V1.0
+│   │   └── afr/                <planned>  V1.1
 │   ├── io/
+│   ├── compliance/             <planned>  V1.0  Limit Line / Mask / Pass-Fail
+│   ├── report/                 <planned>  V1.1
 │   ├── services/
-│   └── instruments/            <planned>  Phase 8
+│   └── instruments/            <planned>  待决策，是否实现未定
 ├── tests/
 ├── golden_data/
 ├── docs/
@@ -75,7 +80,9 @@ Touchstone、Project 文件、Export、Config。
 
 ## Instruments
 
-定义统一 VNA 抽象，不让具体驱动侵入 UI。
+仪器连接与自动测量**当前不实现**，是否实现留待后续决策。校准（ECal / SOLT / TRL）同此——只有在自己控制仪器采数时才有意义，读已校准的 Touchstone 不需要。
+
+若将来实现：接口按「测量源」而非「VNA」抽象，使 TDR 采样示波器等非 VNA 仪器能够接入；具体驱动不得侵入 UI。
 
 # 5. Threading Model
 
@@ -130,13 +137,13 @@ io → ui
 
 # 8. Planned Extensions
 
-- Eye / PAM4 / COM
-- Calibration
-- VNA Automation
+- Eye / PAM4 / COM（V2.0）
 - Batch Processing
 - CLI / Script API
 - MCP Integration
 - Plugin System
+
+待决策（是否实现未定）：Calibration、VNA / TDR 仪器自动化、CSV / MATLAB 导出、宽带 SPICE 子电路导出。
 
 # 9. Architecture Decision Records
 

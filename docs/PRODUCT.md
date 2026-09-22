@@ -4,6 +4,8 @@
 
 **Interconnect Studio** 是一款基于 Python + PyQt6 的 VNA / 高速互联数据分析与夹具去嵌软件。
 
+最终功能目标为**全面对标 Keysight PLTS**（数据分析侧）。对标指功能覆盖与数值可比，不复制其专有实现（见 §3.6）。
+
 目标用户：
 
 - VNA 研发工程师
@@ -13,19 +15,30 @@
 
 # 2. Core Product Goals
 
-- Touchstone 数据导入/导出
-- S 参数显示与分析
+- Touchstone 1.x / 2.0、CITIfile 导入导出
+- S 参数显示与分析（最多 32 端口）
 - Smith / Polar / LogMag / Phase / Real / Imag
+- Marker / Limit Line / Mask / Pass-Fail
+- 数据质量检查（Passivity / Causality / Reciprocity）
 - Port Mapping
 - Renormalization
 - Mixed-Mode
+- 串扰分析（NEXT / FEXT / PSNEXT / PSFEXT / ICN / ICR）
+- SI 指标（Skew、传播延迟/电长度、ILD/ILfit、有效 Dk/Df）
 - Frequency ↔ Time Domain
 - TDR / TDT
 - Gating
 - Fixture De-embedding
 - 2X-Thru / AFR
+- 报告生成
 - 后续 Eye / NRZ / PAM4 / COM
-- 后续 VNA 控制与自动测量
+
+不在当前范围（是否实现留待后续决策）：
+
+- 仪器连接与自动测量
+- 校准（ECal / SOLT / TRL）
+- CSV / MATLAB 导出
+- 宽带 SPICE 子电路导出
 
 # 3. Product Principles
 
@@ -56,13 +69,24 @@
 
 # 5. Functional Requirements Template
 
-## FR-001 Touchstone
+## FR-001 File Formats
+
+Touchstone 1.x：
 
 - Reader / Writer：支持
-- 支持版本：Touchstone 1.x
-- 支持端口数：1 / 2 / 4
+- 支持端口数：通用 N 端口；**承诺测试并满足性能指标的上限为 32 端口**，更大端口数可读但不承诺指标
 - RI / MA / DB：支持
 - Hz / kHz / MHz / GHz：支持
+- 数据排列约定见 `ALGORITHM_GUIDE.md`「Touchstone Data Ordering」
+
+Touchstone 2.0（`.ts`）：
+
+- Reader / Writer：支持
+- per-port z0：**要求各端口一致**，不一致则抛 `DataFormatError`（`Network` 为单标量 z0，见 `DOMAIN_MODEL.md` §5）
+
+CITIfile：
+
+- Reader：支持（Keysight 仪器原生格式）
 
 ## FR-002 Plot
 
@@ -74,6 +98,10 @@
 - Polar
 - Group Delay
 - Impedance
+- Marker
+- Limit Line / Mask
+
+眼图等二维密度显示需要独立的数据模型，不通过扩展 `Trace` 实现（见 `DOMAIN_MODEL.md` §6）。
 
 ## FR-003 Mixed Mode
 
@@ -103,6 +131,38 @@
 - 2X-Thru
 - AFR
 
+## FR-007 Data Quality
+
+只读检查，不修改数据、不自动修正、不在 `Network` 上留质量标记：
+
+- `check_passivity`
+- `check_causality`
+- `check_reciprocity`
+
+返回指标与越界频点。Enforcement（强制无源/因果）作为独立显式算法，不在当前范围。
+
+## FR-008 Crosstalk
+
+- NEXT / FEXT
+- PSNEXT / PSFEXT
+- ICN / ICR
+
+依赖 `DOMAIN_MODEL.md` 的 Port Group 模型定义 victim / aggressor 与近端 / 远端关系。
+
+## FR-009 SI Metrics
+
+- Skew：intra-pair / inter-pair
+- 传播延迟 / 电长度
+- ILD / ILfit
+- 有效 Dk / Df
+
+## FR-010 Compliance & Report
+
+- Limit Line / Mask：通用机制
+- Pass-Fail 判定
+- 具体标准（USB / PCIe / DDR / IEEE 802.3 等）为**外部可加载配置文件**，不内置于软件
+- 报告生成：排在合规机制之后，建议 HTML（无第三方依赖，可打印为 PDF）
+
 # 6. Non-functional Requirements
 
 ## Performance
@@ -117,10 +177,18 @@
 |---|---|
 | Touchstone 加载 4-port × 20k 点 | < 1 s |
 | Touchstone 加载 16-port × 10k 点 | < 3 s |
+| Touchstone 加载 32-port × 5k 点 | < 10 s |
 | 首次绘图（单 trace，20k 点） | < 200 ms |
 | 交互重绘（pan / zoom） | < 33 ms（30 fps 底线） |
 | 时域变换（20k 点） | < 200 ms |
 | AFR（4-port，10k 点） | < 5 s |
+
+## Memory
+
+32 端口 × 20k 点的 S 矩阵本身即约 328 MB（`complex128`）。
+
+- 加载峰值内存不得超过该数据量的 **3 倍**。
+- 注意 `Network` 构造时复制输入数组、`Trace` 再复制一次；大端口数下这两次复制是主要压力来源。
 
 ## Stability
 
@@ -146,7 +214,7 @@
 ## V0.1 — Touchstone 查看器
 
 - Network 核心模型
-- Touchstone 1.x 读写（1 / 2 / 4 端口）
+- Touchstone 1.x 读写，**通用 N 端口**
 - Port Mapping
 - Cartesian 绘图与现有显示格式
 - MainWindow / Open / Add Trace
@@ -155,6 +223,9 @@ Exit：单元测试通过，且**首批 analytical golden case 已建立**（理
 
 ## V0.2 — 可用的 S 参数分析器
 
+- Touchstone 2.0 / CITIfile
+- 数据质量检查（Passivity / Causality / Reciprocity）
+- Port Group 模型
 - Interpolation
 - Renormalization
 - Mixed-Mode
@@ -162,18 +233,30 @@ Exit：单元测试通过，且**首批 analytical golden case 已建立**（理
 - Marker / Autoscale / Multi Plot
 - Recent Files / Settings
 
-## V1.0 — 时域与基础去嵌（Roadmap Phase 4 ~ 6）
+数据质量检查排在 Renormalization / Mixed-Mode 之前：它是发现自身算法错误的主要工具。
+
+## V1.0 — 时域、去嵌与合规
 
 - 时域变换 / TDR / TDT
 - Gating
 - Cascade / Decascade / Known Fixture 去嵌
+- 串扰分析（NEXT / FEXT / PSNEXT / PSFEXT / ICN / ICR）
+- SI 指标（Skew、传播延迟/电长度、ILD/ILfit、有效 Dk/Df）
+- Limit Line / Mask / Pass-Fail
 - Project 文件格式
 - 完整 golden regression 套件
 
-## V1.1 — 2X-Thru / AFR
+## V1.1 — AFR 与报告
 
-Roadmap Phase 7 整体。AFR 是路线中最难、最易反复的部分，独立成版本以免拖延 V1.0 发布。
+- 2X-Thru / AFR（Roadmap Phase 7 整体）
+- 报告生成
 
-## V1.x+
+AFR 是路线中最难、最易反复的部分，独立成版本以免拖延 V1.0 发布。
 
-仪器控制（Phase 8）、自动化（Phase 9）、Eye / PAM4 / COM（Phase 10）。
+## V2.0 — 高速互联
+
+Eye / NRZ / PAM4 / COM。需要独立的二维数据模型（见 `DOMAIN_MODEL.md` §6）。
+
+## 待决策（不在版本计划内）
+
+仪器连接与自动测量、校准（ECal / SOLT / TRL）、CSV / MATLAB 导出、宽带 SPICE 子电路导出。是否实现留待后续决定。

@@ -101,6 +101,7 @@ remap_ports(network, port_order)
 - 默认值是否采用 50 Ω 由构造 API 决定，但算法不得隐式假设输入一定为 50 Ω。
 - Renormalization 的结果应生成新的 `Network`，并更新为新的单一 `z0`。
 - 如未来需要支持端口相关或频率相关参考阻抗，应通过新的领域模型扩展，而不是改变当前 `Network.z0` 语义。
+- Touchstone 2.0 允许 per-port z0。读入时**要求各端口 z0 一致**，不一致抛 `DataFormatError`，不做隐式归一化。
 
 # 6. Trace
 
@@ -144,6 +145,80 @@ Trace(
 - 同一 PlotModel 内所有 Trace 必须使用相同 `x_unit` 与 `y_unit`。
 - `add_trace()` / `remove_trace()` 返回新的 PlotModel，不修改原对象。
 - PlotModel 不依赖 PyQt6 或具体绘图库。
+
+## 二维数据（眼图 / 热图）
+
+眼图是二维密度数据，**不满足** `Trace` 的一维、x 严格递增约束，也不属于现有三种 `PlotKind`。
+
+约定：眼图、直方图、热图类显示必须使用独立的二维数据模型，**不得为此放宽 `Trace` 或 `PlotModel` 的现有不变量**。该模型在 V2.0 实际实现时定义。
+
+## Marker
+
+```python
+@dataclass(frozen=True, slots=True)
+class Marker:
+    trace_name: str
+    x: float
+```
+
+- Marker 保存 x 坐标，y 值由 Trace 实时求值，不冗余存储。
+- 支持 delta marker（相对另一 Marker）。
+
+## Limit Line / Mask
+
+```python
+@dataclass(frozen=True, slots=True)
+class LimitSegment:
+    x_start: float
+    x_stop: float
+    y_start: float
+    y_stop: float
+    kind: LimitKind   # UPPER | LOWER
+```
+
+- `Mask` 为若干 `LimitSegment` 的集合，附带名称与适用的 x/y 单位。
+- 判定结果为 pass / fail 加越界点列表。
+- **具体标准（USB / PCIe / DDR / IEEE 802.3 等）是外部可加载的配置文件，不内置于软件。**
+
+# 6.5 Port Group
+
+端口分组是 Mixed-Mode 与串扰分析**共用**的底层模型。两者描述的是同一件事——哪些端口属于同一条线、线的哪一端——因此不允许各自长出一套表示。
+
+```python
+@dataclass(frozen=True, slots=True)
+class Line:
+    """一条传输线（单端或差分）的两端端口。"""
+    name: str
+    near: tuple[int, ...]   # 单端 1 个；差分 2 个，顺序为 (正, 负)
+    far: tuple[int, ...]
+
+@dataclass(frozen=True, slots=True)
+class PortGroup:
+    lines: tuple[Line, ...]
+```
+
+约定：
+
+- 端口号为 Python 内部 0-based。
+- 同一 `PortGroup` 内所有端口号不重复。
+- `near` 与 `far` 的长度必须一致（同一条线两端同构）。
+- 差分线的正负顺序即 Mixed-Mode 的极性来源。
+
+派生关系：
+
+```text
+Mixed-Mode pair mapping = 各 Line 的 near / far 按顺序展开
+NEXT(victim, aggressor)  = 激励 aggressor.near，测 victim.near
+FEXT(victim, aggressor)  = 激励 aggressor.near，测 victim.far
+```
+
+§7 的默认 1-3/2-4 配对在本模型中表示为：
+
+```python
+PortGroup(lines=(
+    Line(name="Line1", near=(0, 2), far=(1, 3)),
+))
+```
 
 # 7. Mixed Mode
 

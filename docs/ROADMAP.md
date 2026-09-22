@@ -24,11 +24,17 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [x] Touchstone Writer
 - [x] Port Mapping
 - [x] Network 基础 S 参数访问接口
+- [ ] 通用 N 端口（去掉 1/2/4 限制）
+- [ ] Touchstone 2.0 / CITIfile
+- [ ] 数据质量检查（Passivity / Causality / Reciprocity）
+- [ ] Port Group 模型
 - [ ] Interpolation
 - [ ] Renormalization
 - [ ] Mixed Mode
 
 Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
+
+数据质量检查排在 Renormalization / Mixed Mode 之前：它是发现自身算法错误的主要工具。
 
 ## Phase 2 — PyQt6 Application Shell
 
@@ -93,23 +99,28 @@ Exit：PLTS / Analytical Golden Regression。
 - [ ] Impedance Iteration
 - [ ] Quality Metrics
 
-## Phase 8 — Instrument Control
+## Phase 7.5 — Crosstalk / SI Metrics / Compliance
 
-- [ ] SCPI abstraction
-- [ ] VNA interface
-- [ ] Connection manager
-- [ ] Sweep config
-- [ ] Acquisition
-- [ ] Save measurement
+- [ ] NEXT / FEXT / PSNEXT / PSFEXT
+- [ ] ICN / ICR
+- [ ] Skew（intra-pair / inter-pair）
+- [ ] 传播延迟 / 电长度
+- [ ] ILD / ILfit
+- [ ] 有效 Dk / Df
+- [ ] Limit Line / Mask / Pass-Fail
+- [ ] Report Generation
 
-Targets：自研 VNA / Keysight PNA-X / R&S ZNA。
+合规标准本身为外部可加载配置，不内置。
+
+## Phase 8 — Instrument Control（待决策）
+
+仪器连接与自动测量是否实现尚未决定。若实现，接口按「测量源」抽象以容纳 TDR 采样示波器；校准（ECal / SOLT / TRL）与本阶段同期。
 
 ## Phase 9 — Automation
 
 - [ ] Batch Processing
 - [ ] Script API
 - [ ] CLI
-- [ ] Report Generation
 - [ ] MCP Integration
 
 ## Phase 10 — High-Speed Interconnect

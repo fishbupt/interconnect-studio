@@ -104,6 +104,7 @@ IO         → UI
 - UI 显示端口号：1-based
 - `z0` 是每个 Network 的单一标量参考阻抗，不得假定恒为 50 Ω
 - 单位转换必须显式，不允许隐藏在不透明 API 中
+- Touchstone 1.x 的矩阵排列：**2 端口是列主序特例，≥3 端口为行主序**；详见 `ALGORITHM_GUIDE.md`「Touchstone Data Ordering」
 
 ## 7. Coding Rules
 

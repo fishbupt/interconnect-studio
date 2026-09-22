@@ -15,6 +15,24 @@
 7. Tolerance / metrics
 8. Edge cases
 
+# 2.5 Touchstone Data Ordering
+
+Touchstone 1.x 的矩阵排列**因端口数而异**，是已知的易错点：
+
+```text
+1 端口：  freq  S11
+2 端口：  freq  S11 S21 S12 S22          ← 列主序，是特例
+≥3 端口： freq  S11 S12 S13 ...          ← 行主序，每行一个矩阵行
+                S21 S22 S23 ...
+                S31 S32 S33 ...
+```
+
+- **2 端口是唯一的列主序特例**，≥3 端口一律行主序。
+- 把 2 端口规则套用到 4 端口会导致整个 S 矩阵转置。互易无源件 `S = Sᵀ`，该错误不可见；在 mode conversion、串扰与非互易器件上则是静默错误。
+- 读写使用同一套错误约定时 round-trip 测试仍会通过，因此**必须用非对称矩阵的 fixture 验证**，且 fixture 的数值排列要独立于实现推导。
+
+Touchstone 2.0 使用显式的 `[Network Data]` 段并统一为行主序，不沿用 2 端口特例。
+
 # 3. Precision
 
 默认：
@@ -70,6 +88,13 @@
 - Band Pass Impulse
 
 每种方法明确频谱构造、DC、FFT/IFFT convention、normalization、time axis。
+
+## Rise Time
+
+上升时间定义取 **20–80%** 为默认，同时支持 10–90%。
+
+- 两种定义算出的结果差异显著，必须作为显式枚举参数传入，不得隐含。
+- 结果 metadata 必须记录实际使用的定义。
 
 # 9. TDR / Impedance
 
@@ -135,6 +160,45 @@ pair / polarity / ordering / normalization 的约定见 `DOMAIN_MODEL.md` §7，
 - 归一化使用 1/√2 功率不变变换。
 
 测试：pure differential / pure common / mode conversion / round trip；1-3/2-4 与 1-2/3-4 两种配对各覆盖一次。
+
+# 12.5 Data Quality
+
+只读检查，**不修改数据、不自动修正、不在 `Network` 上留质量标记**：
+
+```python
+check_passivity(network)     # 奇异值 <= 1
+check_reciprocity(network)   # S == S.T
+check_causality(network)     # Kramers-Kronig / 希尔伯特变换一致性
+```
+
+约定：
+
+- 返回量化指标与越界频点列表，由调用方决定如何呈现。
+- 每项检查必须明确容差及其依据；测量数据永远不会精确满足这些条件。
+- Enforcement（强制无源 / 因果）是独立的显式算法，不在当前范围；一旦实现，必须返回新对象并在 metadata 标注已修正。
+
+该模块同时是发现自身算法错误的主要工具：去嵌结果出现有源（奇异值 > 1）通常意味着算法或输入有问题。
+
+# 12.6 Crosstalk
+
+基于 `DOMAIN_MODEL.md` §6.5 的 Port Group 模型：
+
+- NEXT / FEXT
+- PSNEXT / PSFEXT（功率和）
+- ICN（integrated crosstalk noise）
+- ICR（integrated crosstalk ratio）
+
+要求：
+
+- ICN / ICR 必须按所引用标准（IEEE 802.3 / OIF-CEI）的确切公式实现，并在 docstring 注明标准与版本。
+- 积分区间、加权函数、单位必须显式，不得使用隐含默认值。
+
+# 12.7 SI Metrics
+
+- **Skew**：intra-pair / inter-pair。需明确从相位斜率还是时域峰位提取。
+- **传播延迟 / 电长度**：需明确所用定义与介质假设。
+- **ILD / ILfit**：按 IEEE 802.3 的拟合衰减与偏差定义；必须记录拟合阶数与频率区间。
+- **有效 Dk / Df**：依赖几何参数输入，提取方法不唯一，必须在结果 metadata 记录所用模型假设。
 
 # 13. De-embedding Development Order
 
