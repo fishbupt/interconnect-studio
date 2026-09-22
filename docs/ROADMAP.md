@@ -44,7 +44,8 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 ## Phase 3 — Visualization
 
 - [ ] Trace
-- [ ] LogMag / Phase / Real / Imag
+- [x] LogMag / Phase / Real / Imag
+- [x] Linear Mag / Unwrapped Phase / Group Delay / SWR / Impedance formats
 - [ ] Smith / Polar
 - [ ] Marker
 - [ ] Autoscale
