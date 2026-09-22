@@ -104,7 +104,11 @@ class CartesianPlotWidget(QWidget):
 
     def _draw_empty_message(self, painter: QPainter, plot_rect: QRectF) -> None:
         painter.setPen(self.palette().placeholderText().color())
-        painter.drawText(\n            plot_rect,\n            Qt.AlignmentFlag.AlignCenter,\n            "Open a .s2p file to plot S11/S21",\n        )
+        painter.drawText(
+            plot_rect,
+            Qt.AlignmentFlag.AlignCenter,
+            "Open a .s2p file to plot S11/S21",
+        )
 
     def _draw_grid_and_labels(
         self,
@@ -170,7 +174,12 @@ class CartesianPlotWidget(QWidget):
         y_min: float,
         y_max: float,
     ) -> None:
-        colors = (\n            QColor("#1976d2"),\n            QColor("#d32f2f"),\n            QColor("#388e3c"),\n            QColor("#7b1fa2"),\n        )
+        colors = (
+            QColor("#1976d2"),
+            QColor("#d32f2f"),
+            QColor("#388e3c"),
+            QColor("#7b1fa2"),
+        )
         for trace_index, trace in enumerate(self._model.traces):
             y_values = np.asarray(trace.y, dtype=np.float64)
             finite = np.isfinite(trace.x) & np.isfinite(y_values)
@@ -181,8 +190,14 @@ class CartesianPlotWidget(QWidget):
                 if not is_finite:
                     active = False
                     continue
-                px = (\n                    plot_rect.left()\n                    + (float(x_value) - x_min) / (x_max - x_min) * plot_rect.width()\n                )
-                py = (\n                    plot_rect.bottom()\n                    - (float(y_value) - y_min) / (y_max - y_min) * plot_rect.height()\n                )
+                px = (
+                    plot_rect.left()
+                    + (float(x_value) - x_min) / (x_max - x_min) * plot_rect.width()
+                )
+                py = (
+                    plot_rect.bottom()
+                    - (float(y_value) - y_min) / (y_max - y_min) * plot_rect.height()
+                )
                 point = QPointF(px, py)
                 if active:
                     path.lineTo(point)
@@ -192,7 +207,12 @@ class CartesianPlotWidget(QWidget):
             painter.drawPath(path)
 
     def _draw_legend(self, painter: QPainter, plot_rect: QRectF) -> None:
-        colors = (QColor("#1976d2"), QColor("#d32f2f"), QColor("#388e3c"), QColor("#7b1fa2"))
+        colors = (
+            QColor("#1976d2"),
+            QColor("#d32f2f"),
+            QColor("#388e3c"),
+            QColor("#7b1fa2"),
+        )
         x = plot_rect.right() - 130.0
         y = plot_rect.top() + 10.0
         for index, trace in enumerate(self._model.traces):
