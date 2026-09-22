@@ -128,7 +128,8 @@ class MainWindow(QMainWindow):
         dock.resize(dock.width(), 150)
 
     def _build_actions(self) -> None:
-        file_menu = QMenu("&File", self)\n        self.menu_bar.addMenu(file_menu)
+        file_menu = QMenu("&File", self)
+        self.menu_bar.addMenu(file_menu)
         open_action = QAction("&Open Touchstone...", self)
         open_action.setShortcut("Ctrl+O")
         open_action.triggered.connect(self.open_touchstone_dialog)
