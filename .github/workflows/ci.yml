@@ -26,6 +26,11 @@ jobs:
       - name: 设置 Python
         run: uv python install 3.12
 
+      - name: 安装 Qt 运行库
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1
+
       - name: 安装依赖
         run: uv sync --dev
 
