@@ -104,7 +104,7 @@ class CartesianPlotWidget(QWidget):
 
     def _draw_empty_message(self, painter: QPainter, plot_rect: QRectF) -> None:
         painter.setPen(self.palette().placeholderText().color())
-        painter.drawText(plot_rect, Qt.AlignmentFlag.AlignCenter, "Open a .s2p file to plot S11/S21")
+        painter.drawText(\n            plot_rect,\n            Qt.AlignmentFlag.AlignCenter,\n            "Open a .s2p file to plot S11/S21",\n        )
 
     def _draw_grid_and_labels(
         self,
@@ -170,7 +170,7 @@ class CartesianPlotWidget(QWidget):
         y_min: float,
         y_max: float,
     ) -> None:
-        colors = (QColor("#1976d2"), QColor("#d32f2f"), QColor("#388e3c"), QColor("#7b1fa2"))
+        colors = (\n            QColor("#1976d2"),\n            QColor("#d32f2f"),\n            QColor("#388e3c"),\n            QColor("#7b1fa2"),\n        )
         for trace_index, trace in enumerate(self._model.traces):
             y_values = np.asarray(trace.y, dtype=np.float64)
             finite = np.isfinite(trace.x) & np.isfinite(y_values)
@@ -181,8 +181,8 @@ class CartesianPlotWidget(QWidget):
                 if not is_finite:
                     active = False
                     continue
-                px = plot_rect.left() + (float(x_value) - x_min) / (x_max - x_min) * plot_rect.width()
-                py = plot_rect.bottom() - (float(y_value) - y_min) / (y_max - y_min) * plot_rect.height()
+                px = (\n                    plot_rect.left()\n                    + (float(x_value) - x_min) / (x_max - x_min) * plot_rect.width()\n                )
+                py = (\n                    plot_rect.bottom()\n                    - (float(y_value) - y_min) / (y_max - y_min) * plot_rect.height()\n                )
                 point = QPointF(px, py)
                 if active:
                     path.lineTo(point)
