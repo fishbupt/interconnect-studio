@@ -22,7 +22,7 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [ ] Network
 - [x] Touchstone Reader
 - [x] Touchstone Writer
-- [ ] Port Mapping
+- [x] Port Mapping
 - [ ] Interpolation
 - [ ] Renormalization
 - [ ] Mixed Mode
