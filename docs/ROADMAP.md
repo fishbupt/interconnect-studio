@@ -43,7 +43,8 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 
 ## Phase 3 — Visualization
 
-- [ ] Trace
+- [x] Trace
+- [x] Plot Model
 - [x] LogMag / Phase / Real / Imag
 - [x] Linear Mag / Unwrapped Phase / Group Delay / SWR / Impedance formats
 - [ ] Smith / Polar
@@ -146,6 +147,6 @@ L9 Mostly autonomous daily development
 5. 实现 Touchstone Writer
 6. 实现 Port Mapping
 7. 实现 LogMag/Phase calculation
-8. 实现 Plot Model
+8. 实现 Plot Model（已完成）
 9. 实现首个 PyQt6 MainWindow
 10. 建立首批 Golden Case
