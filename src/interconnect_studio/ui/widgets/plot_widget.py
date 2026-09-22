@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 from PyQt6.QtCore import QPointF, QRectF, Qt
-from PyQt6.QtGui import QColor, QFontMetrics, QPainter, QPainterPath, QPen
+from PyQt6.QtGui import QColor, QFontMetrics, QPaintEvent, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QWidget
 
 from interconnect_studio.core import PlotKind, PlotModel
@@ -37,7 +37,7 @@ class CartesianPlotWidget(QWidget):
         self._model = model
         self.update()
 
-    def paintEvent(self, event: object) -> None:
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Paint axes, grid, legend, and all finite trace segments."""
 
         del event
