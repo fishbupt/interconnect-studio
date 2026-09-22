@@ -32,12 +32,12 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 
 ## Phase 2 — PyQt6 Application Shell
 
-- [ ] Main Window
-- [ ] Project Tree
-- [ ] Plot Area
-- [ ] Property Panel
-- [ ] Log Panel
-- [ ] File Open
+- [x] Main Window
+- [x] Project Tree
+- [x] Plot Area
+- [x] Property Panel
+- [x] Log Panel
+- [x] File Open
 - [ ] Recent Files
 - [ ] Settings
 
