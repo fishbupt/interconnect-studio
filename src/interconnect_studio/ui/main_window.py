@@ -10,8 +10,11 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QLabel,
     QMainWindow,
+    QMenu,
+    QMenuBar,
     QMessageBox,
     QSplitter,
+    QStatusBar,
     QTextEdit,
     QToolBar,
     QTreeWidget,
@@ -45,6 +48,10 @@ class MainWindow(QMainWindow):
         self.property_panel = QWidget()
         self.log_panel = QTextEdit()
         self.log_panel.setReadOnly(True)
+        self.status_bar = QStatusBar(self)
+        self.setStatusBar(self.status_bar)
+        self.menu_bar = QMenuBar(self)
+        self.setMenuBar(self.menu_bar)
 
         self.file_value = QLabel("-")
         self.ports_value = QLabel("-")
@@ -55,7 +62,7 @@ class MainWindow(QMainWindow):
         self._build_central_layout()
         self._build_log_dock()
         self._build_actions()
-        self.statusBar().showMessage("Ready")
+        self.status_bar.showMessage("Ready")
 
     @property
     def loaded_measurement(self) -> LoadedTouchstonePlot | None:
@@ -73,7 +80,7 @@ class MainWindow(QMainWindow):
         self._update_properties(loaded)
         self._append_log(f"Loaded: {loaded.path}")
         self._append_log("Default traces: S11 Log Mag, S21 Log Mag")
-        self.statusBar().showMessage(f"Loaded {loaded.path.name}")
+        self.status_bar.showMessage(f"Loaded {loaded.path.name}")
         return loaded
 
     def open_touchstone_dialog(self) -> None:
@@ -121,7 +128,7 @@ class MainWindow(QMainWindow):
         dock.resize(dock.width(), 150)
 
     def _build_actions(self) -> None:
-        file_menu = self.menuBar().addMenu("&File")
+        file_menu = QMenu("&File", self)\n        self.menu_bar.addMenu(file_menu)
         open_action = QAction("&Open Touchstone...", self)
         open_action.setShortcut("Ctrl+O")
         open_action.triggered.connect(self.open_touchstone_dialog)
