@@ -96,20 +96,45 @@ Regression 至少关注 ripple、phase、pass/reject region。
 
 # 11. Renormalization
 
-波量定义：`<TODO: power-wave / pseudo-wave / other>`
+波量定义：**pseudo wave / traveling wave**（Marks & Williams）。
+
+```text
+Gamma = (Z_L - Z0) / (Z_L + Z0)
+Z_L   = Z0 * (1 + Gamma) / (1 - Gamma)
+```
+
+选择理由：
+
+- 与已实现的 `format_s_parameter` 阻抗换算式一致（见本文 §9 与 S-Parameter Display Formats）。
+- 复数特征阻抗场景（有损夹具、AFR `fixture_z0`）下是计量领域的标准选择。
+- 实数 `z0` 下与 power wave 完全等价，因此不影响与 PLTS / PNA 的 50 Ω golden 对比。
+
+实现约定：
+
+- 波量定义作为显式枚举参数 `s_def` 暴露，默认 `PSEUDO`；后续可扩展 `POWER` 而不构成破坏性变更。
+- power wave（Kurokawa）在复数 `z0` 下的对应式为 `Z_L = (Z0* + Gamma * Z0) / (1 - Gamma)`，两者仅在复数 `z0` 下不同。
+- scikit-rf 默认 `s_def='power'`。复数 `z0` 下交叉对拍时必须显式传 `s_def='pseudo'`。
 
 测试覆盖：
 
 - 50 → 75 Ω
 - 75 → 50 Ω
-- unequal port impedance
+- 复数 `z0`（区分 pseudo 与 power 的唯一场景）
 - round trip
+
+注：`Network` 为单标量 `z0`（见 `DOMAIN_MODEL.md` §5），不存在 unequal port impedance 场景。
 
 # 12. Mixed Mode
 
-定义 pair、polarity、normalization、matrix transform。
+pair / polarity / ordering / normalization 的约定见 `DOMAIN_MODEL.md` §7，此处不重复定义。
 
-测试：pure differential / pure common / mode conversion / round trip。
+要点：
+
+- 配对由调用方显式传入，算法层不设默认值。
+- 输出为 `MixedModeNetwork`，不是 `Network`（差分与共模参考阻抗不同）。
+- 归一化使用 1/√2 功率不变变换。
+
+测试：pure differential / pure common / mode conversion / round trip；1-3/2-4 与 1-2/3-4 两种配对各覆盖一次。
 
 # 13. De-embedding Development Order
 

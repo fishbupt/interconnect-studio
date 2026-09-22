@@ -107,10 +107,20 @@
 
 ## Performance
 
-- 大型多端口 Touchstone 加载：`<TODO>`
-- 首次绘图：`<TODO>`
-- Time Domain：`<TODO>`
-- AFR：`<TODO>`
+硬规则（验收条件，适用于所有版本）：
+
+- 任何操作阻塞 GUI 主线程不得超过 **200 ms**；超过必须进后台 Worker 并提供进度反馈。
+
+参考值（仅进 nightly benchmark，不作 PR 门禁；受机器影响大，profiling 后修订）：
+
+| 场景 | 参考值 |
+|---|---|
+| Touchstone 加载 4-port × 20k 点 | < 1 s |
+| Touchstone 加载 16-port × 10k 点 | < 3 s |
+| 首次绘图（单 trace，20k 点） | < 200 ms |
+| 交互重绘（pan / zoom） | < 33 ms（30 fps 底线） |
+| 时域变换（20k 点） | < 200 ms |
+| AFR（4-port，10k 点） | < 5 s |
 
 ## Stability
 
@@ -133,14 +143,37 @@
 
 # 8. Version Scope
 
-## V0.1
+## V0.1 — Touchstone 查看器
 
-`<TODO>`
+- Network 核心模型
+- Touchstone 1.x 读写（1 / 2 / 4 端口）
+- Port Mapping
+- Cartesian 绘图与现有显示格式
+- MainWindow / Open / Add Trace
 
-## V0.2
+Exit：单元测试通过，且**首批 analytical golden case 已建立**（理想传输线、理想负载等可解析求解的结构）。在 Renormalization 与 Mixed-Mode 之前必须有数值基线——这两个模块最容易出约定性错误，且错了不会报错。
 
-`<TODO>`
+## V0.2 — 可用的 S 参数分析器
 
-## V1.0
+- Interpolation
+- Renormalization
+- Mixed-Mode
+- Smith / Polar
+- Marker / Autoscale / Multi Plot
+- Recent Files / Settings
 
-`<TODO>`
+## V1.0 — 时域与基础去嵌（Roadmap Phase 4 ~ 6）
+
+- 时域变换 / TDR / TDT
+- Gating
+- Cascade / Decascade / Known Fixture 去嵌
+- Project 文件格式
+- 完整 golden regression 套件
+
+## V1.1 — 2X-Thru / AFR
+
+Roadmap Phase 7 整体。AFR 是路线中最难、最易反复的部分，独立成版本以免拖延 V1.0 发布。
+
+## V1.x+
+
+仪器控制（Phase 8）、自动化（Phase 9）、Eye / PAM4 / COM（Phase 10）。

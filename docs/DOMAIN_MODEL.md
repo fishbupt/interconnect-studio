@@ -147,14 +147,70 @@ Trace(
 
 # 7. Mixed Mode
 
-必须定义：
+## Pair Mapping
 
-- pair mapping
-- polarity
-- logical ordering
-- normalization
+配对必须显式传入算法层，不设隐含默认值。错误配对不会报错，只会让 SDD/SCC 静默错位。
 
-默认差分端口映射：`<TODO>`
+UI 预设默认为 **1-3 / 2-4**（PLTS / PNA 风格）：
+
+```text
+差分端口 1 = {0, 2}
+差分端口 2 = {1, 3}
+```
+
+即 port 0 = 左侧正、port 2 = 左侧负、port 1 = 右侧正、port 3 = 右侧负，`1 → 2` 为 through。
+
+同时内置 **1-2 / 3-4** 预设（IEEE / Bockelman 顺序，scikit-rf `se2gmm` 默认），用于与 scikit-rf 交叉对拍，以及导入按该顺序编号的文件。该顺序可平凡推广到 2N 端口：pair k = `{2k, 2k+1}`。
+
+所选配对必须记入结果 metadata。
+
+## Polarity
+
+pair 内索引较小的端口为正端（+）。
+
+## Logical Ordering
+
+输出矩阵按**差分块在前、共模块在后**排列：
+
+```text
+[D1 .. Dn, C1 .. Cn]
+```
+
+得到标准分块形式：
+
+```text
+[[Sdd, Sdc],
+ [Scd, Scc]]
+```
+
+取 SDD 即切左上角子块。
+
+## Normalization
+
+采用 1/√2 功率不变变换：
+
+```text
+a_d = (a1 - a2) / sqrt(2)
+a_c = (a1 + a2) / sqrt(2)
+```
+
+由此差分端口参考阻抗为 `2 * z0`，共模端口为 `z0 / 2`。
+
+## MixedModeNetwork
+
+因为差分与共模端口的参考阻抗不同，Mixed-Mode 结果**不能**表示为 `Network`（见 §5：一个 Network 只有一个标量 z0）。
+
+已确定：引入独立领域类型 `MixedModeNetwork` 承载该结果，保持 `Network` 现有不变量不变。
+
+```python
+@dataclass(frozen=True, slots=True)
+class MixedModeNetwork:
+    frequencies_hz: NDArray[np.float64]
+    s: NDArray[np.complex128]     # (n_freq, 2*n_pair, 2*n_pair)，分块排序
+    z0_differential: complex      # = 2 * z0
+    z0_common: complex            # = z0 / 2
+    pair_mapping: tuple[tuple[int, int], ...]
+```
 
 # 8. Fixture
 
@@ -225,6 +281,7 @@ Project：JSON+binary / HDF5 / ZIP project / `<TODO>`
 
 - [x] `z0` model: one scalar reference impedance per Network
 - [x] Network mutability: immutable semantics with owned read-only arrays
+- [x] Mixed-Mode mapping convention: 默认 1-3/2-4，分块排序，1/√2 归一化
+- [x] Mixed-Mode 结果载体: 新增 `MixedModeNetwork`，不扩展 `Network.z0`
 - [ ] metadata schema
-- [ ] Mixed-Mode mapping convention
 - [ ] Project format
