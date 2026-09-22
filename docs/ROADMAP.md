@@ -36,6 +36,21 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 
 数据质量检查排在 Renormalization / Mixed Mode 之前：它是发现自身算法错误的主要工具。
 
+## Phase 1.5 — GUI 框架与布局
+
+先于 Network Core 剩余部分落地。外壳与布局系统与具体领域类型无关，早定可避免按单文件单图设计的外壳在多测量、多视图场景下返工。
+
+- [ ] 迁移到 pyqtgraph，废弃 QPainter 自绘 widget
+- [ ] `ui/` 子结构：views / widgets / panels / models / dialogs
+- [ ] ViewLayout（固定网格）与视图区
+- [ ] 外围面板改为 Qt dock
+- [ ] Measurement 与 Trace 溯源
+- [ ] Project Tree（Measurement → Parameter → Trace）
+- [ ] 选中态 / current 对象模型
+- [ ] 双 Y 轴支持
+
+范围限定为**外壳与布局系统**；功能面板（Marker 编辑、Limit Line 编辑、串扰矩阵视图）待对应领域类型落地后再做。详见 `docs/UI_DESIGN.md`。
+
 ## Phase 2 — PyQt6 Application Shell
 
 - [x] Main Window

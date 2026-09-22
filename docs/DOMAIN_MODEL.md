@@ -126,6 +126,7 @@ Trace(
 - 构造时复制输入数组并设为只读。
 - `Smith/Polar` 使用 complex Trace；普通 Cartesian 格式使用 real Trace。
 - S 参数到 Trace 的桥接由算法层 `create_s_parameter_trace(...)` 完成。
+- Trace 携带所属 `Measurement` 的标识（`source_id`），用于多文件叠加时区分同名曲线（两个文件都有 S21 LogMag）与图例命名。
 
 ## Plot Model
 
@@ -142,7 +143,9 @@ Trace(
 - 一个 PlotModel 保存零条或多条 Trace。
 - Cartesian 只接受 real Trace。
 - Polar / Smith 只接受 complex Trace。
-- 同一 PlotModel 内所有 Trace 必须使用相同 `x_unit` 与 `y_unit`。
+- 单 X 轴：同一 PlotModel 内所有 Trace 必须使用相同 `x_unit`。
+- 最多两个 Y 轴（左 / 右），每条 Trace 声明挂哪一侧；**同一轴内 `y_unit` 必须一致**，跨轴可不同。典型用法为幅度（左，dB）+ 相位（右，degree）同屏。
+- 一屏多图的网格编排由 `ViewLayout` 承载，不属于 PlotModel（见 `UI_DESIGN.md` §4）。
 - `add_trace()` / `remove_trace()` 返回新的 PlotModel，不修改原对象。
 - PlotModel 不依赖 PyQt6 或具体绘图库。
 
@@ -303,20 +306,41 @@ class FixturePair:
 - extraction method
 - algorithm version
 
-# 9. Project
+# 9. Measurement
+
+`Measurement` 是导入数据的基本单位，是 Project Tree 的第一层，也是多文件叠加对比的载体。
+
+```python
+@dataclass(frozen=True, slots=True)
+class Measurement:
+    id: str                    # 稳定标识，Trace 通过它溯源
+    name: str                  # 显示名，可由用户重命名
+    network: Network
+    source_path: Path | None   # 来源文件；程序生成的结果为 None
+    imported_at: datetime
+```
+
+约定：
+
+- `id` 在 Project 内唯一且不随重命名改变。
+- 去嵌、Mixed-Mode 等算法产物同样封装为 `Measurement`，并在 metadata 中记录来源与算法参数，使派生结果与原始测量在树中同构。
+
+# 10. Project
 
 Project 保存用户工程状态，不保存 QWidget 实例。
 
 ```python
 @dataclass
 class Project:
-    networks: ...
-    traces: ...
+    measurements: tuple[Measurement, ...]
+    layout: ViewLayout
     fixtures: ...
     settings: ...
 ```
 
-# 10. Analysis Results
+- 布局（`ViewLayout`）持久化；选中态属于 UI 状态，不持久化。
+
+# 11. Analysis Results
 
 ```python
 @dataclass
@@ -333,7 +357,7 @@ class AfrResult:
     metrics: AfrMetrics
 ```
 
-# 11. Error Model
+# 12. Error Model
 
 建议：
 
@@ -343,16 +367,16 @@ class AfrResult:
 - InstrumentError
 - ProjectError
 
-# 12. Mutability
+# 13. Mutability
 
 已确定：`Network` 采用不可变语义。构造时复制输入数组并将内部数组设置为只读；算法默认返回新对象，不隐式修改原始测量数据。
 
-# 13. Serialization
+# 14. Serialization
 
 Network：Touchstone / NPZ（测试）/ `<TODO>`  
 Project：JSON+binary / HDF5 / ZIP project / `<TODO>`
 
-# 14. Decisions To Finalize
+# 15. Decisions To Finalize
 
 - [x] `z0` model: one scalar reference impedance per Network
 - [x] Network mutability: immutable semantics with owned read-only arrays

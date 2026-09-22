@@ -66,7 +66,29 @@ np.testing.assert_allclose(actual, expected, rtol=1e-8, atol=1e-10)
 
 # 7. UI Tests
 
-使用 `pytest-qt`。验证关键交互，不用 UI 测试验证数值算法正确性。
+使用 `pytest-qt`。CI 已配置 `libegl1` 与 `QT_QPA_PLATFORM=offscreen`，UI 测试在 CI 上可运行。
+
+## 边界
+
+- **数值正确性一律不走 UI 测试**，下沉到 Service / Core / Algorithms 层。
+- UI 测试只验证：用户动作是否触发了正确的 Service 调用、返回结果是否正确反映到界面状态、错误是否被呈现。
+- 判据是**界面状态**（控件启用性、模型内容、布局结构），不是像素。
+
+## 关键交互
+
+至少覆盖：
+
+- 打开文件 → Measurement 进入 Project Tree
+- 添加 Trace → 进入 current_plot
+- 切换视图网格（1×1 / 2×2）→ PlotModel 不丢失
+- 面板停靠、浮动、关闭后再打开
+- 非法输入与 IO 失败的错误提示
+
+## 布局状态
+
+布局与停靠状态通过**序列化后比对**验证，不使用截图。
+
+不引入截图 / 视觉回归：跨平台字体与渲染差异会产生大量假阳性，且与 `AGENTS.md` §10 禁止无依据放宽 tolerance 的规则容易冲突。
 
 # 8. Threading Tests
 

@@ -350,6 +350,7 @@ Add Trace 当前支持的 Cartesian Format 包括：
 - `docs/PRODUCT.md`
 - `docs/ARCHITECTURE.md`
 - `docs/DOMAIN_MODEL.md`
+- `docs/UI_DESIGN.md`
 - `docs/ALGORITHM_GUIDE.md`
 - `docs/TEST_STRATEGY.md`
 - `docs/GOLDEN_DATA.md`

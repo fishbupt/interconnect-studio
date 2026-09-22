@@ -19,11 +19,12 @@
 1. `docs/PRODUCT.md`
 2. `docs/ARCHITECTURE.md`
 3. `docs/DOMAIN_MODEL.md`
-4. `docs/ALGORITHM_GUIDE.md`
-5. `docs/TEST_STRATEGY.md`
-6. `docs/GOLDEN_DATA.md`
-7. `docs/CODING_GUIDELINES.md`
-8. `docs/ROADMAP.md`
+4. `docs/UI_DESIGN.md`
+5. `docs/ALGORITHM_GUIDE.md`
+6. `docs/TEST_STRATEGY.md`
+7. `docs/GOLDEN_DATA.md`
+8. `docs/CODING_GUIDELINES.md`
+9. `docs/ROADMAP.md`
 
 ## 3. Technology Stack
 
@@ -48,7 +49,7 @@ interconnect-studio/
 ├── src/
 │   └── interconnect_studio/
 │       ├── app/
-│       ├── ui/
+│       ├── ui/                     views / widgets / panels / models / dialogs
 │       ├── core/
 │       ├── algorithms/
 │       ├── io/
@@ -134,6 +135,8 @@ def calc(a, b, c):
 
 ## 8. PyQt6 Rules
 
+- 布局与视图结构见 `docs/UI_DESIGN.md`；纯 Python UI，不使用 Qt Designer `.ui`。
+- 交互绘图使用 pyqtgraph；matplotlib 仅用于报告导出，不进入交互路径。
 - GUI 主线程只处理 UI。
 - AFR、时域、大文件 IO、仪器操作不得长时间阻塞主线程。
 - 后台任务使用统一 Worker / Task Runner。

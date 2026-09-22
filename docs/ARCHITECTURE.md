@@ -31,6 +31,11 @@ interconnect-studio/
 ├── src/interconnect_studio/
 │   ├── app/
 │   ├── ui/
+│   │   ├── views/              <planned>  视图容器与网格编排
+│   │   ├── widgets/
+│   │   ├── panels/             <planned>  外围停靠面板
+│   │   ├── models/             <planned>  Qt model-view 适配
+│   │   └── dialogs/
 │   ├── core/
 │   ├── algorithms/
 │   │   ├── network/
@@ -58,6 +63,8 @@ interconnect-studio/
 ## UI
 
 负责 Widget、View、用户输入和显示状态。禁止实现核心算法。
+
+外壳结构、视图网格、导航树层级与交互约定见 `docs/UI_DESIGN.md`。
 
 ## Services
 
@@ -159,14 +166,16 @@ docs/adr/
 
 # 10. Open Decisions
 
-- [x] 第一版 Cartesian Plot 使用 PyQt6 QPainter 自绘；后续是否迁移 pyqtgraph / matplotlib 仍可独立评估
-- [ ] Qt Designer `.ui` 或纯 Python UI
-- [ ] Project 文件格式
+- [x] 绘图库：pyqtgraph 用于交互视图，matplotlib 仅用于报告导出。第一版的 QPainter 自绘在对标 PLTS 后重新评估并推翻——矩阵视图、眼图、20k 点 30 fps 缩放所需的工作量不成比例
+- [x] 纯 Python UI，不使用 Qt Designer `.ui`
+- [ ] Project 文件格式（含布局状态序列化）
 - [ ] 是否采用 pydantic
 - [ ] Plugin 机制
 
 
 ## First GUI Flow
+
+> 本节描述的是**当前已实现**的单文件单图流程，将在 GUI 框架落地时被 `docs/UI_DESIGN.md` 的外壳与视图网格取代。其中的分层约束（MainWindow 不解析 Touchstone、Plot Widget 只消费 PlotModel）继续有效。
 
 首个端到端 UI 流程：
 
@@ -194,4 +203,3 @@ CartesianPlotWidget
 - UI 不直接执行 S 参数格式转换。
 - Service 负责编排 IO 与算法。
 - Plot Widget 只消费 PlotModel。
-- 第一版 Plot Widget 使用 PyQt6 QPainter，不引入第三方绘图库。

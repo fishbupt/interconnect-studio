@@ -203,6 +203,8 @@ CITIfile：
 
 # 7. UX Principles
 
+界面结构、视图网格与交互约定见 `docs/UI_DESIGN.md`。
+
 - 测量工程师工作流优先
 - 高级参数逐层展开
 - 单位明确
