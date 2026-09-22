@@ -184,7 +184,10 @@ def _parse_float(token: str) -> float:
     return float(token.replace("D", "E").replace("d", "e"))
 
 
-def _pairs_to_complex(\n    pairs: NDArray[np.float64],\n    data_format: str,\n) -> NDArray[np.complex128]:
+def _pairs_to_complex(
+    pairs: NDArray[np.float64],
+    data_format: str,
+) -> NDArray[np.complex128]:
     first = pairs[:, :, 0]
     second = pairs[:, :, 1]
 
