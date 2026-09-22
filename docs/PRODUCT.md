@@ -58,6 +58,7 @@
 
 ## FR-001 Touchstone
 
+- Reader / Writer：支持
 - 支持版本：Touchstone 1.x
 - 支持端口数：1 / 2 / 4
 - RI / MA / DB：支持
