@@ -1,5 +1,6 @@
 """Main application window."""
 
+from functools import partial
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
@@ -29,6 +30,7 @@ from interconnect_studio.ui.panels import (
     ParameterFormatPanel,
 )
 from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, apply_theme
+from interconnect_studio.ui.views import PlotViewArea
 from interconnect_studio.ui.widgets import CartesianPlotWidget
 
 
@@ -57,20 +59,26 @@ class MainWindow(QMainWindow):
         self.data_browser = DataBrowserPanel(self)
         self.parameter_format = ParameterFormatPanel(self)
         self.message_log = MessageLogPanel(self)
-        self.plot_widget = CartesianPlotWidget(theme=self._theme)
+        self.view_area = PlotViewArea(theme=self._theme)
 
         self.status_bar = QStatusBar(self)
         self.setStatusBar(self.status_bar)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
 
-        self.setCentralWidget(self.plot_widget)
+        self.setCentralWidget(self.view_area)
         self._build_side_docks()
         self._build_message_dock()
         self._build_actions()
 
         self.add_trace_action.setEnabled(False)
         self.status_bar.showMessage("Ready")
+
+    @property
+    def plot_widget(self) -> CartesianPlotWidget:
+        """Plot widget of the selected cell."""
+
+        return self.view_area.current_plot_widget
 
     @property
     def loaded_measurement(self) -> LoadedTouchstonePlot | None:
@@ -159,7 +167,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Open Touchstone Failed", str(exc))
 
     def _apply(self, loaded: LoadedTouchstonePlot) -> None:
-        self.plot_widget.set_plot_model(loaded.plot)
+        self.view_area.set_current_plot(loaded.plot)
         self.data_browser.show_data_file(loaded.path.name)
         self.parameter_format.set_summary(
             loaded.path.name,
@@ -223,6 +231,18 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self.message_dock.toggleViewAction())
 
         view_menu.addSeparator()
+        layout_menu = QMenu("&Layout", self)
+        view_menu.addMenu(layout_menu)
+        self.layout_actions: dict[tuple[int, int], QAction] = {}
+        for rows, cols in ((1, 1), (1, 2), (2, 1), (2, 2)):
+            action = QAction(f"{rows} x {cols}", self)
+            action.setCheckable(True)
+            action.setChecked((rows, cols) == (1, 1))
+            action.triggered.connect(partial(self._on_layout_selected, rows, cols))
+            layout_menu.addAction(action)
+            self.layout_actions[(rows, cols)] = action
+
+        view_menu.addSeparator()
         self.light_theme_action = QAction("&Light Theme", self)
         self.light_theme_action.setCheckable(True)
         self.light_theme_action.setChecked(self._theme is Theme.LIGHT)
@@ -235,6 +255,14 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.add_trace_action)
         self.addToolBar(toolbar)
 
+    def set_grid(self, rows: int, cols: int) -> None:
+        """Change the view area grid, keeping plots that still have a cell."""
+
+        self.view_area.set_grid(rows, cols)
+        for size, action in self.layout_actions.items():
+            action.setChecked(size == (rows, cols))
+        self._log(f"Layout: {rows} x {cols}")
+
     @property
     def theme(self) -> Theme:
         """Theme currently applied."""
@@ -245,10 +273,13 @@ class MainWindow(QMainWindow):
         """Switch the application theme."""
 
         self._theme = theme
-        self.plot_widget.apply_theme(theme)
+        self.view_area.apply_theme(theme)
         app = QApplication.instance()
         if isinstance(app, QApplication):
             apply_theme(app, theme)
+
+    def _on_layout_selected(self, rows: int, cols: int) -> None:
+        self.set_grid(rows, cols)
 
     def _on_light_theme_toggled(self, checked: bool) -> None:
         self.set_theme(Theme.LIGHT if checked else Theme.DARK)

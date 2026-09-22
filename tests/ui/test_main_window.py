@@ -30,7 +30,8 @@ def test_view_area_is_central_and_panels_are_docks(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    assert window.centralWidget() is window.plot_widget
+    assert window.centralWidget() is window.view_area
+    assert window.plot_widget is window.view_area.current_plot_widget
     assert window.data_browser_dock.widget() is window.data_browser
     assert window.parameter_format_dock.widget() is window.parameter_format
 
@@ -143,3 +144,28 @@ def test_light_theme_action_switches_theme(qtbot: QtBot) -> None:
 
     assert window.theme is Theme.LIGHT
     assert window.plot_widget.theme is Theme.LIGHT
+
+
+def test_layout_menu_switches_grid(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(S2P)
+
+    window.set_grid(2, 2)
+
+    assert window.view_area.layout_model.n_cells == 4
+    assert window.layout_actions[(2, 2)].isChecked() is True
+    assert window.layout_actions[(1, 1)].isChecked() is False
+    assert window.view_area.plot_widget_at(0).model.n_traces == 2
+
+
+def test_loading_targets_the_selected_cell(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.set_grid(1, 2)
+    window.view_area.set_current_index(1)
+
+    window.load_touchstone_file(S2P)
+
+    assert window.view_area.plot_widget_at(1).model.n_traces == 2
+    assert window.view_area.plot_widget_at(0).model.n_traces == 0
