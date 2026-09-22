@@ -20,7 +20,8 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 ## Phase 1 — Network Core
 
 - [ ] Network
-- [ ] Touchstone Reader/Writer
+- [x] Touchstone Reader
+- [ ] Touchstone Writer
 - [ ] Port Mapping
 - [ ] Interpolation
 - [ ] Renormalization
