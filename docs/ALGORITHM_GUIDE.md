@@ -188,7 +188,7 @@ Conventions:
 - Log Mag = `20*log10(abs(S))`, in dB.
 - Phase is wrapped phase in degrees.
 - Unwrapped Phase is continuous phase in degrees.
-- Group Delay = `-1/(2*pi) * d(phi)/df`, returned in seconds.
+- Group Delay = `-1/(2*pi) * d(phi)/df`, returned in seconds. Phase is unwrapped first; input frequency sampling must be dense enough to avoid ambiguous phase jumps.
 - Smith and Polar retain the complex S-parameter coefficient; the plot layer determines geometry.
 - SWR and impedance-derived formats are reflection-only.
 - Reflection impedance uses `Z = z0 * (1 + Gamma) / (1 - Gamma)`.
