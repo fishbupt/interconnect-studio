@@ -82,6 +82,32 @@ class Network:
 
         return self._n_ports
 
+    def s_parameter(
+        self,
+        response_port: int,
+        source_port: int,
+    ) -> NDArray[np.complex128]:
+        """Return one S-parameter trace using zero-based port indices.
+
+        S[i, j] is the response at response_port=i caused by an
+        excitation at source_port=j. For example, engineering S21 is
+        accessed as s_parameter(1, 0).
+
+        The returned array has shape (n_freq,) and is a read-only view of
+        the immutable network data.
+        """
+
+        self._validate_port_index(response_port, "response_port")
+        self._validate_port_index(source_port, "source_port")
+        return self.s[:, response_port, source_port]
+
+    def _validate_port_index(self, port: int, name: str) -> None:
+        if isinstance(port, bool) or not isinstance(port, int):
+            raise InputValidationError(f"{name} must be an integer port index.")
+        if port < 0 or port >= self.n_ports:
+            raise InputValidationError(
+                f"{name} must be in the range [0, {self.n_ports - 1}], got {port}."
+            )
     @staticmethod
     def _validate_frequencies(frequencies_hz: NDArray[np.float64]) -> None:
         if frequencies_hz.ndim != 1:
