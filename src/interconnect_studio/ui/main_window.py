@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from interconnect_studio.core import DataFormatError, InputValidationError
 from interconnect_studio.services import LoadedTouchstonePlot, TouchstonePlotService
 from interconnect_studio.ui.widgets import CartesianPlotWidget
 
@@ -89,7 +90,7 @@ class MainWindow(QMainWindow):
 
         try:
             self.load_touchstone_file(file_name)
-        except Exception as exc:
+        except (DataFormatError, InputValidationError) as exc:
             self._append_log(f"Error: {exc}")
             QMessageBox.critical(self, "Open Touchstone Failed", str(exc))
 
