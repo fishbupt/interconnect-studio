@@ -41,4 +41,6 @@ jobs:
         run: uv run mypy src
 
       - name: Pytest 测试
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: uv run pytest
