@@ -44,3 +44,46 @@ def test_main_window_loads_s2p_and_updates_all_primary_panels(qtbot: QtBot) -> N
     assert window.z0_value.text() == "75 Ω"
     assert "Loaded:" in window.log_panel.toPlainText()
     assert "S11 Log Mag, S21 Log Mag" in window.log_panel.toPlainText()
+
+
+def test_main_window_enables_add_trace_after_loading(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.add_trace_action.isEnabled() is False
+
+    window.load_touchstone_file(DATA_DIR / "valid_2port_ri.s2p")
+
+    assert window.add_trace_action.isEnabled() is True
+
+
+def test_main_window_adds_compatible_trace(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(DATA_DIR / "valid_2port_ri.s2p")
+
+    loaded = window.add_trace(0, 1, "log_mag")
+
+    assert loaded.plot.n_traces == 3
+    assert loaded.plot.traces[-1].name == "S12 Log Mag"
+    root = window.project_tree.topLevelItem(0)
+    assert root is not None
+    assert root.childCount() == 3
+    assert root.child(2).text(0) == "S12 Log Mag"
+    assert "Added trace: S12 Log Mag" in window.log_panel.toPlainText()
+
+
+def test_main_window_switches_plot_for_incompatible_format(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(DATA_DIR / "valid_2port_ri.s2p")
+
+    loaded = window.add_trace(1, 1, "phase")
+
+    assert loaded.plot.n_traces == 1
+    assert loaded.plot.traces[0].name == "S22 Phase"
+    root = window.project_tree.topLevelItem(0)
+    assert root is not None
+    assert root.childCount() == 1
+    assert root.child(0).text(0) == "S22 Phase"
+    assert "Plot switched to: S22 Phase" in window.log_panel.toPlainText()
