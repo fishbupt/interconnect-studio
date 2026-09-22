@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from interconnect_studio.algorithms.network import SParameterFormat
+from interconnect_studio.algorithms.network import SParameterFormat, cartesian_formats_for
 from interconnect_studio.algorithms.network.traces import format_display_name
 
 
@@ -31,27 +31,6 @@ class AddTraceDialog(QDialog):
         ("S21", 1, 0),
         ("S12", 0, 1),
         ("S22", 1, 1),
-    )
-
-    _COMMON_FORMATS = (
-        SParameterFormat.LOG_MAG,
-        SParameterFormat.LINEAR_MAG,
-        SParameterFormat.PHASE,
-        SParameterFormat.UNWRAPPED_PHASE,
-        SParameterFormat.GROUP_DELAY,
-        SParameterFormat.REAL,
-        SParameterFormat.IMAGINARY,
-    )
-
-    _REFLECTION_ONLY_FORMATS = (
-        SParameterFormat.SWR,
-        SParameterFormat.IMPEDANCE_REAL,
-        SParameterFormat.IMPEDANCE_IMAGINARY,
-        SParameterFormat.IMPEDANCE_MAGNITUDE,
-        SParameterFormat.IMPEDANCE_IMAGINARY_MAGNITUDE,
-        SParameterFormat.IMPEDANCE_ANGLE,
-        SParameterFormat.QUALITY_FACTOR,
-        SParameterFormat.DISSIPATION_FACTOR,
     )
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -92,9 +71,5 @@ class AddTraceDialog(QDialog):
     def _refresh_formats(self) -> None:
         self.format_combo.clear()
         response_port, source_port = self.parameter_combo.currentData()
-        formats: tuple[SParameterFormat, ...] = self._COMMON_FORMATS
-        if response_port == source_port:
-            formats = (*formats, *self._REFLECTION_ONLY_FORMATS)
-
-        for data_format in formats:
+        for data_format in cartesian_formats_for(response_port, source_port):
             self.format_combo.addItem(format_display_name(data_format), data_format.value)

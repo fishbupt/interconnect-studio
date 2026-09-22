@@ -145,4 +145,8 @@ def apply_theme(app: QApplication, theme: Theme) -> None:
         f"QGroupBox::title {{ subcontrol-origin: margin; left: 8px;"
         f" color: {palette.muted_text}; }}"
         f"QStatusBar {{ color: {palette.muted_text}; }}"
+        f"QToolButton {{ border: 1px solid {palette.border}; border-radius: 3px;"
+        f" padding: 3px 8px; }}"
+        f"QToolButton:checked {{ background: {palette.accent}; color: #ffffff;"
+        f" border-color: {palette.accent}; }}"
     )

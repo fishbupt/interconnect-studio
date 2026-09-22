@@ -1,6 +1,11 @@
 """Network transformation algorithms."""
 
-from interconnect_studio.algorithms.network.formats import SParameterFormat, format_s_parameter
+from interconnect_studio.algorithms.network.formats import (
+    REFLECTION_ONLY_FORMATS,
+    SParameterFormat,
+    cartesian_formats_for,
+    format_s_parameter,
+)
 from interconnect_studio.algorithms.network.port_mapping import remap_ports
 from interconnect_studio.algorithms.network.traces import (
     create_s_parameter_trace,
@@ -8,7 +13,9 @@ from interconnect_studio.algorithms.network.traces import (
 )
 
 __all__ = [
+    "REFLECTION_ONLY_FORMATS",
     "SParameterFormat",
+    "cartesian_formats_for",
     "create_s_parameter_trace",
     "format_s_parameter",
     "plot_kind_for_s_parameter_format",

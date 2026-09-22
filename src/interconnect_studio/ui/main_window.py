@@ -1,5 +1,6 @@
 """Main application window."""
 
+from collections.abc import Callable
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -28,6 +29,7 @@ from interconnect_studio.core import (
     Group,
     InputValidationError,
     Measurement,
+    PlotModel,
 )
 from interconnect_studio.services import LoadedTouchstonePlot, TouchstonePlotService
 from interconnect_studio.ui.dialogs import AddTraceDialog
@@ -75,6 +77,9 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
+
+        self.parameter_format.add_trace_requested.connect(self._on_add_trace_requested)
+        self.parameter_format.new_plot_requested.connect(self._on_new_plot_requested)
 
         self.setCentralWidget(self.view_area)
         self._build_side_docks()
@@ -176,6 +181,48 @@ class MainWindow(QMainWindow):
         except (DataFormatError, InputValidationError) as exc:
             self._log(f"Error: {exc}")
             QMessageBox.critical(self, "Open Touchstone Failed", str(exc))
+
+    def new_plot(
+        self,
+        response_port: int,
+        source_port: int,
+        data_format: SParameterFormat | str,
+    ) -> LoadedTouchstonePlot:
+        """Replace the current cell's plot with a single new trace."""
+
+        if self._loaded is None:
+            raise InputValidationError("Open a .s2p file before creating a plot.")
+
+        cleared = LoadedTouchstonePlot(
+            path=self._loaded.path,
+            network=self._loaded.network,
+            plot=PlotModel(),
+        )
+        self._loaded = cleared
+        return self.add_trace(response_port, source_port, data_format)
+
+    def _on_add_trace_requested(
+        self,
+        response_port: int,
+        source_port: int,
+        data_format: str,
+    ) -> None:
+        self._guarded(lambda: self.add_trace(response_port, source_port, data_format))
+
+    def _on_new_plot_requested(
+        self,
+        response_port: int,
+        source_port: int,
+        data_format: str,
+    ) -> None:
+        self._guarded(lambda: self.new_plot(response_port, source_port, data_format))
+
+    def _guarded(self, action: Callable[[], object]) -> None:
+        try:
+            action()
+        except InputValidationError as exc:
+            self._log(f"Error: {exc}")
+            self.status_bar.showMessage(str(exc))
 
     def _add_to_hierarchy(self, loaded: LoadedTouchstonePlot) -> None:
         """Append the loaded file under the default group and measurement.

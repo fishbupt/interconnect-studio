@@ -1,6 +1,7 @@
 """S-parameter display format conversions."""
 
 from enum import StrEnum
+from typing import Final
 
 import numpy as np
 from numpy.typing import NDArray
@@ -31,6 +32,40 @@ class SParameterFormat(StrEnum):
 
 
 FormattedSParameter = NDArray[np.float64] | NDArray[np.complex128]
+
+REFLECTION_ONLY_FORMATS: Final[tuple[SParameterFormat, ...]] = (
+    SParameterFormat.SWR,
+    SParameterFormat.IMPEDANCE_REAL,
+    SParameterFormat.IMPEDANCE_IMAGINARY,
+    SParameterFormat.IMPEDANCE_MAGNITUDE,
+    SParameterFormat.IMPEDANCE_IMAGINARY_MAGNITUDE,
+    SParameterFormat.IMPEDANCE_ANGLE,
+    SParameterFormat.QUALITY_FACTOR,
+    SParameterFormat.DISSIPATION_FACTOR,
+)
+"""Formats derived from a reflection coefficient, valid only for Sii."""
+
+_CARTESIAN_TRANSMISSION_FORMATS: Final[tuple[SParameterFormat, ...]] = (
+    SParameterFormat.LOG_MAG,
+    SParameterFormat.LINEAR_MAG,
+    SParameterFormat.PHASE,
+    SParameterFormat.UNWRAPPED_PHASE,
+    SParameterFormat.GROUP_DELAY,
+    SParameterFormat.REAL,
+    SParameterFormat.IMAGINARY,
+)
+
+
+def cartesian_formats_for(response_port: int, source_port: int) -> tuple[SParameterFormat, ...]:
+    """Cartesian display formats valid for one S-parameter.
+
+    Reflection parameters (Sii) additionally support the SWR and
+    impedance-derived formats; transmission parameters do not.
+    """
+
+    if response_port == source_port:
+        return (*_CARTESIAN_TRANSMISSION_FORMATS, *REFLECTION_ONLY_FORMATS)
+    return _CARTESIAN_TRANSMISSION_FORMATS
 
 
 def format_s_parameter(

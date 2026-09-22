@@ -190,3 +190,49 @@ def test_loading_targets_the_selected_cell(qtbot: QtBot) -> None:
 
     assert window.view_area.plot_widget_at(1).model.n_traces == 2
     assert window.view_area.plot_widget_at(0).model.n_traces == 0
+
+
+def test_panel_add_button_adds_a_trace(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(S2P)
+    panel = window.parameter_format
+    panel._parameter_buttons.button(3).setChecked(True)  # S22
+
+    panel.add_button.click()
+
+    assert trace_names(window)[-1] == "S22 Log Mag"
+    assert window.plot_widget.model.n_traces == 3
+
+
+def test_panel_new_plot_button_replaces_the_plot(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(S2P)
+    panel = window.parameter_format
+    panel._parameter_buttons.button(3).setChecked(True)
+
+    panel.new_plot_button.click()
+
+    assert trace_names(window) == ["S22 Log Mag"]
+    assert window.plot_widget.model.n_traces == 1
+
+
+def test_panel_grid_matches_the_loaded_port_count(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.load_touchstone_file(S2P)
+
+    assert window.parameter_format.n_ports == 2
+
+
+def test_duplicate_trace_is_reported_not_raised(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(S2P)
+    panel = window.parameter_format
+
+    panel.add_button.click()  # S11 Log Mag already present
+
+    assert "Trace already exists" in window.message_log.text()
