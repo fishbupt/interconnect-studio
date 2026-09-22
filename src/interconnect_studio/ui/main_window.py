@@ -5,6 +5,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
+    QDialog,
     QDockWidget,
     QFileDialog,
     QFormLayout,
@@ -22,8 +23,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from interconnect_studio.algorithms.network import SParameterFormat
 from interconnect_studio.core import DataFormatError, InputValidationError
 from interconnect_studio.services import LoadedTouchstonePlot, TouchstonePlotService
+from interconnect_studio.ui.dialogs import AddTraceDialog
 from interconnect_studio.ui.widgets import CartesianPlotWidget
 
 
@@ -62,6 +65,7 @@ class MainWindow(QMainWindow):
         self._build_central_layout()
         self._build_log_dock()
         self._build_actions()
+        self.add_trace_action.setEnabled(False)
         self.status_bar.showMessage("Ready")
 
     @property
@@ -80,8 +84,60 @@ class MainWindow(QMainWindow):
         self._update_properties(loaded)
         self._append_log(f"Loaded: {loaded.path}")
         self._append_log("Default traces: S11 Log Mag, S21 Log Mag")
+        self.add_trace_action.setEnabled(True)
         self.status_bar.showMessage(f"Loaded {loaded.path.name}")
         return loaded
+
+    def add_trace(
+        self,
+        response_port: int,
+        source_port: int,
+        data_format: SParameterFormat | str,
+    ) -> LoadedTouchstonePlot:
+        """Add one trace to the current plot through the application service."""
+
+        if self._loaded is None:
+            raise InputValidationError("Open a .s2p file before adding a trace.")
+
+        update = self._service.add_trace(
+            self._loaded,
+            response_port,
+            source_port,
+            data_format,
+        )
+        self._loaded = update.loaded
+        self.plot_widget.set_plot_model(update.loaded.plot)
+        self._update_project_tree(update.loaded)
+
+        trace_name = update.loaded.plot.traces[-1].name
+        if update.replaced_plot:
+            self._append_log(f"Plot switched to: {trace_name}")
+        else:
+            self._append_log(f"Added trace: {trace_name}")
+        self.status_bar.showMessage(trace_name)
+        return update.loaded
+
+    def show_add_trace_dialog(self) -> None:
+        """Show Add Trace dialog and apply the selected trace."""
+
+        if self._loaded is None:
+            QMessageBox.information(self, "Add Trace", "Open a .s2p file first.")
+            return
+
+        dialog = AddTraceDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        selection = dialog.selection()
+        try:
+            self.add_trace(
+                selection.response_port,
+                selection.source_port,
+                selection.data_format,
+            )
+        except InputValidationError as exc:
+            self._append_log(f"Error: {exc}")
+            QMessageBox.warning(self, "Add Trace Failed", str(exc))
 
     def open_touchstone_dialog(self) -> None:
         """Show a file dialog and load the selected .s2p file."""
@@ -135,6 +191,11 @@ class MainWindow(QMainWindow):
         open_action.triggered.connect(self.open_touchstone_dialog)
         file_menu.addAction(open_action)
 
+        self.add_trace_action = QAction("&Add Trace...", self)
+        self.add_trace_action.setShortcut("Ctrl+T")
+        self.add_trace_action.triggered.connect(self.show_add_trace_dialog)
+        file_menu.addAction(self.add_trace_action)
+
         file_menu.addSeparator()
         exit_action = QAction("E&xit", self)
         exit_action.triggered.connect(self.close)
@@ -143,13 +204,14 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar("Main", self)
         toolbar.setObjectName("main_toolbar")
         toolbar.addAction(open_action)
+        toolbar.addAction(self.add_trace_action)
         self.addToolBar(toolbar)
 
     def _update_project_tree(self, loaded: LoadedTouchstonePlot) -> None:
         self.project_tree.clear()
         root = QTreeWidgetItem([loaded.path.name])
-        root.addChild(QTreeWidgetItem(["S11 Log Mag"]))
-        root.addChild(QTreeWidgetItem(["S21 Log Mag"]))
+        for trace in loaded.plot.traces:
+            root.addChild(QTreeWidgetItem([trace.name]))
         self.project_tree.addTopLevelItem(root)
         root.setExpanded(True)
 
