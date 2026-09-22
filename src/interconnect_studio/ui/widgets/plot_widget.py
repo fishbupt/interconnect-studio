@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 from PyQt6.QtCore import QPointF, QRectF, Qt
-from PyQt6.QtGui import QColor, QFontMetrics, QPaintEvent, QPainter, QPainterPath, QPen
+from PyQt6.QtGui import QColor, QFontMetrics, QPainter, QPainterPath, QPaintEvent, QPen
 from PyQt6.QtWidgets import QWidget
 
 from interconnect_studio.core import PlotKind, PlotModel
