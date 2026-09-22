@@ -58,10 +58,10 @@
 
 ## FR-001 Touchstone
 
-- 支持版本：`<TODO>`
-- 支持端口数：`<TODO>`
-- RI / MA / DB：`<TODO>`
-- Hz / kHz / MHz / GHz：`<TODO>`
+- 支持版本：Touchstone 1.x
+- 支持端口数：1 / 2 / 4
+- RI / MA / DB：支持
+- Hz / kHz / MHz / GHz：支持
 
 ## FR-002 Plot
 
