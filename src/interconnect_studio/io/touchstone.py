@@ -202,4 +202,4 @@ def _pairs_to_complex(
     else:
         raise DataFormatError(f"Unsupported Touchstone data format: {data_format}")
 
-    return magnitude * np.exp(1j * phase_rad)
+    return np.asarray(magnitude * np.exp(1j * phase_rad), dtype=np.complex128)
