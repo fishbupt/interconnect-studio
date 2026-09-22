@@ -16,8 +16,8 @@ Interconnect Studio 是一个基于 **Python + PyQt6** 的 VNA / 高速互联分
 - 后续 VNA 仪器控制与自动测量
 
 > 当前工程仍处于早期开发阶段。  
-> 目前已经具备核心 `Network` 数据模型以及 Touchstone Reader / Writer，
-> **PyQt6 图形界面入口尚未实现**。
+> 已经具备核心 `Network` 数据模型、Touchstone Reader / Writer，以及首个 PyQt6 GUI：
+> 可打开 `.s2p` 并默认显示 S11/S21 LogMag。
 
 ---
 
@@ -220,11 +220,12 @@ interconnect-studio/
 ├── pyproject.toml
 ├── src/
 │   └── interconnect_studio/
+│       ├── app/
+│       ├── ui/
+│       ├── services/
+│       ├── algorithms/
 │       ├── core/
-│       │   ├── errors.py
-│       │   └── network.py
 │       └── io/
-│           └── touchstone.py
 ├── tests/
 │   ├── unit/
 │   └── data/
@@ -277,25 +278,43 @@ write_touchstone(
 
 ---
 
-## 11. 当前如何“运行” Interconnect Studio
+## 11. 运行 Interconnect Studio GUI
 
-目前 PyQt6 Application Shell 尚未进入实现阶段，因此当前版本还没有：
-
-```powershell
-interconnect-studio
-```
-
-这样的 GUI 启动命令。
-
-当前阶段本地开发主要通过：
+同步依赖后，可直接运行：
 
 ```powershell
-uv run pytest
+uv run interconnect-studio
 ```
 
-以及 Python API 进行验证。
+也可以：
 
-在后续完成 PyQt6 Application Shell 后，本 README 会补充正式的 GUI 启动方式。
+```powershell
+uv run python -m interconnect_studio.app.main
+```
+
+当前 GUI 已支持第一个完整流程：
+
+```text
+File → Open Touchstone
+        ↓
+选择 .s2p
+        ↓
+读取 Network
+        ↓
+生成 S11 / S21 LogMag
+        ↓
+中央 Plot Area 显示曲线
+```
+
+主界面当前包括：
+
+- File 菜单和 Open 工具栏按钮
+- 左侧 Project Tree
+- 中央 Cartesian Plot Area
+- 右侧属性面板
+- 底部 Log Panel
+
+当前 Open 对话框第一版聚焦 `.s2p`。
 
 ---
 
