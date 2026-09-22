@@ -1,8 +1,6 @@
 """Core network domain model."""
 
 from dataclasses import dataclass, field
-from numbers import Complex
-
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
@@ -45,7 +43,7 @@ class Network:
         self,
         frequencies_hz: ArrayLike,
         s: ArrayLike,
-        z0: Complex,
+        z0: complex,
         port_names: tuple[str, ...] | None = None,
     ) -> None:
         frequencies = np.asarray(frequencies_hz, dtype=np.float64)
@@ -110,7 +108,7 @@ class Network:
             raise InputValidationError("s must contain only finite complex values.")
 
     @staticmethod
-    def _validate_z0(z0: Complex) -> complex:
+    def _validate_z0(z0: complex) -> complex:
         if isinstance(z0, np.ndarray) or not np.isscalar(z0):
             raise InputValidationError("z0 must be a scalar reference impedance.")
 
