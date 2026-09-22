@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Final
 
 import numpy as np
+from numpy.typing import NDArray
 
 from interconnect_studio.core import DataFormatError, Network
 
-_TOUCHSTONE_SUFFIX: Final[re.Pattern[str]] = re.compile(r"^\\.s(?P<ports>\\d+)p$", re.IGNORECASE)
+_TOUCHSTONE_SUFFIX: Final[re.Pattern[str]] = re.compile(r"^\.s(?P<ports>\d+)p$", re.IGNORECASE)
 
 _FREQUENCY_SCALE: Final[dict[str, float]] = {
     "hz": 1.0,
@@ -172,7 +173,7 @@ def _parse_option_line(line: str, line_number: int) -> _TouchstoneOptions:
     )
 
 
-def _parse_numeric_tokens(tokens: list[str]) -> np.ndarray:
+def _parse_numeric_tokens(tokens: list[str]) -> NDArray[np.float64]:
     try:
         return np.asarray([_parse_float(token) for token in tokens], dtype=np.float64)
     except ValueError as exc:
@@ -183,7 +184,7 @@ def _parse_float(token: str) -> float:
     return float(token.replace("D", "E").replace("d", "e"))
 
 
-def _pairs_to_complex(pairs: np.ndarray, data_format: str) -> np.ndarray:
+def _pairs_to_complex(\n    pairs: NDArray[np.float64],\n    data_format: str,\n) -> NDArray[np.complex128]:
     first = pairs[:, :, 0]
     second = pairs[:, :, 1]
 
