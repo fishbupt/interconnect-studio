@@ -17,13 +17,15 @@ Unit Tests + Numerical Regression
 
 # 3. Directory
 
+下图是**目标结构**。标注 `<planned>` 的目录当前尚未创建，编写对应层级测试时再新建。
+
 ```text
 tests/
 ├── unit/
-├── integration/
-├── regression/
+├── integration/    <planned>
+├── regression/     <planned>
 ├── ui/
-├── instruments/
+├── instruments/    <planned>
 └── data/
 ```
 

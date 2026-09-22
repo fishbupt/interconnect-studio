@@ -22,6 +22,8 @@ Core Domain ─ Algorithms ─ IO ─ Instruments
 
 # 3. Repository Layout
 
+下图是**目标结构**。标注 `<planned>` 的目录当前尚未创建，由对应 Roadmap Phase 落地时再新建。
+
 ```text
 interconnect-studio/
 ├── AGENTS.md
@@ -32,14 +34,14 @@ interconnect-studio/
 │   ├── core/
 │   ├── algorithms/
 │   │   ├── network/
-│   │   ├── mixed_mode/
-│   │   ├── time_domain/
-│   │   ├── gating/
-│   │   ├── deembedding/
-│   │   └── afr/
+│   │   ├── mixed_mode/         <planned>  Phase 1
+│   │   ├── time_domain/        <planned>  Phase 4
+│   │   ├── gating/             <planned>  Phase 5
+│   │   ├── deembedding/        <planned>  Phase 6
+│   │   └── afr/                <planned>  Phase 7
 │   ├── io/
 │   ├── services/
-│   └── instruments/
+│   └── instruments/            <planned>  Phase 8
 ├── tests/
 ├── golden_data/
 ├── docs/

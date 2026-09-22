@@ -39,6 +39,8 @@
 
 ## 4. Repository Structure
 
+下图是**目标结构**。标注 `<planned>` 的目录当前尚未创建，需要时按本结构新建，不要假定它们已经存在。
+
 ```text
 interconnect-studio/
 ├── AGENTS.md
@@ -51,12 +53,13 @@ interconnect-studio/
 │       ├── algorithms/
 │       ├── io/
 │       ├── services/
-│       └── instruments/
+│       └── instruments/        <planned>  Roadmap Phase 8
 ├── tests/
 │   ├── unit/
-│   ├── integration/
-│   ├── regression/
-│   └── ui/
+│   ├── integration/            <planned>
+│   ├── regression/             <planned>
+│   ├── ui/
+│   └── data/
 ├── golden_data/
 ├── docs/
 └── scripts/

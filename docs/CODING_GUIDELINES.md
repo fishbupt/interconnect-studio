@@ -19,7 +19,7 @@ uv run ruff check .
 - ruff check
 - ruff format
 - mypy
-- 推荐 line length 100~120（最终固定一个值）
+- line length 固定为 100（见 `pyproject.toml` 中 `[tool.ruff] line-length`）
 
 # 4. Naming
 
