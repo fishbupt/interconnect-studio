@@ -9,6 +9,9 @@ dependencies = [
     "scipy>=1.14",
 ]
 
+[project.scripts]
+interconnect-studio = "interconnect_studio.app.main:main"
+
 [dependency-groups]
 dev = [
     "mypy>=1.11",
