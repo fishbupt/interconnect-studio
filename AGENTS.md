@@ -99,7 +99,7 @@ IO         → UI
 - S matrix shape: `(n_freq, n_port, n_port)`
 - Python 内部端口号：0-based
 - UI 显示端口号：1-based
-- `z0` 不得假定恒为 50 Ω
+- `z0` 是每个 Network 的单一标量参考阻抗，不得假定恒为 50 Ω
 - 单位转换必须显式，不允许隐藏在不透明 API 中
 
 ## 7. Coding Rules
@@ -117,7 +117,7 @@ IO         → UI
 推荐：
 
 ```python
-def renormalize(network: Network, new_z0: np.ndarray) -> Network:
+def renormalize(network: Network, new_z0: complex) -> Network:
     ...
 ```
 
