@@ -163,7 +163,7 @@ pair / polarity / ordering / normalization 的约定见 `DOMAIN_MODEL.md` §7，
 
 # 12.5 Data Quality
 
-只读检查，**不修改数据、不自动修正、不在 `Network` 上留质量标记**：
+检查为只读：**不修改数据、不自动修正、不在 `Network` 上留质量标记**。修正是下面单独的 Enforcement 算法的职责。
 
 ```python
 check_passivity(network)     # 奇异值 <= 1
