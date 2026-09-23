@@ -6,6 +6,7 @@ from interconnect_studio.services.import_service import (
     ImportedNetwork,
     ImportService,
 )
+from interconnect_studio.services.template_service import TemplateService
 from interconnect_studio.services.touchstone_plot_service import (
     LoadedTouchstonePlot,
     TouchstonePlotService,
@@ -18,6 +19,7 @@ __all__ = [
     "ImportService",
     "ImportedNetwork",
     "LoadedTouchstonePlot",
+    "TemplateService",
     "TouchstonePlotService",
     "TraceUpdate",
 ]

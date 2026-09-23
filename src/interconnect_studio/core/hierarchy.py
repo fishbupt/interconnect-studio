@@ -123,11 +123,16 @@ class ViewWindow:
 
     ``number`` is the window's sequence number, unique across the browser, and
     is shown after the file name as PLTS does ("dut.s2p : 1").
+
+    ``template`` names the saved template the window was opened with; such a
+    window is listed under that template in Template View rather than under
+    its view type. It is empty for ordinary windows.
     """
 
     view_type: ViewType
     data_file: DataFile
     number: int
+    template: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.view_type, ViewType):
@@ -136,6 +141,8 @@ class ViewWindow:
             raise InputValidationError("ViewWindow data_file must be a DataFile.")
         if isinstance(self.number, bool) or not isinstance(self.number, int) or self.number < 1:
             raise InputValidationError("ViewWindow number must be a positive integer.")
+        if not isinstance(self.template, str):
+            raise InputValidationError("ViewWindow template must be a string.")
 
     @property
     def label(self) -> str:
@@ -161,9 +168,19 @@ class DataBrowserTree:
             raise InputValidationError("ViewWindow numbers must be unique.")
 
     def windows_of(self, view_type: ViewType) -> tuple[ViewWindow, ...]:
-        """Windows open under one view type, in opening order."""
+        """Windows open under one view type, in opening order.
 
-        return tuple(item for item in self.windows if item.view_type is view_type)
+        Windows opened with a template are listed under the template instead.
+        """
+
+        return tuple(
+            item for item in self.windows if item.view_type is view_type and not item.template
+        )
+
+    def windows_of_template(self, template: str) -> tuple[ViewWindow, ...]:
+        """Windows opened with one saved template, in opening order."""
+
+        return tuple(item for item in self.windows if template and item.template == template)
 
     @property
     def next_number(self) -> int:
@@ -172,11 +189,16 @@ class DataBrowserTree:
         return max((item.number for item in self.windows), default=0) + 1
 
     def open(
-        self, view_type: ViewType, data_file: DataFile
+        self, view_type: ViewType, data_file: DataFile, template: str = ""
     ) -> tuple["DataBrowserTree", ViewWindow]:
-        """Return a tree with one more window, and that window."""
+        """Return a tree with one more window, and that window.
 
-        window = ViewWindow(view_type=view_type, data_file=data_file, number=self.next_number)
+        ``template`` names the saved template the window is opened with.
+        """
+
+        window = ViewWindow(
+            view_type=view_type, data_file=data_file, number=self.next_number, template=template
+        )
         return DataBrowserTree(windows=(*self.windows, window)), window
 
     def window(self, number: int) -> ViewWindow:

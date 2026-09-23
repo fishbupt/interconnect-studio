@@ -212,3 +212,15 @@ def test_rename_file_rejects_an_empty_name() -> None:
 def test_tree_operations_reject_unknown_windows_and_files(action: object) -> None:
     with pytest.raises(InputValidationError, match="not open"):
         action(browser_with_two_files())  # type: ignore[operator]
+
+
+def test_template_windows_are_listed_under_their_template() -> None:
+    f1 = data_file("file-1", "dut.s2p")
+    tree, plain = DataBrowserTree().open(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, f1)
+    tree, templated = tree.open(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, f1, template="channel")
+
+    assert tree.windows_of(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED) == (plain,)
+    assert tree.windows_of_template("channel") == (templated,)
+    assert tree.windows_of_template("") == ()
+    assert templated.label == "dut.s2p : 2"
+    assert tree.rename_file("file-1", "x").window(2).template == "channel"

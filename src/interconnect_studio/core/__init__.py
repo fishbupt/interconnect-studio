@@ -11,7 +11,8 @@ from interconnect_studio.core.hierarchy import (
 from interconnect_studio.core.layout import MAX_PLOTS, ViewLayout
 from interconnect_studio.core.network import Network
 from interconnect_studio.core.plot import PlotKind, PlotModel
-from interconnect_studio.core.trace import Trace
+from interconnect_studio.core.template import TemplatePlot, ViewTemplate
+from interconnect_studio.core.trace import Trace, TraceRecipe
 
 __all__ = [
     "MAX_PLOTS",
@@ -23,8 +24,11 @@ __all__ = [
     "Network",
     "PlotKind",
     "PlotModel",
+    "TemplatePlot",
     "Trace",
+    "TraceRecipe",
     "ViewLayout",
+    "ViewTemplate",
     "ViewType",
     "ViewWindow",
 ]

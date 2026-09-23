@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from interconnect_studio.core import DataBrowserTree, DataFile, ViewWindow
+from interconnect_studio.core import DataBrowserTree, DataFile, ViewTemplate, ViewWindow
 from interconnect_studio.ui.models import DataBrowserModel
 
 
@@ -31,7 +31,10 @@ class DataBrowserPanel(QWidget):
     handled here, as it changes nothing.
 
     Clicking an available view type asks for a new window of that type for
-    the active data file: ``open_view_requested(view type)``.
+    the active data file: ``open_view_requested(view type)``; clicking a
+    saved template asks for the active file laid out with it:
+    ``open_template_requested(template)``. The window menu's Save Template
+    As asks for ``save_template_requested(window number, template name)``.
     """
 
     current_file_changed = pyqtSignal(object)
@@ -40,6 +43,8 @@ class DataBrowserPanel(QWidget):
     close_file_requested = pyqtSignal(str)
     rename_file_requested = pyqtSignal(str, str)
     open_view_requested = pyqtSignal(object)
+    open_template_requested = pyqtSignal(object)
+    save_template_requested = pyqtSignal(int, str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -74,6 +79,12 @@ class DataBrowserPanel(QWidget):
         """Replace the open windows, keeping every one of them visible."""
 
         self.model.set_tree(tree)
+        self._expand_open_windows()
+
+    def set_templates(self, templates: tuple[ViewTemplate, ...]) -> None:
+        """List saved templates under Template View."""
+
+        self.model.set_templates(templates)
         self._expand_open_windows()
 
     def current_window(self) -> ViewWindow | None:
@@ -126,8 +137,11 @@ class DataBrowserPanel(QWidget):
             ),
             ("copy_file_name", "Copy File Name", lambda: self.copy_file_name(window)),
             ("rename_file", "Rename File", lambda: self.ask_rename_file(window)),
+            ("save_template_as", "Save Template As...", lambda: self.ask_save_template(window)),
         )
         for object_name, text, slot in actions:
+            if object_name == "save_template_as":
+                menu.addSeparator()
             action = QAction(text, menu)
             action.setObjectName(object_name)
             action.triggered.connect(slot)
@@ -155,10 +169,27 @@ class DataBrowserPanel(QWidget):
         if accepted and name and name != window.data_file.name:
             self.rename_file_requested.emit(window.data_file.id, name)
 
+    def ask_save_template(self, window: ViewWindow) -> None:
+        """Ask for a template name and request saving the window as it."""
+
+        name, accepted = QInputDialog.getText(
+            self,
+            "Save Template As",
+            "Template name:",
+            QLineEdit.EchoMode.Normal,
+            window.template,
+        )
+        name = name.strip()
+        if accepted and name:
+            self.save_template_requested.emit(window.number, name)
+
     def _on_clicked(self, index: QModelIndex) -> None:
         view_type = self.model.view_type_at(index)
         if view_type is not None and self.model.is_available(view_type):
             self.open_view_requested.emit(view_type)
+        template = self.model.template_at(index)
+        if template is not None and self.model.is_available(template.view_type):
+            self.open_template_requested.emit(template)
 
     def _on_context_menu_requested(self, position: QPoint) -> None:
         window = self.model.window_at(self.tree.indexAt(position))

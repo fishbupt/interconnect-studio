@@ -114,7 +114,17 @@ Trace(
     y,
     x_unit="",
     y_unit="",
+    source_id="",
+    recipe=None,               # TraceRecipe | None
 )
+
+
+@dataclass(frozen=True, slots=True)
+class TraceRecipe:
+    """Trace 如何由其源 Network 算出。"""
+    response_port: int         # 0-based；Trace 显示 S[response_port+1][source_port+1]
+    source_port: int           # 0-based
+    data_format: str           # SParameterFormat 的取值；core 不解释
 ```
 
 约定：
@@ -127,6 +137,7 @@ Trace(
 - `Smith/Polar` 使用 complex Trace；普通 Cartesian 格式使用 real Trace。
 - S 参数到 Trace 的桥接由算法层 `create_s_parameter_trace(...)` 完成。
 - Trace 携带所属 `DataFile` 的标识（`source_id`），用于多文件叠加时区分同名曲线（两个文件都有 S21 LogMag）与图例命名。
+- Trace 携带 `recipe`（如何由源 Network 算出），使同一布局可对另一个文件重算（template）。`create_s_parameter_trace` 总会填写；非由 Network 算出的 Trace 为 `None`，这类 Trace 不能存入 template。
 
 ## Plot Model
 
@@ -363,14 +374,16 @@ class ViewWindow:
     view_type: ViewType
     data_file: DataFile
     number: int                # window 序号，全树唯一，显示为 "name : n"
+    template: str = ""         # 用哪个已保存 template 打开；非空时列在该 template 下
 
 
 @dataclass(frozen=True, slots=True)
 class DataBrowserTree:
     windows: tuple[ViewWindow, ...]
 
-    def windows_of(self, view_type: ViewType) -> tuple[ViewWindow, ...]: ...
-    def open(self, view_type: ViewType, data_file: DataFile) -> tuple[DataBrowserTree, ViewWindow]: ...
+    def windows_of(self, view_type: ViewType) -> tuple[ViewWindow, ...]: ...        # 不含 template window
+    def windows_of_template(self, template: str) -> tuple[ViewWindow, ...]: ...
+    def open(self, view_type: ViewType, data_file: DataFile, template: str = "") -> tuple[DataBrowserTree, ViewWindow]: ...
     def window(self, number: int) -> ViewWindow: ...
     def windows_of_file(self, file_id: str) -> tuple[ViewWindow, ...]: ...
     def close_window(self, number: int) -> DataBrowserTree: ...           # Close View
@@ -387,7 +400,41 @@ class DataBrowserTree:
 - `DataFile.id` 在 Project 内唯一，且不随重命名改变。
 - 去嵌、Mixed-Mode 等算法产物同样封装为 `DataFile`，并在 metadata 中记录来源与算法参数。
 - 参数（S11/S21/...）与显示格式**不是树节点**，由 UI 的 Parameter / Format 面板承担（见 `UI_DESIGN.md` §3）。
-- Template View 下 PLTS 还列出已保存的 template（含内置的 USB3.0、HDMI、SATA、DisplayPort、COM 等标准 template）。template 功能落地后作为该分类下的动态条目加入；按 `PRODUCT.md` FR-010，具体标准 template 为外部可加载配置，不内置。
+- Template View 下 PLTS 还列出已保存的 template（含内置的 USB3.0、HDMI、SATA、DisplayPort、COM 等标准 template）。已保存 template 作为该分类下、固定条目之后的动态条目列出（见 §9.1）；按 `PRODUCT.md` FR-010，具体标准 template 为外部可加载配置，不内置。
+
+## 9.1 View Template
+
+```python
+@dataclass(frozen=True, slots=True)
+class TemplatePlot:
+    traces: tuple[TraceRecipe, ...] = ()
+    kind: PlotKind = PlotKind.CARTESIAN
+    title: str | None = None   # None：标题取所应用文件的显示名
+    x_label: str = ""
+    y_label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ViewTemplate:
+    name: str                  # 同时是文件名，不得含 / \ : * ? " < > |，不得以 . 开头
+    view_type: ViewType        # 用它打开的 window 属于哪种分析视图
+    n_ports: int               # 保存时文件的端口数，显示为 "name (4p)"
+    rows: int
+    cols: int
+    plots: tuple[TemplatePlot, ...]   # 行主序，每格一个
+
+    @classmethod
+    def from_layout(cls, name, view_type, n_ports, layout: ViewLayout, file_name: str) -> ViewTemplate: ...
+    @property
+    def required_ports(self) -> int: ...   # trace 用到的最大端口号（1-based）
+```
+
+约定：
+
+- template 只保存布局与 trace 配方，不保存测量数据；应用到另一个文件时由 `TemplateService.apply` 用 `create_s_parameter_trace` 重算每条 trace。文件端口数小于 `required_ports` 时拒绝。
+- 标题等于原文件名的 plot 存为 `title=None`，应用时换成新文件名；其余标题原样保留。
+- marker、方程、limit、刻度等 PLTS template 内容在对应功能落地后加入（文件 `version` 随之递增）。
+- 存储：每个 template 一个 `<name>.json`，放在用户数据目录的 `templates/` 下（`io/template_file.py` 描述格式，`version` 1）。修改 template 不影响已用它打开的 window（同 PLTS）。
 
 # 10. Project
 
@@ -440,6 +487,7 @@ class AfrResult:
 # 14. Serialization
 
 Network：Touchstone / NPZ（测试）/ `<TODO>`  
+ViewTemplate：JSON（`format: interconnect-studio-template`，`version: 1`，见 `io/template_file.py`）  
 Project：JSON+binary / HDF5 / ZIP project / `<TODO>`
 
 # 15. Decisions To Finalize

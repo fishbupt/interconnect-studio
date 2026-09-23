@@ -6,7 +6,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QStandardPaths, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QApplication,
@@ -29,6 +29,7 @@ from interconnect_studio.core import (
     InputValidationError,
     PlotModel,
     ViewLayout,
+    ViewTemplate,
     ViewType,
     ViewWindow,
 )
@@ -37,6 +38,7 @@ from interconnect_studio.services import (
     ImportedNetwork,
     ImportService,
     LoadedTouchstonePlot,
+    TemplateService,
     TouchstonePlotService,
 )
 from interconnect_studio.ui.dialogs import (
@@ -60,6 +62,13 @@ from interconnect_studio.ui.window_session import WindowSession
 APP_TITLE = "Interconnect Studio"
 
 
+def default_template_directory() -> Path:
+    """Per-user folder saved templates are kept in."""
+
+    location = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
+    return Path(location) / "templates"
+
+
 class MainWindow(QMainWindow):
     """Application shell.
 
@@ -74,10 +83,14 @@ class MainWindow(QMainWindow):
         service: TouchstonePlotService | None = None,
         parent: QWidget | None = None,
         import_service: ImportService | None = None,
+        template_service: TemplateService | None = None,
     ) -> None:
         super().__init__(parent)
         self._service = service or TouchstonePlotService()
         self._import_service = import_service or ImportService()
+        self._template_service = template_service or TemplateService(
+            default_template_directory()
+        )
         self._loaded: LoadedTouchstonePlot | None = None
         self._sessions: dict[int, WindowSession] = {}
         self._active_window: int | None = None
@@ -109,6 +122,10 @@ class MainWindow(QMainWindow):
         self.data_browser.open_view_requested.connect(
             lambda view_type: self._guarded(lambda: self.open_view(view_type))
         )
+        self.data_browser.open_template_requested.connect(
+            lambda template: self._guarded(lambda: self.open_template(template))
+        )
+        self.data_browser.save_template_requested.connect(self._on_save_template_requested)
         self.data_browser.rename_file_requested.connect(
             lambda file_id, name: self._guarded(lambda: self.rename_file(file_id, name))
         )
@@ -120,6 +137,7 @@ class MainWindow(QMainWindow):
         self._build_actions()
 
         self.add_trace_action.setEnabled(False)
+        self.refresh_templates()
         self.status_bar.showMessage("Ready")
 
     @property
@@ -187,6 +205,69 @@ class MainWindow(QMainWindow):
         self._log(f"Opened view: {session.title}")
         return loaded
 
+    def refresh_templates(self) -> tuple[ViewTemplate, ...]:
+        """Re-read the saved templates and list them under Template View."""
+
+        templates = self._template_service.list_templates()
+        self.data_browser.set_templates(templates)
+        if self._active_window is not None:
+            self.data_browser.select_window(self._active_window)
+        return templates
+
+    def save_template(self, number: int, name: str, overwrite: bool = False) -> ViewTemplate:
+        """Save a window's layout as a template (window menu > Save Template As).
+
+        Raises ``InputValidationError`` if a template of that name exists and
+        ``overwrite`` is false.
+        """
+
+        self._store_active_session()
+        session = self._sessions.get(number)
+        if session is None:
+            raise InputValidationError(f"Window {number} is not open.")
+        template = ViewTemplate.from_layout(
+            name,
+            session.view_type,
+            session.loaded.network.n_ports,
+            session.layout,
+            session.loaded.name,
+        )
+        path = self._template_service.save(template, overwrite=overwrite)
+        self.refresh_templates()
+        self._log(f"Saved template: {template.name} ({path})")
+        return template
+
+    def open_template(self, template: ViewTemplate) -> LoadedTouchstonePlot:
+        """Open the active data file laid out with a saved template.
+
+        This is what clicking a template in Template View does. The new
+        window is listed under the template.
+        """
+
+        if self._active_window is None:
+            raise InputValidationError("Import a file before opening a template.")
+        data_file = self.data_browser.browser_tree.window(self._active_window).data_file
+        active = self._sessions[self._active_window].loaded
+        layout = self._template_service.apply(template, data_file.network, data_file.name)
+
+        self._store_active_session()
+        tree, window = self.data_browser.browser_tree.open(
+            template.view_type, data_file, template=template.name
+        )
+        self.data_browser.set_browser_tree(tree)
+        session = WindowSession(
+            window.number,
+            template.view_type,
+            replace(active, plot=layout.plots[0]),
+            layout,
+            template=template.name,
+        )
+        self._sessions[window.number] = session
+        loaded = self._restore_session(session)
+        self.data_browser.select_window(window.number)
+        self._log(f"Opened template: {session.title}")
+        return loaded
+
     def close_view(self, number: int) -> None:
         """Close one window (Data Browser window menu > Close View)."""
 
@@ -225,6 +306,19 @@ class MainWindow(QMainWindow):
         if self._active_window is not None:
             self._restore_session(self._sessions[self._active_window])
         self._log(f"Renamed file: {old_name} -> {name}")
+
+    def _on_save_template_requested(self, number: int, name: str) -> None:
+        overwrite = False
+        if self._template_service.exists(name):
+            answer = QMessageBox.question(
+                self,
+                "Save Template As",
+                f"Template {name.strip()} already exists. Replace it?",
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            overwrite = True
+        self._guarded(lambda: self.save_template(number, name, overwrite=overwrite))
 
     def _close_windows(self, tree: DataBrowserTree, numbers: tuple[int, ...]) -> None:
         """Drop closed windows; if the shown one closed, show the newest left."""

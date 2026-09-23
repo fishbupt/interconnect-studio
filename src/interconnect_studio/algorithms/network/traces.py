@@ -1,7 +1,7 @@
 """Bridge between S-parameter formatting and plot domain models."""
 
 from interconnect_studio.algorithms.network.formats import SParameterFormat, format_s_parameter
-from interconnect_studio.core import Network, PlotKind, Trace
+from interconnect_studio.core import Network, PlotKind, Trace, TraceRecipe
 
 _Y_UNITS: dict[SParameterFormat, str] = {
     SParameterFormat.LOG_MAG: "dB",
@@ -46,6 +46,7 @@ def create_s_parameter_trace(
         y=values,
         x_unit="Hz",
         y_unit=_Y_UNITS[fmt],
+        recipe=TraceRecipe(response_port, source_port, fmt.value),
     )
 
 

@@ -2,10 +2,17 @@ from pathlib import Path
 
 import pytest
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMainWindow
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QInputDialog, QMainWindow, QMessageBox
 from pytestqt.qtbot import QtBot
 
-from interconnect_studio.core import InputValidationError, ViewLayout, ViewType
+from interconnect_studio.core import (
+    BrowserCategory,
+    InputValidationError,
+    TraceRecipe,
+    ViewLayout,
+    ViewType,
+)
 from interconnect_studio.services import ImportService
 from interconnect_studio.ui import MainWindow
 from interconnect_studio.ui.theme import Theme
@@ -546,3 +553,136 @@ def test_clicking_a_view_type_in_the_browser_opens_a_window(qtbot: QtBot) -> Non
 
     assert window.active_window == 3
     assert browser.current_window().number == 3
+
+
+def test_saved_templates_are_listed_under_template_view(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.add_trace(2, 0, "log_mag")
+
+    template = window.save_template(2, "three port")
+
+    model = window.data_browser.model
+    index = model.index_of_template("three port")
+    assert index.isValid()
+    assert model.data(index) == "three port (3p)"
+    assert model.parent(index) == model.index_of_category(BrowserCategory.TEMPLATE_VIEW)
+    assert model.flags(model.index_of_category(BrowserCategory.TEMPLATE_VIEW))
+    assert template.plots[0].traces[-1] == TraceRecipe(2, 0, "log_mag")
+    assert window.active_window == 2
+    assert window.data_browser.current_window().number == 2
+
+
+def test_templates_saved_earlier_are_listed_at_start(
+    qtbot: QtBot, template_directory: Path
+) -> None:
+    first = two_windows(qtbot)
+    first.save_template(1, "two port")
+
+    second = MainWindow()
+    qtbot.addWidget(second)
+
+    assert [t.name for t in second.data_browser.model.templates] == ["two port"]
+    assert (template_directory / "two port.json").is_file()
+
+
+def test_saving_over_an_existing_template_needs_overwrite(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.save_template(1, "t")
+
+    with pytest.raises(InputValidationError, match="already exists"):
+        window.save_template(2, "t")
+    window.save_template(2, "t", overwrite=True)
+
+    assert window.data_browser.model.templates[0].n_ports == 3
+
+
+def test_open_template_lays_the_active_file_out_like_the_template(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.set_grid(1, 2)
+    window.add_trace(2, 0, "log_mag")
+    window.save_template(2, "layout")
+    window.load_touchstone_file(IMPORT_DIR / "4port.s4p")
+
+    template = window.data_browser.model.templates[0]
+    window.open_template(template)
+
+    tree = window.data_browser.browser_tree
+    assert window.active_window == 4
+    assert tree.window(4).template == "layout"
+    assert tree.window(4).data_file.id == tree.window(3).data_file.id
+    assert tree.windows_of_template("layout") == (tree.window(4),)
+    model = window.data_browser.model
+    assert model.parent(model.index_of_window(4)) == model.index_of_template("layout")
+    assert window.view_area.layout_model.cols == 2
+    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag", "S31 Log Mag"]
+    assert window.view_area.current_plot.title == "4port.s4p"
+    assert window.windowTitle().endswith("[4port.s4p - layout : 4]")
+
+
+def test_open_template_needs_the_ports_it_uses(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.add_trace(2, 0, "log_mag")
+    window.save_template(2, "three port")
+    window.data_browser.select_window(1)
+
+    with pytest.raises(InputValidationError, match="needs 3 ports"):
+        window.open_template(window.data_browser.model.templates[0])
+
+    assert len(window.data_browser.browser_tree.windows) == 2
+
+
+def test_open_template_needs_an_active_file(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.save_template(1, "t")
+    template = window.data_browser.model.templates[0]
+    window.close_view(1)
+    window.close_view(2)
+
+    with pytest.raises(InputValidationError, match="Import a file"):
+        window.open_template(template)
+
+
+def test_clicking_a_template_in_the_browser_opens_it(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.save_template(2, "t")
+    window.show()
+    qtbot.waitExposed(window)
+    browser = window.data_browser
+    index = browser.model.index_of_template("t")
+    browser.tree.scrollTo(index)
+    viewport = browser.tree.viewport()
+    assert viewport is not None
+
+    qtbot.mouseClick(
+        viewport, Qt.MouseButton.LeftButton, pos=browser.tree.visualRect(index).center()
+    )
+
+    assert window.active_window == 3
+    assert browser.browser_tree.window(3).template == "t"
+
+
+def test_save_template_request_from_the_window_menu(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    window = two_windows(qtbot)
+    monkeypatch.setattr(QInputDialog, "getText", lambda *args: ("from menu", True))
+    menu = window.data_browser.window_menu(window.data_browser.browser_tree.window(1))
+    action = menu.findChild(QAction, "save_template_as")
+    assert action is not None
+
+    action.trigger()
+
+    assert [t.name for t in window.data_browser.model.templates] == ["from menu"]
+    assert window.data_browser.model.templates[0].n_ports == 2
+
+
+def test_replacing_a_template_from_the_menu_asks_first(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    window = two_windows(qtbot)
+    window.save_template(1, "t")
+    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.StandardButton.No)
+
+    window.data_browser.save_template_requested.emit(2, "t")
+
+    assert window.data_browser.model.templates[0].n_ports == 2

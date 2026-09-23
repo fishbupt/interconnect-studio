@@ -24,6 +24,7 @@ class WindowSession:
     loaded: LoadedTouchstonePlot
     layout: ViewLayout
     current_index: int = 0
+    template: str = ""
 
     def __post_init__(self) -> None:
         if not 0 <= self.current_index < self.layout.n_cells:
@@ -34,9 +35,13 @@ class WindowSession:
 
     @property
     def title(self) -> str:
-        """Window title in the PLTS style: file name, analysis view and number."""
+        """Window title in the PLTS style: file name, analysis view and number.
 
-        return f"{self.loaded.name} - {self.view_type.label} : {self.number}"
+        A window opened with a template names the template instead.
+        """
+
+        view = self.template or self.view_type.label
+        return f"{self.loaded.name} - {view} : {self.number}"
 
     def loaded_for_current_cell(self) -> LoadedTouchstonePlot:
         """The window's network paired with the plot of its selected cell."""

@@ -53,12 +53,12 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] `ui/` 子结构：views / widgets / panels / models / dialogs
 - [ ] ViewLayout（固定网格）与视图区
 - [ ] 外围面板改为 Qt dock
-- [ ] 数据层级模型（`BrowserCategory` / `ViewType` / `ViewWindow` / `DataFile`）与 Trace 溯源（层级已落地，溯源待做）
+- [ ] 数据层级模型（`BrowserCategory` / `ViewType` / `ViewWindow` / `DataFile`）与 Trace 溯源（层级已落地；Trace 已带 `source_id` 与 `recipe` 字段，填写 `source_id` 待做）
 - [x] Data Browser 按 PLTS 层级：Data Analysis / RLCG / Calibration / Template View → 视图类型 → window（未实现的视图类型置灰）
   - [x] 点击 window 切换视图区，各 window 保存自己的网格、trace 与选中格
   - [x] window 右键 Close View / Close File / Copy File Name / Rename File
   - [x] 点击视图类型为活动文件新开 window
-  - [ ] Template View 下列出已保存 template
+  - [x] Template View 下列出已保存 template（window 右键 Save Template As；点 template 用它打开活动文件）
 - [ ] Parameter / Format 面板
   - 数据来源文件下拉、S 参数 / 方程切换、New Plot / New Trace、ALL 与分组快捷（RL / IL / NEXT / FEXT、TDR / TDT、on One / on Many）
   - 多端口参数选择对话框（拖选、按名称批量输入、参数名列表存取）
@@ -120,6 +120,8 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] Trace Smoothing（平滑孔径：点数或跨度百分比；四种作用范围；导出平滑后数据）
 - [ ] 多窗口管理：Tile / Cascade / Maximize / Minimize
 - [ ] Template / Multi-Data Template（Data Browser 中的独立节点，多数据集同屏对比；导入导出 template）
+  - [x] 保存 / 列出 / 应用 template（布局、plot 标题、trace 参数与格式）
+  - [ ] Save Template（覆盖当前 template）、Import / Export Template、marker / 方程 / limit / 刻度入 template、Multi-Data Template
 
 ## Phase 3.5 — Trace Math
 

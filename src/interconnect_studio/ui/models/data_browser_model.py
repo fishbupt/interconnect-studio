@@ -10,6 +10,7 @@ from interconnect_studio.core import (
     BrowserCategory,
     DataBrowserTree,
     DataFile,
+    ViewTemplate,
     ViewType,
     ViewWindow,
 )
@@ -22,6 +23,10 @@ _NULL_INDEX: Final[QModelIndex] = QModelIndex()
 _CATEGORY_DEPTH: Final[int] = 0
 _VIEW_TYPE_DEPTH: Final[int] = 1
 _WINDOW_DEPTH: Final[int] = 2
+
+# Rows that are folders and can be expanded. Saved templates sit at the view
+# type level under Template View and hold the windows opened with them.
+_Folder = BrowserCategory | ViewType | ViewTemplate
 
 # View types the application can display today. The rest of the PLTS
 # catalogue is still shown, greyed out, so the tree keeps the PLTS layout.
@@ -56,6 +61,9 @@ class DataBrowserModel(QAbstractItemModel):
     Categories and view types always appear, whether or not any window is
     open, as in PLTS. Only windows depend on the tree passed in. Parameters and
     display formats are chosen in the parameter/format panel, not here.
+
+    Saved templates (``set_templates``) are listed under Template View after
+    its fixed entries, each holding the windows opened with it.
     """
 
     def __init__(
@@ -66,8 +74,9 @@ class DataBrowserModel(QAbstractItemModel):
     ) -> None:
         super().__init__(parent)
         self._available = frozenset(available_view_types)
-        self._expanded: set[BrowserCategory | ViewType] = set()
+        self._expanded: set[_Folder] = set()
         self._tree = DataBrowserTree()
+        self._templates: tuple[ViewTemplate, ...] = ()
         self._roots: list[_Node] = []
         self.set_tree(tree or DataBrowserTree())
 
@@ -76,6 +85,18 @@ class DataBrowserModel(QAbstractItemModel):
         """Hierarchy currently exposed."""
 
         return self._tree
+
+    @property
+    def templates(self) -> tuple[ViewTemplate, ...]:
+        """Saved templates listed under Template View."""
+
+        return self._templates
+
+    def set_templates(self, templates: Iterable[ViewTemplate]) -> None:
+        """Replace the saved templates listed under Template View."""
+
+        self._templates = tuple(templates)
+        self.set_tree(self._tree)
 
     def set_tree(self, tree: DataBrowserTree) -> None:
         """Replace the open windows."""
@@ -102,7 +123,7 @@ class DataBrowserModel(QAbstractItemModel):
         """
 
         node = self._node(index)
-        if node is None or not isinstance(node.payload, BrowserCategory | ViewType):
+        if node is None or not isinstance(node.payload, _Folder):
             return
         if expanded:
             self._expanded.add(node.payload)
@@ -118,6 +139,13 @@ class DataBrowserModel(QAbstractItemModel):
             return None
         payload = node.payload
         return payload if isinstance(payload, ViewType) else None
+
+    def template_at(self, index: QModelIndex) -> ViewTemplate | None:
+        """Return the saved template an index points at, or None for other rows."""
+
+        node = self._node(index)
+        payload = node.payload if node is not None else None
+        return payload if isinstance(payload, ViewTemplate) else None
 
     def window_at(self, index: QModelIndex) -> ViewWindow | None:
         """Return the window an index points at, or None for other rows."""
@@ -149,6 +177,15 @@ class DataBrowserModel(QAbstractItemModel):
             for view_node in category_node.children:
                 if view_node.payload is view_type:
                     return self.createIndex(view_node.row, 0, view_node)
+        return QModelIndex()
+
+    def index_of_template(self, name: str) -> QModelIndex:
+        """Return the index of a saved template row, or an invalid index."""
+
+        for category_node in self._roots:
+            for node in category_node.children:
+                if isinstance(node.payload, ViewTemplate) and node.payload.name == name:
+                    return self.createIndex(node.row, 0, node)
         return QModelIndex()
 
     def index_of_window(self, number: int) -> QModelIndex:
@@ -204,7 +241,7 @@ class DataBrowserModel(QAbstractItemModel):
             return None
         payload = node.payload
         if role == Qt.ItemDataRole.DisplayRole:
-            if isinstance(payload, BrowserCategory | ViewType | ViewWindow):
+            if isinstance(payload, BrowserCategory | ViewType | ViewTemplate | ViewWindow):
                 return payload.label
             return None
         if role == Qt.ItemDataRole.DecorationRole:
@@ -246,7 +283,7 @@ class DataBrowserModel(QAbstractItemModel):
     def _icon(self, payload: object) -> QIcon | None:
         if isinstance(payload, BrowserCategory):
             return folder_icon(FolderKind.CATEGORY, is_open=payload in self._expanded)
-        if isinstance(payload, ViewType):
+        if isinstance(payload, ViewType | ViewTemplate):
             return folder_icon(FolderKind.VIEW_TYPE, is_open=payload in self._expanded)
         if isinstance(payload, ViewWindow):
             return document_icon()
@@ -255,9 +292,11 @@ class DataBrowserModel(QAbstractItemModel):
     def _is_enabled(self, node: _Node) -> bool:
         payload = node.payload
         if isinstance(payload, BrowserCategory):
-            return any(self.is_available(view) for view in payload.view_types)
+            return any(self._is_enabled(child) for child in node.children)
         if isinstance(payload, ViewType):
             return self.is_available(payload)
+        if isinstance(payload, ViewTemplate):
+            return self.is_available(payload.view_type)
         if isinstance(payload, ViewWindow):
             return self.is_available(payload.view_type)
         return False
@@ -272,10 +311,27 @@ class DataBrowserModel(QAbstractItemModel):
         node = _Node(category, _CATEGORY_DEPTH, None, row)
         for view_row, view_type in enumerate(category.view_types):
             node.children.append(self._build_view_type(view_type, node, view_row))
+        if category is BrowserCategory.TEMPLATE_VIEW:
+            for template in self._templates:
+                node.children.append(self._build_template(template, node, len(node.children)))
         return node
 
     def _build_view_type(self, view_type: ViewType, parent: _Node, row: int) -> _Node:
         node = _Node(view_type, _VIEW_TYPE_DEPTH, parent, row)
-        for window_row, window in enumerate(self._tree.windows_of(view_type)):
+        # A window whose template is no longer listed stays visible under its
+        # view type.
+        listed = {template.name for template in self._templates}
+        windows = [
+            window
+            for window in self._tree.windows
+            if window.view_type is view_type and window.template not in listed
+        ]
+        for window_row, window in enumerate(windows):
+            node.children.append(_Node(window, _WINDOW_DEPTH, node, window_row))
+        return node
+
+    def _build_template(self, template: ViewTemplate, parent: _Node, row: int) -> _Node:
+        node = _Node(template, _VIEW_TYPE_DEPTH, parent, row)
+        for window_row, window in enumerate(self._tree.windows_of_template(template.name)):
             node.children.append(_Node(window, _WINDOW_DEPTH, node, window_row))
         return node

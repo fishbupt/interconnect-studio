@@ -144,7 +144,9 @@ Template View
   - 关闭的是当前显示的 window 时，切换到剩余序号最大的 window；全部关闭后视图区清空为 1×1 空网格，Add Trace 置灰。
   - 面板只发出请求信号（`close_view_requested` / `close_file_requested` / `rename_file_requested`），由主窗口更新 `DataBrowserTree` 与各 window 的会话。
 - 点击视图类型（同 PLTS）：为活动文件（当前显示 window 的数据文件）在该视图类型下新开一个空白 window，沿用当前网格尺寸，所有格为空 plot，并立即切换过去。新 window 与原 window 共享同一 `DataFile`（同一 `id`），因此 Close File / Rename File 同时作用于两者。未打开任何文件或视图类型置灰时不动作。面板发出 `open_view_requested(ViewType)`，由主窗口 `open_view` 执行。
-- 待实现（PLTS 行为）：Template View 下列出已保存 template。
+- window 右键另有 **Save Template As...**（分隔线后）：输入名称，把该 window 的网格、plot 标题与 trace（参数 + 格式）存为 template；同名时先确认是否覆盖。
+- Template View 在 Create New / Create New for Multi-data 之后按名称列出已保存 template，显示为「名称 (Np)」，N 为保存时文件的端口数；启动时读取，保存后刷新。
+- 点击 template：用它为活动文件新开 window，列在该 template 节点下，标题栏显示「文件名 - template 名 : 序号」；文件端口不够时在状态栏提示并不打开。template 被删除后，其 window 改列在所属视图类型下。
 
 # 7. Selection Model
 

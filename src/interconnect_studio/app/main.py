@@ -15,6 +15,8 @@ def main() -> int:
     owns_app = app is None
     if app is None:
         app = QApplication(sys.argv)
+        # Names the per-user data folder saved templates are kept in.
+        app.setApplicationName("Interconnect Studio")
 
     if isinstance(app, QApplication):
         apply_theme(app, DEFAULT_THEME)

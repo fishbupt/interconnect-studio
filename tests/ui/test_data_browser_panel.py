@@ -49,6 +49,8 @@ def test_window_menu_lists_the_plts_actions(qtbot: QtBot) -> None:
         "Close File",
         "Copy File Name",
         "Rename File",
+        "",
+        "Save Template As...",
     ]
 
 
