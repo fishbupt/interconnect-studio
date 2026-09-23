@@ -228,3 +228,9 @@ uv run python scripts/run_regression.py
 - 在 UI 中复制算法
 - 未授权替换核心算法
 - 提交密码、License、Token、仪器 IP 等敏感信息
+
+## 15. Git Workflow
+
+- 所有 commit **直接提交到 `main` 分支**并推送到 `origin/main`，不另建功能分支，不走 PR。
+- 提交前照常完成 §11 Required Checks，保证 `main` 始终可用。
+- 推送前先 `git pull origin main`，与远端同步后再推送；禁止 force push 到 `main`。
