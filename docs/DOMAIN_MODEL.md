@@ -397,6 +397,7 @@ class Project:
 ```
 
 - 一个 window 只承载单个 `DataFile` 与单一分析类型（见 `UI_DESIGN.md` §4）。
+- 目前每个 window 的网格与选中格保存在 UI 层的 `WindowSession`（`ui/window_session.py`），Project 格式落地时再决定如何持久化。
 - 布局（`ViewLayout`）持久化；选中态属于 UI 状态，不持久化。
 
 # 11. Analysis Results

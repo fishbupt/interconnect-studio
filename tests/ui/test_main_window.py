@@ -1,9 +1,11 @@
 from pathlib import Path
 
+import pytest
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMainWindow
 from pytestqt.qtbot import QtBot
 
-from interconnect_studio.core import ViewType
+from interconnect_studio.core import InputValidationError, ViewType
 from interconnect_studio.services import ImportService
 from interconnect_studio.ui import MainWindow
 from interconnect_studio.ui.theme import Theme
@@ -187,7 +189,7 @@ def test_layout_menu_switches_grid(qtbot: QtBot) -> None:
     assert window.view_area.plot_widget_at(0).model.n_traces == 2
 
 
-def test_loading_targets_the_selected_cell(qtbot: QtBot) -> None:
+def test_new_window_uses_the_displayed_grid_and_starts_in_its_first_cell(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
     window.set_grid(1, 2)
@@ -195,8 +197,10 @@ def test_loading_targets_the_selected_cell(qtbot: QtBot) -> None:
 
     window.load_touchstone_file(S2P)
 
-    assert window.view_area.plot_widget_at(1).model.n_traces == 2
-    assert window.view_area.plot_widget_at(0).model.n_traces == 0
+    assert window.view_area.layout_model.n_cells == 2
+    assert window.view_area.current_index == 0
+    assert window.view_area.plot_widget_at(0).model.n_traces == 2
+    assert window.view_area.plot_widget_at(1).model.n_traces == 0
 
 
 def test_panel_add_button_adds_a_trace(qtbot: QtBot) -> None:
@@ -291,3 +295,96 @@ def test_load_touchstone_file_types_other_formats_by_name(qtbot: QtBot) -> None:
 
     assert loaded.name == "two_port.cti"
     assert loaded.network.n_freq == 3
+
+
+def two_windows(qtbot: QtBot) -> MainWindow:
+    """Window 1 shows the 2-port fixture, window 2 (active) the 3-port one."""
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(S2P)
+    window.load_touchstone_file(IMPORT_DIR / "three_port.s3p")
+    return window
+
+
+def test_selecting_a_window_in_the_browser_shows_its_data(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    assert window.active_window == 2
+
+    window.data_browser.select_window(1)
+
+    assert window.active_window == 1
+    assert window.parameter_format.file_value.text() == "valid_2port_ri.s2p"
+    assert window.parameter_format.ports_value.text() == "2"
+    assert window.plot_widget.model.title == "valid_2port_ri.s2p"
+    loaded = window.loaded_measurement
+    assert loaded is not None and loaded.network.n_ports == 2
+    assert window.windowTitle() == (
+        "Interconnect Studio - [valid_2port_ri.s2p - Frequency Domain (Single-Ended) : 1]"
+    )
+
+
+def test_each_window_keeps_its_own_grid_and_traces(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.show_window(1)
+    window.set_grid(2, 2)
+    window.add_trace(0, 1, "log_mag")
+
+    window.show_window(2)
+
+    assert window.view_area.layout_model.n_cells == 1
+    assert window.layout_actions[(1, 1)].isChecked() is True
+    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag"]
+
+    window.show_window(1)
+
+    assert window.view_area.layout_model.n_cells == 4
+    assert window.layout_actions[(2, 2)].isChecked() is True
+    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag", "S12 Log Mag"]
+
+
+def test_each_window_keeps_its_selected_cell(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.set_grid(1, 2)
+    window.view_area.set_current_index(1)
+
+    window.show_window(1)
+    assert window.view_area.current_index == 0
+    window.show_window(2)
+
+    assert window.view_area.current_index == 1
+
+
+def test_adding_a_trace_goes_to_the_selected_cell(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(S2P)
+    window.set_grid(1, 2)
+
+    window.view_area.set_current_index(1)
+    assert trace_names(window) == []
+    window.add_trace(1, 0, "phase")
+
+    assert window.view_area.plot_widget_at(1).model.n_traces == 1
+    assert window.view_area.plot_widget_at(0).model.n_traces == 2
+
+
+def test_showing_an_unknown_window_is_an_error(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+
+    with pytest.raises(InputValidationError, match="not open"):
+        window.show_window(9)
+
+
+def test_clicking_a_window_row_switches_the_display(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.show()
+    tree = window.data_browser.tree
+    index = window.data_browser.model.index_of_window(1)
+    viewport = tree.viewport()
+    assert viewport is not None
+
+    qtbot.mouseClick(viewport, Qt.MouseButton.LeftButton, pos=tree.visualRect(index).center())
+
+    assert window.active_window == 1
+    assert window.parameter_format.file_value.text() == "valid_2port_ri.s2p"

@@ -15,6 +15,7 @@ class DataBrowserPanel(QWidget):
     """
 
     current_file_changed = pyqtSignal(object)
+    current_window_changed = pyqtSignal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -82,4 +83,5 @@ class DataBrowserPanel(QWidget):
                     self.tree.expand(view_index)
 
     def _on_selection_changed(self, selected: QItemSelection, deselected: QItemSelection) -> None:
+        self.current_window_changed.emit(self.current_window())
         self.current_file_changed.emit(self.current_file())
