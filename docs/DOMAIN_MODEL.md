@@ -216,7 +216,7 @@ class PortGroup:
 - 端口号为 Python 内部 0-based。
 - 同一 `PortGroup` 内所有端口号不重复。
 - `near` 与 `far` 的长度必须一致（同一条线两端同构）。
-- 差分线的正负顺序即 Mixed-Mode 的极性来源。
+- **元组顺序即极性来源**：第一个是正端。极性随物理走线，因此直通路径 0→3 会让远端元组写成 `(3, 2)`——索引大的排在前，这与 §7 的「索引小的为正」只是默认预设、不矛盾。
 
 派生关系：
 
@@ -292,14 +292,49 @@ a_c = (a1 + a2) / sqrt(2)
 已确定：引入独立领域类型 `MixedModeNetwork` 承载该结果，保持 `Network` 现有不变量不变。
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class MixedModeNetwork:
     frequencies_hz: NDArray[np.float64]
-    s: NDArray[np.complex128]     # (n_freq, 2*n_pair, 2*n_pair)，分块排序
+    s: NDArray[np.complex128]     # (n_freq, n_port, n_port)，分块排序
     z0_differential: complex      # = 2 * z0
     z0_common: complex            # = z0 / 2
-    pair_mapping: tuple[tuple[int, int], ...]
+    port_group: PortGroup
 ```
+
+持有 `PortGroup` 而不是扁平的 pair 列表：配对、极性与近远端关系都在其中，不必再维护第二份表示。
+
+参数访问：
+
+```python
+network.mode_parameter(response_mode, source_mode, response_port, source_port)
+```
+
+- `Mode` 为 `DIFFERENTIAL` / `COMMON`。
+- 端口号是**该模式内**的 0-based 索引，因此工程语义的 `SDD21` 对应 `mode_parameter(D, D, 1, 0)`。
+- 各模式内端口按 line 顺序排列，**近端在前、远端在后**；单条差分线即 D1 = 近端、D2 = 远端。
+
+# 7.5 DUT Topology
+
+拓扑说明哪些端口在 DUT 内部直通，差分配对由它导出：两条线的近端构成一个差分端口，远端构成另一个。**选拓扑与选配对是同一件事**，因此两者不可能不一致。
+
+```python
+@dataclass(frozen=True, slots=True)
+class Topology:
+    id: str
+    name: str
+    description: str
+    through: tuple[tuple[int, int], ...]   # 每条线一组 (近, 远)
+```
+
+四端口预设：
+
+| id | 直通路径 | 导出配对 |
+|---|---|---|
+| `through_1_2_3_4` | 1→2, 3→4 | 1-3 / 2-4 ← **默认（PLTS）** |
+| `through_1_3_2_4` | 1→3, 2→4 | 1-2 / 3-4 |
+| `through_1_4_2_3` | 1→4, 2→3 | 1-2 / 4-3（交叉） |
+
+选错拓扑不会报错，只会让 SDD/SCC 静默错位，因此加载四端口数据时必须显式确认。
 
 # 8. Fixture
 
