@@ -80,7 +80,31 @@ def format_s_parameter(
     float64 arrays. Smith and Polar return complex128 coefficient arrays.
     """
 
-    trace = network.s_parameter(response_port, source_port)
+    return format_coefficient(
+        network.s_parameter(response_port, source_port),
+        network.frequencies_hz,
+        network.z0,
+        data_format,
+        is_reflection=response_port == source_port,
+    )
+
+
+def format_coefficient(
+    coefficient: NDArray[np.complex128],
+    frequencies_hz: NDArray[np.float64],
+    z0: complex,
+    data_format: SParameterFormat | str,
+    *,
+    is_reflection: bool,
+) -> FormattedSParameter:
+    """Convert one scattering coefficient into a display format.
+
+    Works on a bare coefficient rather than a ``Network`` so that mixed-mode
+    parameters, whose reference impedance differs per mode, reuse exactly
+    this code instead of a second copy.
+    """
+
+    trace = np.asarray(coefficient, dtype=np.complex128)
     fmt = _coerce_format(data_format)
 
     if fmt is SParameterFormat.LOG_MAG:
@@ -92,7 +116,7 @@ def format_s_parameter(
     if fmt is SParameterFormat.UNWRAPPED_PHASE:
         return np.asarray(np.rad2deg(np.unwrap(np.angle(trace))), dtype=np.float64)
     if fmt is SParameterFormat.GROUP_DELAY:
-        return _group_delay_seconds(network.frequencies_hz, trace)
+        return _group_delay_seconds(frequencies_hz, trace)
     if fmt is SParameterFormat.REAL:
         return np.asarray(trace.real, dtype=np.float64)
     if fmt is SParameterFormat.IMAGINARY:
@@ -100,12 +124,15 @@ def format_s_parameter(
     if fmt in (SParameterFormat.SMITH, SParameterFormat.POLAR):
         return np.asarray(trace, dtype=np.complex128).copy()
 
-    _require_reflection(response_port, source_port, fmt)
+    if not is_reflection:
+        raise InputValidationError(
+            f"{fmt.value} is valid only for reflection parameters Sii."
+        )
 
     if fmt is SParameterFormat.SWR:
         return _swr(trace)
 
-    impedance = _reflection_to_impedance(trace, network.z0)
+    impedance = _reflection_to_impedance(trace, z0)
     if fmt is SParameterFormat.IMPEDANCE_REAL:
         return np.asarray(impedance.real, dtype=np.float64)
     if fmt is SParameterFormat.IMPEDANCE_IMAGINARY:
@@ -152,17 +179,6 @@ def _group_delay_seconds(
     unwrapped_phase_rad = np.unwrap(np.angle(trace))
     derivative = np.gradient(unwrapped_phase_rad, frequencies_hz)
     return np.asarray(-derivative / (2.0 * np.pi), dtype=np.float64)
-
-
-def _require_reflection(
-    response_port: int,
-    source_port: int,
-    data_format: SParameterFormat,
-) -> None:
-    if response_port != source_port:
-        raise InputValidationError(
-            f"{data_format.value} is valid only for reflection parameters Sii."
-        )
 
 
 def _swr(trace: NDArray[np.complex128]) -> NDArray[np.float64]:

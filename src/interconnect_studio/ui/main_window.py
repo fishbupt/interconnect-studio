@@ -40,6 +40,7 @@ from interconnect_studio.services import (
     LoadedTouchstonePlot,
     TemplateService,
     TouchstonePlotService,
+    TraceUpdate,
 )
 from interconnect_studio.ui.dialogs import (
     AddTraceDialog,
@@ -54,6 +55,7 @@ from interconnect_studio.ui.panels import (
     MessageLogPanel,
     ParameterFormatPanel,
 )
+from interconnect_studio.ui.panels.parameter_format import ParameterChoice
 from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, apply_theme
 from interconnect_studio.ui.views import PlotViewArea
 from interconnect_studio.ui.widgets import CartesianPlotWidget
@@ -374,7 +376,9 @@ class MainWindow(QMainWindow):
     ) -> LoadedTouchstonePlot:
         """Open an imported network in a new window of a view type and show it."""
 
-        loaded = self._service.show_network(imported.network, imported.name, imported.source_path)
+        loaded = self._service.show_network(
+            imported.network, imported.name, imported.source_path, imported.port_group
+        )
         self._store_active_session()
         window = self._add_to_hierarchy(loaded, view_type)
 
@@ -442,12 +446,11 @@ class MainWindow(QMainWindow):
         if self._loaded is None:
             raise InputValidationError("Import a file before adding a trace.")
 
-        update = self._service.add_trace(
-            self._loaded,
-            response_port,
-            source_port,
-            data_format,
+        return self._after_trace_update(
+            self._service.add_trace(self._loaded, response_port, source_port, data_format)
         )
+
+    def _after_trace_update(self, update: TraceUpdate) -> LoadedTouchstonePlot:
         self._loaded = update.loaded
         self._apply(update.loaded)
 
@@ -501,21 +504,49 @@ class MainWindow(QMainWindow):
         self._loaded = cleared
         return self.add_trace(response_port, source_port, data_format)
 
-    def _on_add_trace_requested(
-        self,
-        response_port: int,
-        source_port: int,
-        data_format: str,
-    ) -> None:
-        self._guarded(lambda: self.add_trace(response_port, source_port, data_format))
+    def _on_add_trace_requested(self, choice: ParameterChoice, data_format: str) -> None:
+        self._guarded(lambda: self.add_selected_trace(choice, data_format))
 
-    def _on_new_plot_requested(
+    def _on_new_plot_requested(self, choice: ParameterChoice, data_format: str) -> None:
+        self._guarded(lambda: self.new_selected_plot(choice, data_format))
+
+    def add_selected_trace(
         self,
-        response_port: int,
-        source_port: int,
-        data_format: str,
-    ) -> None:
-        self._guarded(lambda: self.new_plot(response_port, source_port, data_format))
+        choice: ParameterChoice,
+        data_format: SParameterFormat | str,
+    ) -> LoadedTouchstonePlot:
+        """Add the trace a panel selection names, single-ended or mixed-mode."""
+
+        if self._loaded is None:
+            raise InputValidationError("Import a file before adding a trace.")
+
+        if not choice.is_mixed_mode:
+            return self.add_trace(choice.response_port, choice.source_port, data_format)
+
+        assert choice.response_mode is not None
+        assert choice.source_mode is not None
+        update = self._service.add_mixed_mode_trace(
+            self._loaded,
+            choice.response_mode,
+            choice.source_mode,
+            choice.response_port,
+            choice.source_port,
+            data_format,
+        )
+        return self._after_trace_update(update)
+
+    def new_selected_plot(
+        self,
+        choice: ParameterChoice,
+        data_format: SParameterFormat | str,
+    ) -> LoadedTouchstonePlot:
+        """Replace the current cell's plot with the selected parameter alone."""
+
+        if self._loaded is None:
+            raise InputValidationError("Import a file before creating a plot.")
+
+        self._loaded = replace(self._loaded, plot=PlotModel())
+        return self.add_selected_trace(choice, data_format)
 
     def _guarded(self, action: Callable[[], object]) -> None:
         try:
@@ -569,6 +600,7 @@ class MainWindow(QMainWindow):
         self.parameter_format.set_summary(
             session.loaded.name, network.n_ports, network.n_freq, network.z0
         )
+        self._refresh_parameter_grid(session.loaded, session.view_type)
         self.parameter_format.set_traces(tuple(trace.name for trace in loaded.plot.traces))
         self.setWindowTitle(f"{APP_TITLE} - [{session.title}]")
         self.add_trace_action.setEnabled(True)
@@ -595,6 +627,26 @@ class MainWindow(QMainWindow):
             loaded.network.z0,
         )
         self.parameter_format.set_traces(tuple(trace.name for trace in loaded.plot.traces))
+
+    def _refresh_parameter_grid(
+        self,
+        loaded: LoadedTouchstonePlot,
+        view_type: ViewType,
+    ) -> None:
+        """Show the matrix the view actually works in.
+
+        A balanced view needs the DUT configuration to know which ports pair
+        up; without it the data stays single-ended.
+        """
+
+        balanced = (
+            view_type is ViewType.FREQUENCY_DOMAIN_BALANCED and loaded.port_group is not None
+        )
+        if balanced:
+            assert loaded.port_group is not None
+            self.parameter_format.set_mixed_mode(loaded.port_group.n_ports // 2)
+        else:
+            self.parameter_format.set_port_count(loaded.network.n_ports)
 
     def _build_side_docks(self) -> None:
         self.data_browser_dock = QDockWidget("Data Browser", self)

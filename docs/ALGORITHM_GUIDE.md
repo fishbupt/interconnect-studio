@@ -180,7 +180,17 @@ pair / polarity / ordering / normalization 的约定见 `DOMAIN_MODEL.md` §7，
 - 输出为 `MixedModeNetwork`，不是 `Network`（差分与共模参考阻抗不同）。
 - 归一化使用 1/√2 功率不变变换。
 
-测试：pure differential / pure common / mode conversion / round trip；1-3/2-4 与 1-2/3-4 两种配对各覆盖一次。
+测试：pure differential / pure common / mode conversion / round trip；三种四端口拓扑各覆盖一次。
+
+解析基准为两条理想无耦合传输线：等长时无模式转换；不等长时 `Sdd21 = (ta+tb)/2`、`Scd21 = (ta-tb)/2`——后者正是钉住 1/√2 归一化与分块顺序的用例。
+
+## 显示与参考阻抗
+
+混合模式参数复用单端路径的 `format_coefficient`，两者不会各自漂移。差别只在参考阻抗：
+
+- 差分端口用 `2 * z0`，共模端口用 `z0 / 2`。
+- **仅同模式同端口（SDD_ii、SCC_ii）算反射**，可用 SWR 与阻抗类格式。
+- SDC_ii、SCD_ii 虽在同一端口，但关联两个模式，没有单一参考阻抗可言，故不提供阻抗类格式。
 
 # 12.5 Data Quality
 

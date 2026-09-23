@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -6,19 +7,24 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QInputDialog, QMainWindow, QMessageBox
 from pytestqt.qtbot import QtBot
 
+from interconnect_studio.algorithms.mixed_mode import DEFAULT_FOUR_PORT_TOPOLOGY
 from interconnect_studio.core import (
     BrowserCategory,
     InputValidationError,
+    Mode,
     TraceRecipe,
     ViewLayout,
     ViewType,
 )
-from interconnect_studio.services import ImportService
+from interconnect_studio.io import ImportFileType
+from interconnect_studio.services import ImportedNetwork, ImportService
 from interconnect_studio.ui import MainWindow
+from interconnect_studio.ui.panels.parameter_format import ParameterChoice
 from interconnect_studio.ui.theme import Theme
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "touchstone"
 S2P = DATA_DIR / "valid_2port_ri.s2p"
+IMPORT_DIR = Path(__file__).parents[1] / "data" / "import"
 
 
 def trace_names(window: MainWindow) -> list[str]:
@@ -686,3 +692,61 @@ def test_replacing_a_template_from_the_menu_asks_first(
     window.data_browser.save_template_requested.emit(2, "t")
 
     assert window.data_browser.model.templates[0].n_ports == 2
+
+
+def _balanced_import() -> ImportedNetwork:
+    imported = ImportService().import_single(
+        IMPORT_DIR / "4port.s4p", ImportFileType.TOUCHSTONE
+    )
+    return replace(imported, port_group=DEFAULT_FOUR_PORT_TOPOLOGY.port_group)
+
+
+def test_balanced_view_shows_the_mixed_mode_grid(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.open_imported(_balanced_import(), ViewType.FREQUENCY_DOMAIN_BALANCED)
+
+    panel = window.parameter_format
+    assert panel.is_mixed_mode is True
+    labels = [button.text() for button in panel._parameter_buttons.buttons()]
+    assert labels[:4] == ["SDD11", "SDD12", "SDC11", "SDC12"]
+
+
+def test_single_ended_view_keeps_the_plain_grid(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.open_imported(_balanced_import(), ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+
+    assert window.parameter_format.is_mixed_mode is False
+    assert window.parameter_format.n_ports == 4
+
+
+def test_balanced_view_adds_a_mixed_mode_trace(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.open_imported(_balanced_import(), ViewType.FREQUENCY_DOMAIN_BALANCED)
+    panel = window.parameter_format
+    index = [choice.label for choice in panel._choices].index("SCD21")
+    panel._parameter_buttons.button(index).setChecked(True)
+
+    panel.add_button.click()
+
+    assert window.plot_widget.model.traces[-1].name == "SCD21 Log Mag"
+
+
+def test_mixed_mode_without_a_topology_is_reported(qtbot: QtBot) -> None:
+    """Without a DUT configuration there is no way to know which ports pair up."""
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    imported = ImportService().import_single(
+        IMPORT_DIR / "4port.s4p", ImportFileType.TOUCHSTONE
+    )
+    window.open_imported(imported, ViewType.FREQUENCY_DOMAIN_BALANCED)
+    choice = ParameterChoice("SDD21", 1, 0, Mode.DIFFERENTIAL, Mode.DIFFERENTIAL)
+
+    window._on_add_trace_requested(choice, "log_mag")
+
+    assert "DUT configuration" in window.message_log.text()

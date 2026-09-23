@@ -148,6 +148,22 @@ Template View
 - Template View 在 Create New / Create New for Multi-data 之后按名称列出已保存 template，显示为「名称 (Np)」，N 为保存时文件的端口数；启动时读取，保存后刷新。
 - 点击 template：用它为活动文件新开 window，列在该 template 节点下，标题栏显示「文件名 - template 名 : 序号」；文件端口不够时在状态栏提示并不打开。template 被删除后，其 window 改列在所属视图类型下。
 
+## 参数网格
+
+Parameter / Format 面板的网格形状跟随视图类型，始终与数据实际具备的矩阵一致：
+
+- 单端视图：N×N 的 `Sij` 网格。
+- **Frequency Domain (Balanced)**：混合模式分块矩阵，按 `[[Sdd, Sdc], [Scd, Scc]]` 排列，即
+
+  ```text
+  SDD11 SDD12 SDC11 SDC12
+  SDD21 SDD22 SDC21 SDC22
+  SCD11 SCD12 SCC11 SCC12
+  SCD21 SCD22 SCC21 SCC22
+  ```
+
+平衡视图需要导入时选定的 DUT 拓扑才能知道端口如何配对；未选定时数据保持单端。
+
 # 7. Selection Model
 
 任一时刻存在三个"当前对象"：

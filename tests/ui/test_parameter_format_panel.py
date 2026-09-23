@@ -2,6 +2,7 @@ import pytest
 from pytestqt.qtbot import QtBot
 
 from interconnect_studio.algorithms.network import SParameterFormat
+from interconnect_studio.core import Mode
 from interconnect_studio.ui.panels import ParameterFormatPanel
 
 
@@ -79,7 +80,10 @@ def test_add_button_emits_selection(qtbot: QtBot) -> None:
     with qtbot.waitSignal(widget.add_trace_requested) as blocker:
         widget.add_button.click()
 
-    assert blocker.args == [1, 0, SParameterFormat.LOG_MAG.value]
+    choice, data_format = blocker.args
+    assert (choice.response_port, choice.source_port) == (1, 0)
+    assert choice.is_mixed_mode is False
+    assert data_format == SParameterFormat.LOG_MAG.value
 
 
 def test_new_plot_button_emits_selection(qtbot: QtBot) -> None:
@@ -88,16 +92,20 @@ def test_new_plot_button_emits_selection(qtbot: QtBot) -> None:
     with qtbot.waitSignal(widget.new_plot_requested) as blocker:
         widget.new_plot_button.click()
 
-    assert blocker.args == [0, 0, SParameterFormat.LOG_MAG.value]
+    choice, data_format = blocker.args
+    assert (choice.response_port, choice.source_port) == (0, 0)
+    assert data_format == SParameterFormat.LOG_MAG.value
 
 
-def test_set_summary_rebuilds_the_grid_for_the_port_count(qtbot: QtBot) -> None:
+def test_set_summary_only_updates_the_summary(qtbot: QtBot) -> None:
+    """The grid shape follows the view type, so the summary must not guess it."""
+
     widget = panel(qtbot, 2)
 
     widget.set_summary("dut.s4p", 4, 201, 50.0)
 
-    assert widget.n_ports == 4
     assert widget.ports_value.text() == "4"
+    assert widget.n_ports == 2
 
 
 def test_clear_resets_the_panel(qtbot: QtBot) -> None:
@@ -109,3 +117,65 @@ def test_clear_resets_the_panel(qtbot: QtBot) -> None:
     assert widget.n_ports == 0
     assert widget.file_value.text() == "-"
     assert widget.add_button.isEnabled() is False
+
+
+def test_mixed_mode_grid_is_the_block_matrix(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_mixed_mode(2)
+
+    labels = [button.text() for button in widget._parameter_buttons.buttons()]
+    assert widget.is_mixed_mode is True
+    assert labels[:4] == ["SDD11", "SDD12", "SDC11", "SDC12"]
+    assert labels[4:8] == ["SDD21", "SDD22", "SDC21", "SDC22"]
+    assert labels[8:12] == ["SCD11", "SCD12", "SCC11", "SCC12"]
+    assert labels[12:] == ["SCD21", "SCD22", "SCC21", "SCC22"]
+
+
+def test_mixed_mode_selection_carries_its_modes(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+    widget.set_mixed_mode(2)
+
+    widget._parameter_buttons.button(4).setChecked(True)  # SDD21
+
+    choice = widget.selected_choice()
+    assert choice is not None
+    assert choice.label == "SDD21"
+    assert choice.response_mode is Mode.DIFFERENTIAL
+    assert choice.source_mode is Mode.DIFFERENTIAL
+    assert (choice.response_port, choice.source_port) == (1, 0)
+
+
+def test_mixed_mode_reflection_offers_impedance_formats(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+    widget.set_mixed_mode(2)
+
+    widget._parameter_buttons.button(0).setChecked(True)  # SDD11
+
+    assert SParameterFormat.SWR.value in format_values(widget)
+
+
+def test_mode_conversion_terms_hide_impedance_formats(qtbot: QtBot) -> None:
+    """SDC11 sits on one port but relates two modes, so no single z0 applies."""
+
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+    widget.set_mixed_mode(2)
+
+    widget._parameter_buttons.button(2).setChecked(True)  # SDC11
+
+    assert SParameterFormat.SWR.value not in format_values(widget)
+
+
+def test_switching_back_to_single_ended_clears_mixed_mode(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+    widget.set_mixed_mode(2)
+
+    widget.set_port_count(4)
+
+    assert widget.is_mixed_mode is False
+    assert widget._parameter_buttons.button(0).text() == "S11"

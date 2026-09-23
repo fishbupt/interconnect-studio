@@ -14,10 +14,16 @@ from interconnect_studio.algorithms.mixed_mode import (
     DEFAULT_FOUR_PORT_TOPOLOGY,
     FOUR_PORT_TOPOLOGIES,
     Topology,
+    cartesian_formats_for_mixed_mode,
+    create_mixed_mode_trace,
+    format_mixed_mode_parameter,
+    is_mixed_mode_reflection,
+    mixed_mode_parameter_name,
     to_mixed_mode,
     topology_by_id,
 )
 from interconnect_studio.algorithms.mixed_mode.transform import _transform_matrix
+from interconnect_studio.algorithms.network import SParameterFormat
 from interconnect_studio.core import (
     InputValidationError,
     Line,
@@ -210,3 +216,105 @@ def test_topology_rejects_an_incomplete_port_set() -> None:
 
 def test_topology_label_uses_one_based_ports() -> None:
     assert DEFAULT_FOUR_PORT_TOPOLOGY.label() == "1→2 , 3→4"
+
+
+def mixed() -> MixedModeNetwork:
+    return to_mixed_mode(two_line_network((0, 1), (2, 3)), DEFAULT_FOUR_PORT_TOPOLOGY.port_group)
+
+
+@pytest.mark.parametrize(
+    ("response_mode", "source_mode", "response_port", "source_port", "expected"),
+    [
+        (D, D, 1, 0, "SDD21"),
+        (D, C, 0, 0, "SDC11"),
+        (C, D, 1, 1, "SCD22"),
+        (C, C, 0, 1, "SCC12"),
+    ],
+)
+def test_parameter_names_are_engineering_names(
+    response_mode: Mode,
+    source_mode: Mode,
+    response_port: int,
+    source_port: int,
+    expected: str,
+) -> None:
+    assert (
+        mixed_mode_parameter_name(response_mode, source_mode, response_port, source_port)
+        == expected
+    )
+
+
+def test_same_mode_same_port_is_a_reflection() -> None:
+    assert is_mixed_mode_reflection(D, D, 0, 0) is True
+    assert is_mixed_mode_reflection(C, C, 1, 1) is True
+
+
+def test_mode_conversion_on_one_port_is_not_a_reflection() -> None:
+    """SDC11 relates two modes, so no single reference impedance describes it."""
+
+    assert is_mixed_mode_reflection(D, C, 0, 0) is False
+
+
+def test_transmission_is_not_a_reflection() -> None:
+    assert is_mixed_mode_reflection(D, D, 1, 0) is False
+
+
+def test_reflection_offers_impedance_formats() -> None:
+    formats = cartesian_formats_for_mixed_mode(D, D, 0, 0)
+
+    assert SParameterFormat.SWR in formats
+
+
+def test_mode_conversion_hides_impedance_formats() -> None:
+    formats = cartesian_formats_for_mixed_mode(D, C, 0, 0)
+
+    assert SParameterFormat.SWR not in formats
+
+
+def test_log_mag_matches_the_coefficient() -> None:
+    network = mixed()
+    expected = 20.0 * np.log10(np.abs(network.mode_parameter(D, D, 1, 0)))
+
+    values = format_mixed_mode_parameter(network, D, D, 1, 0, SParameterFormat.LOG_MAG)
+
+    np.testing.assert_allclose(values, expected)
+
+
+def test_differential_reflection_uses_the_differential_impedance() -> None:
+    """SDD11 impedance must reference 2*z0, not the single-ended z0."""
+
+    network = mixed()
+    gamma = network.mode_parameter(D, D, 0, 0)
+    expected = (network.z0_differential * (1.0 + gamma) / (1.0 - gamma)).real
+
+    values = format_mixed_mode_parameter(
+        network, D, D, 0, 0, SParameterFormat.IMPEDANCE_REAL
+    )
+
+    np.testing.assert_allclose(values, expected)
+
+
+def test_common_reflection_uses_the_common_impedance() -> None:
+    network = mixed()
+    gamma = network.mode_parameter(C, C, 0, 0)
+    expected = (network.z0_common * (1.0 + gamma) / (1.0 - gamma)).real
+
+    values = format_mixed_mode_parameter(
+        network, C, C, 0, 0, SParameterFormat.IMPEDANCE_REAL
+    )
+
+    np.testing.assert_allclose(values, expected)
+
+
+def test_impedance_format_is_rejected_for_mode_conversion() -> None:
+    with pytest.raises(InputValidationError, match="reflection parameters"):
+        format_mixed_mode_parameter(mixed(), D, C, 0, 0, SParameterFormat.IMPEDANCE_REAL)
+
+
+def test_trace_is_named_and_has_units() -> None:
+    trace = create_mixed_mode_trace(mixed(), D, D, 1, 0, SParameterFormat.LOG_MAG)
+
+    assert trace.name == "SDD21 Log Mag"
+    assert trace.x_unit == "Hz"
+    assert trace.y_unit == "dB"
+    assert trace.n_points == len(FREQUENCIES)
