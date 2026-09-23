@@ -1,7 +1,18 @@
 """Data browser panel: category -> view type -> window, as in PLTS."""
 
-from PyQt6.QtCore import QItemSelection, QModelIndex, pyqtSignal
-from PyQt6.QtWidgets import QTreeView, QVBoxLayout, QWidget
+from collections.abc import Callable
+
+from PyQt6.QtCore import QItemSelection, QModelIndex, QPoint, Qt, pyqtSignal
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import (
+    QApplication,
+    QInputDialog,
+    QLineEdit,
+    QMenu,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
+)
 
 from interconnect_studio.core import DataBrowserTree, DataFile, ViewWindow
 from interconnect_studio.ui.models import DataBrowserModel
@@ -12,10 +23,19 @@ class DataBrowserPanel(QWidget):
 
     Parameters and display formats are not tree nodes; they belong to the
     parameter/format panel.
+
+    Right-clicking a window offers the PLTS window menu. The panel only asks
+    for the operation; the owner of the open windows carries it out:
+    ``close_view_requested(window number)``, ``close_file_requested(file id)``
+    and ``rename_file_requested(file id, new name)``. Copy File Name is
+    handled here, as it changes nothing.
     """
 
     current_file_changed = pyqtSignal(object)
     current_window_changed = pyqtSignal(object)
+    close_view_requested = pyqtSignal(int)
+    close_file_requested = pyqtSignal(str)
+    rename_file_requested = pyqtSignal(str, str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -27,6 +47,8 @@ class DataBrowserPanel(QWidget):
         self.tree.setExpandsOnDoubleClick(False)
         self.tree.expanded.connect(lambda index: self.model.set_expanded(index, True))
         self.tree.collapsed.connect(lambda index: self.model.set_expanded(index, False))
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._on_context_menu_requested)
 
         selection = self.tree.selectionModel()
         if selection is not None:
@@ -85,3 +107,54 @@ class DataBrowserPanel(QWidget):
     def _on_selection_changed(self, selected: QItemSelection, deselected: QItemSelection) -> None:
         self.current_window_changed.emit(self.current_window())
         self.current_file_changed.emit(self.current_file())
+
+    def window_menu(self, window: ViewWindow) -> QMenu:
+        """Build the right-click menu of one window, as in PLTS."""
+
+        menu = QMenu(self)
+        actions: tuple[tuple[str, str, Callable[[], None]], ...] = (
+            ("close_view", "Close View", lambda: self.close_view_requested.emit(window.number)),
+            (
+                "close_file",
+                "Close File",
+                lambda: self.close_file_requested.emit(window.data_file.id),
+            ),
+            ("copy_file_name", "Copy File Name", lambda: self.copy_file_name(window)),
+            ("rename_file", "Rename File", lambda: self.ask_rename_file(window)),
+        )
+        for object_name, text, slot in actions:
+            action = QAction(text, menu)
+            action.setObjectName(object_name)
+            action.triggered.connect(slot)
+            menu.addAction(action)
+        return menu
+
+    def copy_file_name(self, window: ViewWindow) -> None:
+        """Put the window's data file name on the clipboard."""
+
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(window.data_file.name)
+
+    def ask_rename_file(self, window: ViewWindow) -> None:
+        """Ask for a new data file name and request the rename."""
+
+        name, accepted = QInputDialog.getText(
+            self,
+            "Rename File",
+            "File name:",
+            QLineEdit.EchoMode.Normal,
+            window.data_file.name,
+        )
+        name = name.strip()
+        if accepted and name and name != window.data_file.name:
+            self.rename_file_requested.emit(window.data_file.id, name)
+
+    def _on_context_menu_requested(self, position: QPoint) -> None:
+        window = self.model.window_at(self.tree.indexAt(position))
+        if window is None:
+            return
+        viewport = self.tree.viewport()
+        if viewport is None:
+            return
+        self.window_menu(window).exec(viewport.mapToGlobal(position))

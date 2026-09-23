@@ -371,13 +371,19 @@ class DataBrowserTree:
 
     def windows_of(self, view_type: ViewType) -> tuple[ViewWindow, ...]: ...
     def open(self, view_type: ViewType, data_file: DataFile) -> tuple[DataBrowserTree, ViewWindow]: ...
+    def window(self, number: int) -> ViewWindow: ...
+    def windows_of_file(self, file_id: str) -> tuple[ViewWindow, ...]: ...
+    def close_window(self, number: int) -> DataBrowserTree: ...           # Close View
+    def close_file(self, file_id: str) -> DataBrowserTree: ...            # Close File
+    def rename_file(self, file_id: str, name: str) -> DataBrowserTree: ...  # Rename File
 ```
 
 约定：
 
 - 分类与视图类型是**预置、不可增删**的目录（枚举），顺序与 PLTS 一致；只有 window 由用户打开和关闭。
 - `DataFile` 不是树节点：同一个文件可在多个视图类型下各开一个 window，因此在树中出现多次。
-- window 序号全树唯一、递增，与 PLTS 的 "Beatty : 2" 一致。
+- window 序号全树唯一、递增，与 PLTS 的 "Beatty : 2" 一致；新 window 序号取当前已打开 window 的最大序号 + 1。
+- 树是不可变值：关闭 / 重命名返回新树；对未打开的 window 或文件操作抛 `InputValidationError`。
 - `DataFile.id` 在 Project 内唯一，且不随重命名改变。
 - 去嵌、Mixed-Mode 等算法产物同样封装为 `DataFile`，并在 metadata 中记录来源与算法参数。
 - 参数（S11/S21/...）与显示格式**不是树节点**，由 UI 的 Parameter / Format 面板承担（见 `UI_DESIGN.md` §3）。

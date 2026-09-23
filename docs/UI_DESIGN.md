@@ -136,7 +136,14 @@ Template View
 - 参数与显示格式的选择**不在树里**，由 Parameter / Format 面板承担（PLTS 即如此）。
 - 树使用 `QAbstractItemModel` 适配领域对象，放在 `ui/models/`。
 - 选中 window 即切换视图区：每个 window 各自保存 plot 网格（`ViewLayout`）、选中格与数据文件（`ui/window_session.py`），切走时保存、切回时恢复；主窗口标题显示「文件名 - 分析类型 : 序号」（PLTS 标题栏同样显示文件名与分析类型）。新 window 沿用当前网格尺寸，默认 plot 放在第一格。
-- 待实现（PLTS 行为）：点击视图类型为活动文件新开空白 window；window 右键 Close View / Close File / Copy File Name / Rename File；Template View 下列出已保存 template。
+- window 右键菜单（同 PLTS）：
+  - **Close View**：关闭该 window；
+  - **Close File**：关闭该数据文件的所有 window；
+  - **Copy File Name**：把文件显示名复制到剪贴板；
+  - **Rename File**：输入新显示名，该文件的所有 window、参数面板、标题栏以及以旧文件名为标题的 plot 同步改名；文件 `id` 不变。空名、未改名或取消均不动作。
+  - 关闭的是当前显示的 window 时，切换到剩余序号最大的 window；全部关闭后视图区清空为 1×1 空网格，Add Trace 置灰。
+  - 面板只发出请求信号（`close_view_requested` / `close_file_requested` / `rename_file_requested`），由主窗口更新 `DataBrowserTree` 与各 window 的会话。
+- 待实现（PLTS 行为）：点击视图类型为活动文件新开空白 window；Template View 下列出已保存 template。
 
 # 7. Selection Model
 

@@ -388,3 +388,88 @@ def test_clicking_a_window_row_switches_the_display(qtbot: QtBot) -> None:
 
     assert window.active_window == 1
     assert window.parameter_format.file_value.text() == "valid_2port_ri.s2p"
+
+
+def test_close_view_of_the_active_window_shows_the_newest_left(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.load_touchstone_file(S2P)
+    window.data_browser.select_window(2)
+
+    window.close_view(2)
+
+    assert [w.number for w in window.data_browser.browser_tree.windows] == [1, 3]
+    assert window.active_window == 3
+    assert window.data_browser.current_window().number == 3
+    assert window.windowTitle().endswith(": 3]")
+
+
+def test_close_view_of_another_window_keeps_the_active_one(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+
+    window.close_view(1)
+
+    assert window.active_window == 2
+    assert window.data_browser.current_window().number == 2
+    assert window.parameter_format.ports_value.text() == "3"
+
+
+def test_closing_every_window_clears_the_view(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    file_id = window.data_browser.browser_tree.window(2).data_file.id
+
+    window.close_file(file_id)
+    window.close_view(1)
+
+    assert window.data_browser.browser_tree.windows == ()
+    assert window.active_window is None
+    assert window.loaded_measurement is None
+    assert window.windowTitle() == "Interconnect Studio"
+    assert window.add_trace_action.isEnabled() is False
+    assert window.view_area.current_plot.traces == ()
+    with pytest.raises(InputValidationError, match="Import a file"):
+        window.add_trace(0, 0, "log_mag")
+
+
+def test_rename_file_updates_browser_title_summary_and_plot(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    file_id = window.data_browser.browser_tree.window(1).data_file.id
+
+    window.rename_file(file_id, "channel")
+
+    assert window.data_browser.browser_tree.window(1).label == "channel : 1"
+    assert window.active_window == 2
+    window.data_browser.select_window(1)
+    assert window.parameter_format.file_value.text() == "channel"
+    assert window.view_area.current_plot.title == "channel"
+    assert "[channel - " in window.windowTitle()
+
+
+def test_rename_file_of_the_active_window_keeps_added_traces(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.add_trace(2, 0, "log_mag")
+    file_id = window.data_browser.browser_tree.window(2).data_file.id
+
+    window.rename_file(file_id, "dut")
+
+    assert window.parameter_format.file_value.text() == "dut"
+    assert "S31" in " ".join(trace_names(window))
+    assert window.data_browser.current_window().number == 2
+
+
+def test_rename_file_rejects_an_empty_name(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    file_id = window.data_browser.browser_tree.window(1).data_file.id
+
+    with pytest.raises(InputValidationError):
+        window.rename_file(file_id, "  ")
+
+    assert window.data_browser.browser_tree.window(1).data_file.name == "valid_2port_ri.s2p"
+
+
+def test_browser_window_menu_requests_reach_the_main_window(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    browser = window.data_browser
+
+    browser.close_view_requested.emit(1)
+
+    assert [w.number for w in browser.browser_tree.windows] == [2]

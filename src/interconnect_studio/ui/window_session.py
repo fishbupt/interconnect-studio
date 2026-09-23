@@ -42,3 +42,19 @@ class WindowSession:
         """The window's network paired with the plot of its selected cell."""
 
         return replace(self.loaded, plot=self.layout.plots[self.current_index])
+
+    def renamed(self, name: str) -> "WindowSession":
+        """The same window after its data file is renamed.
+
+        Plots titled with the old file name take the new one.
+        """
+
+        old = self.loaded.name
+        plots = tuple(
+            replace(plot, title=name) if plot.title == old else plot for plot in self.layout.plots
+        )
+        return replace(
+            self,
+            loaded=replace(self.loaded, name=name),
+            layout=replace(self.layout, plots=plots),
+        )

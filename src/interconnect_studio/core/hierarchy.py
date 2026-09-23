@@ -12,7 +12,7 @@ under every view type it is opened in. Parameters and display formats are not
 tree nodes; they are chosen in the parameter/format panel.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -178,3 +178,46 @@ class DataBrowserTree:
 
         window = ViewWindow(view_type=view_type, data_file=data_file, number=self.next_number)
         return DataBrowserTree(windows=(*self.windows, window)), window
+
+    def window(self, number: int) -> ViewWindow:
+        """The open window with this number."""
+
+        for item in self.windows:
+            if item.number == number:
+                return item
+        raise InputValidationError(f"Window {number} is not open.")
+
+    def windows_of_file(self, file_id: str) -> tuple[ViewWindow, ...]:
+        """Windows showing one data file, in opening order."""
+
+        return tuple(item for item in self.windows if item.data_file.id == file_id)
+
+    def close_window(self, number: int) -> "DataBrowserTree":
+        """Return a tree without one window (PLTS "Close View")."""
+
+        self.window(number)
+        return DataBrowserTree(windows=tuple(w for w in self.windows if w.number != number))
+
+    def close_file(self, file_id: str) -> "DataBrowserTree":
+        """Return a tree without every window of one data file (PLTS "Close File")."""
+
+        if not self.windows_of_file(file_id):
+            raise InputValidationError(f"Data file {file_id} is not open.")
+        return DataBrowserTree(windows=tuple(w for w in self.windows if w.data_file.id != file_id))
+
+    def rename_file(self, file_id: str, name: str) -> "DataBrowserTree":
+        """Return a tree where one data file has a new display name (PLTS "Rename File").
+
+        Every window of the file shows the new name; the file ``id``, which
+        traces refer to, is unchanged.
+        """
+
+        if not self.windows_of_file(file_id):
+            raise InputValidationError(f"Data file {file_id} is not open.")
+        renamed = replace(self.windows_of_file(file_id)[0].data_file, name=name)
+        return DataBrowserTree(
+            windows=tuple(
+                replace(w, data_file=renamed) if w.data_file.id == file_id else w
+                for w in self.windows
+            )
+        )

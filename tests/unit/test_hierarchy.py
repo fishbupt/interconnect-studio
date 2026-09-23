@@ -156,3 +156,59 @@ def test_tree_is_immutable() -> None:
 
     with pytest.raises(AttributeError):
         tree.windows = ()  # type: ignore[misc]
+
+
+def browser_with_two_files() -> DataBrowserTree:
+    first, second = data_file("f1", "a.s2p"), data_file("f2", "b.s2p")
+    tree, _ = DataBrowserTree().open(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, first)
+    tree, _ = tree.open(ViewType.TIME_DOMAIN_SINGLE_ENDED, first)
+    tree, _ = tree.open(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, second)
+    return tree
+
+
+def test_close_window_removes_only_that_window() -> None:
+    tree = browser_with_two_files().close_window(2)
+
+    assert [w.number for w in tree.windows] == [1, 3]
+
+
+def test_close_window_keeps_numbering_increasing() -> None:
+    tree = browser_with_two_files().close_window(3)
+
+    assert tree.next_number == 3
+
+
+def test_close_file_removes_every_window_of_the_file() -> None:
+    tree = browser_with_two_files().close_file("f1")
+
+    assert [w.number for w in tree.windows] == [3]
+
+
+def test_rename_file_renames_it_in_every_window() -> None:
+    tree = browser_with_two_files().rename_file("f1", "renamed.s2p")
+
+    assert [w.label for w in tree.windows] == [
+        "renamed.s2p : 1",
+        "renamed.s2p : 2",
+        "b.s2p : 3",
+    ]
+    assert tree.windows[0].data_file.id == "f1"
+
+
+def test_rename_file_rejects_an_empty_name() -> None:
+    with pytest.raises(InputValidationError, match="non-empty"):
+        browser_with_two_files().rename_file("f1", "  ")
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        lambda tree: tree.close_window(9),
+        lambda tree: tree.close_file("missing"),
+        lambda tree: tree.rename_file("missing", "x"),
+        lambda tree: tree.window(9),
+    ],
+)
+def test_tree_operations_reject_unknown_windows_and_files(action: object) -> None:
+    with pytest.raises(InputValidationError, match="not open"):
+        action(browser_with_two_files())  # type: ignore[operator]

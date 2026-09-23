@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 
 from interconnect_studio.algorithms.network import SParameterFormat
 from interconnect_studio.core import (
+    DataBrowserTree,
     DataFile,
     InputValidationError,
     PlotModel,
@@ -99,6 +100,15 @@ class MainWindow(QMainWindow):
         self.parameter_format.add_trace_requested.connect(self._on_add_trace_requested)
         self.parameter_format.new_plot_requested.connect(self._on_new_plot_requested)
         self.data_browser.current_window_changed.connect(self._on_browser_window_changed)
+        self.data_browser.close_view_requested.connect(
+            lambda number: self._guarded(lambda: self.close_view(number))
+        )
+        self.data_browser.close_file_requested.connect(
+            lambda file_id: self._guarded(lambda: self.close_file(file_id))
+        )
+        self.data_browser.rename_file_requested.connect(
+            lambda file_id, name: self._guarded(lambda: self.rename_file(file_id, name))
+        )
         self.view_area.current_index_changed.connect(self._on_cell_changed)
 
         self.setCentralWidget(self.view_area)
@@ -141,6 +151,82 @@ class MainWindow(QMainWindow):
         self._store_active_session()
         self._restore_session(session)
         self._log(f"Window: {session.title}")
+
+    def close_view(self, number: int) -> None:
+        """Close one window (Data Browser window menu > Close View)."""
+
+        tree = self.data_browser.browser_tree
+        title = self._sessions[number].title if number in self._sessions else str(number)
+        self._close_windows(tree.close_window(number), (number,))
+        self._log(f"Closed view: {title}")
+
+    def close_file(self, file_id: str) -> None:
+        """Close every window of one data file (window menu > Close File)."""
+
+        tree = self.data_browser.browser_tree
+        windows = tree.windows_of_file(file_id)
+        closed = tree.close_file(file_id)
+        self._close_windows(closed, tuple(window.number for window in windows))
+        self._log(f"Closed file: {windows[0].data_file.name}")
+
+    def rename_file(self, file_id: str, name: str) -> None:
+        """Give a data file a new display name (window menu > Rename File).
+
+        Every window of the file, and plots titled with its old name, show
+        the new one.
+        """
+
+        name = name.strip()
+        tree = self.data_browser.browser_tree
+        windows = tree.windows_of_file(file_id)
+        renamed = tree.rename_file(file_id, name)
+        old_name = windows[0].data_file.name if windows else name
+
+        self._store_active_session()
+        for window in windows:
+            if window.number in self._sessions:
+                self._sessions[window.number] = self._sessions[window.number].renamed(name)
+        self._set_browser_tree(renamed)
+        if self._active_window is not None:
+            self._restore_session(self._sessions[self._active_window])
+        self._log(f"Renamed file: {old_name} -> {name}")
+
+    def _close_windows(self, tree: DataBrowserTree, numbers: tuple[int, ...]) -> None:
+        """Drop closed windows; if the shown one closed, show the newest left."""
+
+        for number in numbers:
+            self._sessions.pop(number, None)
+        if self._active_window in numbers:
+            self._active_window = None
+            self._loaded = None
+        self._set_browser_tree(tree)
+        if self._active_window is not None:
+            return
+        remaining = [window.number for window in tree.windows if window.number in self._sessions]
+        if remaining:
+            self._restore_session(self._sessions[max(remaining)])
+            self.data_browser.select_window(max(remaining))
+        else:
+            self._clear_view()
+
+    def _set_browser_tree(self, tree: DataBrowserTree) -> None:
+        """Show a changed tree, keeping the active window selected."""
+
+        self.data_browser.set_browser_tree(tree)
+        if self._active_window is not None:
+            self.data_browser.select_window(self._active_window)
+
+    def _clear_view(self) -> None:
+        """Empty the view area once no window is open."""
+
+        self._active_window = None
+        self._loaded = None
+        self.view_area.set_layout_model(ViewLayout(rows=1, cols=1))
+        for size, action in self.layout_actions.items():
+            action.setChecked(size == (1, 1))
+        self.parameter_format.clear()
+        self.setWindowTitle(APP_TITLE)
+        self.add_trace_action.setEnabled(False)
 
     def load_touchstone_file(self, path: str | Path) -> LoadedTouchstonePlot:
         """Import a whole file, typed by its name, into a Frequency Domain window.
