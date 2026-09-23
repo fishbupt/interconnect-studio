@@ -265,3 +265,46 @@ def test_build_config_rejects_invalid_rows(tmp_path: Path, body: str, message: s
 
     with pytest.raises(DataFormatError, match=message):
         read_build_config(path)
+
+
+def fixture_s(n_ports: int) -> np.ndarray:
+    """2port.* / 4port.* fixtures: S[r][c] = (10r + c)/100 + j(k+1)/100, 1-based r, c."""
+
+    s = np.empty((5, n_ports, n_ports), dtype=np.complex128)
+    for k in range(5):
+        for row in range(1, n_ports + 1):
+            for col in range(1, n_ports + 1):
+                s[k, row - 1, col - 1] = (10 * row + col) / 100 + 1j * (k + 1) / 100
+    return s
+
+
+@pytest.mark.parametrize("n_ports", [2, 4])
+@pytest.mark.parametrize(
+    ("suffix", "file_type"),
+    [
+        (".s{n}p", ImportFileType.TOUCHSTONE),
+        (".ts", ImportFileType.TOUCHSTONE_2),
+        (".cti", ImportFileType.CITIFILE),
+    ],
+)
+def test_two_and_four_port_fixtures_read_the_same_in_every_format(
+    n_ports: int, suffix: str, file_type: ImportFileType
+) -> None:
+    path = DATA_DIR / f"{n_ports}port{suffix.format(n=n_ports)}"
+
+    network = read_network(path, file_type)
+
+    assert guess_file_type(path) is file_type
+    assert network.n_ports == n_ports
+    np.testing.assert_allclose(network.frequencies_hz, [1e9, 2e9, 3e9, 4e9, 5e9])
+    np.testing.assert_allclose(network.s, fixture_s(n_ports))
+    assert network.z0 == 50
+
+
+def test_file_types_list_touchstone_1_then_2_then_citifile_first() -> None:
+    assert list(ImportFileType)[:3] == [
+        ImportFileType.TOUCHSTONE,
+        ImportFileType.TOUCHSTONE_2,
+        ImportFileType.CITIFILE,
+    ]
+    assert ImportFileType.TOUCHSTONE.label == "Touchstone 1.0 (*.sNp)"

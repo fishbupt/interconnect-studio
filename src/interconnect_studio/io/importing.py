@@ -11,15 +11,16 @@ from interconnect_studio.io.touchstone2 import read_touchstone2
 
 
 class ImportFileType(Enum):
-    """File types offered by the PLTS Import dialogs, in PLTS order.
+    """File types offered by the Import dialogs, in display order.
 
-    ``label`` is the text of the File Type list; ``pattern`` is the file
-    dialog filter.
+    Touchstone 1.0, Touchstone 2.0 and CITIfile come first, then text.
+    ``label`` is the text of the File Type list; the second value is the file
+    dialog pattern.
     """
 
-    CITIFILE = ("Citifile (*.cti)", "*.cti *.cit")
-    TOUCHSTONE = ("Touchstone (*.sNp)", "*.s*p")
+    TOUCHSTONE = ("Touchstone 1.0 (*.sNp)", "*.s*p")
     TOUCHSTONE_2 = ("Touchstone 2.0 (*.ts)", "*.ts")
+    CITIFILE = ("Citifile (*.cti)", "*.cti *.cit")
     TEXT_TAB = ("Text (tab delimited) (*.txt)", "*.txt")
     TEXT_COMMA = ("Text (comma delimited) (*.txt)", "*.txt *.csv")
 

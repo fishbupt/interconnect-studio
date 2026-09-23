@@ -237,3 +237,13 @@ def test_build_config_dialog_reports_errors(qtbot: QtBot, tmp_path: Path) -> Non
 
     assert dialog.imported is None
     assert "not found" in dialog.error_label.text()
+
+
+def test_file_type_list_order(qtbot: QtBot) -> None:
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+
+    labels = [dialog.file_type_combo.itemText(i) for i in range(dialog.file_type_combo.count())]
+
+    assert labels[:3] == ["Touchstone 1.0 (*.sNp)", "Touchstone 2.0 (*.ts)", "Citifile (*.cti)"]
+    assert dialog.file_type() is ImportFileType.TOUCHSTONE
