@@ -29,6 +29,9 @@ class DataBrowserPanel(QWidget):
     ``close_view_requested(window number)``, ``close_file_requested(file id)``
     and ``rename_file_requested(file id, new name)``. Copy File Name is
     handled here, as it changes nothing.
+
+    Clicking an available view type asks for a new window of that type for
+    the active data file: ``open_view_requested(view type)``.
     """
 
     current_file_changed = pyqtSignal(object)
@@ -36,6 +39,7 @@ class DataBrowserPanel(QWidget):
     close_view_requested = pyqtSignal(int)
     close_file_requested = pyqtSignal(str)
     rename_file_requested = pyqtSignal(str, str)
+    open_view_requested = pyqtSignal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -49,6 +53,7 @@ class DataBrowserPanel(QWidget):
         self.tree.collapsed.connect(lambda index: self.model.set_expanded(index, False))
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu_requested)
+        self.tree.clicked.connect(self._on_clicked)
 
         selection = self.tree.selectionModel()
         if selection is not None:
@@ -149,6 +154,11 @@ class DataBrowserPanel(QWidget):
         name = name.strip()
         if accepted and name and name != window.data_file.name:
             self.rename_file_requested.emit(window.data_file.id, name)
+
+    def _on_clicked(self, index: QModelIndex) -> None:
+        view_type = self.model.view_type_at(index)
+        if view_type is not None and self.model.is_available(view_type):
+            self.open_view_requested.emit(view_type)
 
     def _on_context_menu_requested(self, position: QPoint) -> None:
         window = self.model.window_at(self.tree.indexAt(position))

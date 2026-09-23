@@ -106,6 +106,9 @@ class MainWindow(QMainWindow):
         self.data_browser.close_file_requested.connect(
             lambda file_id: self._guarded(lambda: self.close_file(file_id))
         )
+        self.data_browser.open_view_requested.connect(
+            lambda view_type: self._guarded(lambda: self.open_view(view_type))
+        )
         self.data_browser.rename_file_requested.connect(
             lambda file_id, name: self._guarded(lambda: self.rename_file(file_id, name))
         )
@@ -151,6 +154,38 @@ class MainWindow(QMainWindow):
         self._store_active_session()
         self._restore_session(session)
         self._log(f"Window: {session.title}")
+
+    def open_view(self, view_type: ViewType) -> LoadedTouchstonePlot:
+        """Open a blank window of a view type for the active data file.
+
+        This is what clicking a view type in the Data Browser does. The new
+        window shows the same data file (same ``id``, so Close File and
+        Rename File cover it too) in a grid of the current size with empty
+        plots.
+        """
+
+        if self._active_window is None:
+            raise InputValidationError("Import a file before opening a view.")
+        if not self.data_browser.model.is_available(view_type):
+            raise InputValidationError(f"{view_type.label} is not available yet.")
+        data_file = self.data_browser.browser_tree.window(self._active_window).data_file
+        active = self._sessions[self._active_window].loaded
+
+        self._store_active_session()
+        tree, window = self.data_browser.browser_tree.open(view_type, data_file)
+        self.data_browser.set_browser_tree(tree)
+        shown = self.view_area.layout_model
+        session = WindowSession(
+            window.number,
+            view_type,
+            replace(active, plot=PlotModel()),
+            ViewLayout(rows=shown.rows, cols=shown.cols),
+        )
+        self._sessions[window.number] = session
+        loaded = self._restore_session(session)
+        self.data_browser.select_window(window.number)
+        self._log(f"Opened view: {session.title}")
+        return loaded
 
     def close_view(self, number: int) -> None:
         """Close one window (Data Browser window menu > Close View)."""

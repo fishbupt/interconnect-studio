@@ -110,6 +110,15 @@ class DataBrowserModel(QAbstractItemModel):
             self._expanded.discard(node.payload)
         self.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
 
+    def view_type_at(self, index: QModelIndex) -> ViewType | None:
+        """Return the view type an index points at, or None for other rows."""
+
+        node = self._node(index)
+        if node is None or node.depth != _VIEW_TYPE_DEPTH:
+            return None
+        payload = node.payload
+        return payload if isinstance(payload, ViewType) else None
+
     def window_at(self, index: QModelIndex) -> ViewWindow | None:
         """Return the window an index points at, or None for other rows."""
 

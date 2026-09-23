@@ -143,7 +143,8 @@ Template View
   - **Rename File**：输入新显示名，该文件的所有 window、参数面板、标题栏以及以旧文件名为标题的 plot 同步改名；文件 `id` 不变。空名、未改名或取消均不动作。
   - 关闭的是当前显示的 window 时，切换到剩余序号最大的 window；全部关闭后视图区清空为 1×1 空网格，Add Trace 置灰。
   - 面板只发出请求信号（`close_view_requested` / `close_file_requested` / `rename_file_requested`），由主窗口更新 `DataBrowserTree` 与各 window 的会话。
-- 待实现（PLTS 行为）：点击视图类型为活动文件新开空白 window；Template View 下列出已保存 template。
+- 点击视图类型（同 PLTS）：为活动文件（当前显示 window 的数据文件）在该视图类型下新开一个空白 window，沿用当前网格尺寸，所有格为空 plot，并立即切换过去。新 window 与原 window 共享同一 `DataFile`（同一 `id`），因此 Close File / Rename File 同时作用于两者。未打开任何文件或视图类型置灰时不动作。面板发出 `open_view_requested(ViewType)`，由主窗口 `open_view` 执行。
+- 待实现（PLTS 行为）：Template View 下列出已保存 template。
 
 # 7. Selection Model
 

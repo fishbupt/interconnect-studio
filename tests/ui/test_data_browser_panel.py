@@ -2,6 +2,7 @@ from datetime import datetime
 
 import numpy as np
 import pytest
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QInputDialog
 from pytestqt.qtbot import QtBot
@@ -91,3 +92,30 @@ def test_rename_file_does_nothing_when_cancelled_or_unchanged(
 
     with qtbot.assertNotEmitted(panel.rename_file_requested):
         action(panel, "rename_file").trigger()
+
+
+def click(panel: DataBrowserPanel, view_type: ViewType) -> None:
+    index = panel.model.index_of_view_type(view_type)
+    viewport = panel.tree.viewport()
+    assert viewport is not None
+    QtBot.mouseClick(viewport, Qt.MouseButton.LeftButton, pos=panel.tree.visualRect(index).center())
+
+
+def test_clicking_an_available_view_type_requests_a_window(qtbot: QtBot) -> None:
+    panel = panel_with_window(qtbot)
+    panel.show()
+    qtbot.waitExposed(panel)
+
+    with qtbot.waitSignal(panel.open_view_requested) as request:
+        click(panel, ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+
+    assert request.args == [ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED]
+
+
+def test_clicking_an_unavailable_view_type_does_nothing(qtbot: QtBot) -> None:
+    panel = panel_with_window(qtbot)
+    panel.show()
+    qtbot.waitExposed(panel)
+
+    with qtbot.assertNotEmitted(panel.open_view_requested):
+        click(panel, ViewType.TIME_DOMAIN_SINGLE_ENDED)

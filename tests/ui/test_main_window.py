@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMainWindow
 from pytestqt.qtbot import QtBot
 
-from interconnect_studio.core import InputValidationError, ViewType
+from interconnect_studio.core import InputValidationError, ViewLayout, ViewType
 from interconnect_studio.services import ImportService
 from interconnect_studio.ui import MainWindow
 from interconnect_studio.ui.theme import Theme
@@ -473,3 +473,76 @@ def test_browser_window_menu_requests_reach_the_main_window(qtbot: QtBot) -> Non
     browser.close_view_requested.emit(1)
 
     assert [w.number for w in browser.browser_tree.windows] == [2]
+
+
+def test_open_view_adds_a_blank_window_for_the_active_file(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.set_grid(1, 2)
+
+    window.open_view(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+
+    tree = window.data_browser.browser_tree
+    assert window.active_window == 3
+    assert window.data_browser.current_window().number == 3
+    assert tree.window(3).data_file.id == tree.window(2).data_file.id
+    assert tree.window(3).label == "three_port.s3p : 3"
+    assert window.view_area.layout_model.plots == ViewLayout(rows=1, cols=2).plots
+    assert trace_names(window) == []
+    assert window.parameter_format.ports_value.text() == "3"
+    assert window.windowTitle().endswith("three_port.s3p - Frequency Domain (Single-Ended) : 3]")
+
+    window.add_trace(0, 0, "log_mag")
+    assert trace_names(window) == ["S11 Log Mag"]
+    window.data_browser.select_window(2)
+    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag"]
+
+
+def test_file_operations_cover_windows_opened_from_a_view_type(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.open_view(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+    file_id = window.data_browser.browser_tree.window(2).data_file.id
+
+    window.rename_file(file_id, "dut")
+    assert [w.label for w in window.data_browser.browser_tree.windows] == [
+        "valid_2port_ri.s2p : 1",
+        "dut : 2",
+        "dut : 3",
+    ]
+
+    window.close_file(file_id)
+    assert [w.number for w in window.data_browser.browser_tree.windows] == [1]
+    assert window.active_window == 1
+
+
+def test_open_view_needs_an_active_file(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    with pytest.raises(InputValidationError, match="Import a file"):
+        window.open_view(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+
+
+def test_open_view_rejects_unavailable_view_types(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+
+    with pytest.raises(InputValidationError, match="not available"):
+        window.open_view(ViewType.TIME_DOMAIN_SINGLE_ENDED)
+
+    assert len(window.data_browser.browser_tree.windows) == 2
+
+
+def test_clicking_a_view_type_in_the_browser_opens_a_window(qtbot: QtBot) -> None:
+    window = two_windows(qtbot)
+    window.show()
+    qtbot.waitExposed(window)
+    browser = window.data_browser
+    index = browser.model.index_of_view_type(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+    viewport = browser.tree.viewport()
+    assert viewport is not None
+
+    qtbot.mouseClick(
+        viewport, Qt.MouseButton.LeftButton, pos=browser.tree.visualRect(index).center()
+    )
+
+    assert window.active_window == 3
+    assert browser.current_window().number == 3

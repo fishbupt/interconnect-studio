@@ -57,7 +57,7 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [x] Data Browser 按 PLTS 层级：Data Analysis / RLCG / Calibration / Template View → 视图类型 → window（未实现的视图类型置灰）
   - [x] 点击 window 切换视图区，各 window 保存自己的网格、trace 与选中格
   - [x] window 右键 Close View / Close File / Copy File Name / Rename File
-  - [ ] 点击视图类型为活动文件新开 window
+  - [x] 点击视图类型为活动文件新开 window
   - [ ] Template View 下列出已保存 template
 - [ ] Parameter / Format 面板
   - 数据来源文件下拉、S 参数 / 方程切换、New Plot / New Trace、ALL 与分组快捷（RL / IL / NEXT / FEXT、TDR / TDT、on One / on Many）
