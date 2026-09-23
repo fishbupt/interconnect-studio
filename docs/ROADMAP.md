@@ -49,7 +49,6 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] Parameter / Format 面板
 - [ ] Property Panel 由 Parameter / Format 取代，Log Panel 收进状态栏
 - [ ] 选中态 / current 对象模型
-- [ ] 双 Y 轴支持
 
 范围限定为**外壳与布局系统**；功能面板（Marker 编辑、Limit Line 编辑、串扰矩阵视图）待对应领域类型落地后再做。详见 `docs/UI_DESIGN.md`。
 

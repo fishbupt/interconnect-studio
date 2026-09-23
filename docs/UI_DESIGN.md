@@ -94,12 +94,13 @@ class ViewLayout:
 
 # 5. Plot Axes
 
-单个 `PlotModel` 最多两个 Y 轴（左 / 右）。
+单个 `PlotModel` 只有一个 X 轴和**一个 Y 轴**。
 
-- 每条 Trace 声明挂左轴还是右轴。
-- **同一轴内仍强制 `y_unit` 一致**；跨轴可以不同。
-- 所有 Trace 的 `x_unit` 必须一致（单 X 轴）。
-- 典型用法：幅度（左，dB）+ 相位（右，degree）同屏。
+- 一个 plot 承载一种显示格式，其中所有 Trace 共用该格式，与 PLTS 一致（*Data Format and Scale*：「Each plot can have a different format, and all traces within the plot have the same format」）。
+- 因此同一 plot 内所有 Trace 的 `x_unit` 与 `y_unit` 都必须一致。
+- 要同屏比较不同单位的量（如幅度与相位），开两个 plot，而不是加第二个 Y 轴。
+
+> 曾短暂实现过左右双 Y 轴，依据是「PLTS 常态是幅度+相位同屏」——该前提有误，已按上述规范回退。
 
 # 6. Data Browser
 

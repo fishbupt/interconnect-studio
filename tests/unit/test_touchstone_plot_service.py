@@ -47,7 +47,7 @@ def test_touchstone_plot_service_replaces_plot_for_different_y_unit() -> None:
     assert update.loaded.plot.n_traces == 1
     assert update.loaded.plot.traces[0].name == "S12 Phase"
     assert update.loaded.plot.traces[0].y_unit == "degree"
-    assert update.loaded.plot.y_label_left == "Phase"
+    assert update.loaded.plot.y_label == "Phase"
 
 
 def test_touchstone_plot_service_rejects_duplicate_trace() -> None:

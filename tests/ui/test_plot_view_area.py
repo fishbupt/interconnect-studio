@@ -1,14 +1,14 @@
 import pytest
 from pytestqt.qtbot import QtBot
 
-from interconnect_studio.core import PlotModel, PlotTrace, Trace, ViewLayout
+from interconnect_studio.core import PlotModel, Trace, ViewLayout
 from interconnect_studio.ui.theme import Theme
 from interconnect_studio.ui.views import PlotViewArea
 
 
 def plot(name: str) -> PlotModel:
     trace = Trace(name, [1.0, 2.0], [1.0, 2.0], x_unit="Hz", y_unit="dB")
-    return PlotModel(entries=(PlotTrace(trace),), title=name)
+    return PlotModel(traces=(trace,), title=name)
 
 
 def test_defaults_to_single_cell(qtbot: QtBot) -> None:

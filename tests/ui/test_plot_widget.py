@@ -2,7 +2,7 @@ import pytest
 from PyQt6.QtWidgets import QWidget
 from pytestqt.qtbot import QtBot
 
-from interconnect_studio.core import PlotKind, PlotModel, PlotTrace, Trace, YAxis
+from interconnect_studio.core import PlotKind, PlotModel, Trace
 from interconnect_studio.ui.theme import Theme, palette_for
 from interconnect_studio.ui.widgets import CartesianPlotWidget
 
@@ -11,18 +11,14 @@ def magnitude() -> Trace:
     return Trace("S21 Log Mag", [1.0, 2.0], [-10.0, -20.0], x_unit="Hz", y_unit="dB")
 
 
-def phase() -> Trace:
-    return Trace("S21 Phase", [1.0, 2.0], [10.0, 20.0], x_unit="Hz", y_unit="degree")
-
-
 def test_cartesian_plot_widget_accepts_plot_model(qtbot: QtBot) -> None:
     widget = CartesianPlotWidget()
     qtbot.addWidget(widget)
     model = PlotModel(
-        entries=(PlotTrace(magnitude()),),
+        traces=(magnitude(),),
         title="Example",
         x_label="Frequency",
-        y_label_left="Magnitude",
+        y_label="Magnitude",
     )
 
     widget.set_plot_model(model)
@@ -35,50 +31,34 @@ def test_cartesian_plot_widget_rejects_non_cartesian_model(qtbot: QtBot) -> None
     widget = CartesianPlotWidget()
     qtbot.addWidget(widget)
     complex_trace = Trace("S11", [1.0, 2.0], [0.1 + 0.2j, 0.2 + 0.3j], x_unit="Hz")
-    model = PlotModel(entries=(PlotTrace(complex_trace),), kind=PlotKind.SMITH)
+    model = PlotModel(traces=(complex_trace,), kind=PlotKind.SMITH)
 
     with pytest.raises(ValueError, match="only supports Cartesian"):
         widget.set_plot_model(model)
 
 
-def test_right_axis_hidden_without_right_traces(qtbot: QtBot) -> None:
+def test_plot_has_a_single_y_axis(qtbot: QtBot) -> None:
     widget = CartesianPlotWidget()
     qtbot.addWidget(widget)
 
-    widget.set_plot_model(PlotModel(entries=(PlotTrace(magnitude()),)))
+    widget.set_plot_model(PlotModel(traces=(magnitude(),)))
 
     assert widget._plot_item.getAxis("right").isVisible() is False
-
-
-def test_right_axis_shown_for_second_y_unit(qtbot: QtBot) -> None:
-    widget = CartesianPlotWidget()
-    qtbot.addWidget(widget)
-    model = PlotModel(
-        entries=(PlotTrace(magnitude(), YAxis.LEFT), PlotTrace(phase(), YAxis.RIGHT)),
-        y_label_left="Log Magnitude",
-        y_label_right="Phase",
-    )
-
-    widget.set_plot_model(model)
-
-    assert widget._plot_item.getAxis("right").isVisible() is True
 
 
 def test_axis_units_are_set_for_si_prefix_scaling(qtbot: QtBot) -> None:
     widget = CartesianPlotWidget()
     qtbot.addWidget(widget)
     model = PlotModel(
-        entries=(PlotTrace(magnitude(), YAxis.LEFT), PlotTrace(phase(), YAxis.RIGHT)),
+        traces=(magnitude(),),
         x_label="Frequency",
-        y_label_left="Log Magnitude",
-        y_label_right="Phase",
+        y_label="Log Magnitude",
     )
 
     widget.set_plot_model(model)
 
     assert widget._plot_item.getAxis("bottom").labelUnits == "Hz"
     assert widget._plot_item.getAxis("left").labelUnits == "dB"
-    assert widget._plot_item.getAxis("right").labelUnits == "degree"
 
 
 def test_widget_defaults_to_dark_theme(qtbot: QtBot) -> None:
@@ -91,7 +71,7 @@ def test_widget_defaults_to_dark_theme(qtbot: QtBot) -> None:
 def test_apply_theme_switches_background(qtbot: QtBot) -> None:
     widget = CartesianPlotWidget()
     qtbot.addWidget(widget)
-    widget.set_plot_model(PlotModel(entries=(PlotTrace(magnitude()),)))
+    widget.set_plot_model(PlotModel(traces=(magnitude(),)))
 
     widget.apply_theme(Theme.LIGHT)
 
@@ -103,7 +83,7 @@ def test_apply_theme_switches_background(qtbot: QtBot) -> None:
 def test_apply_theme_keeps_plot_model(qtbot: QtBot) -> None:
     widget = CartesianPlotWidget()
     qtbot.addWidget(widget)
-    model = PlotModel(entries=(PlotTrace(magnitude()),))
+    model = PlotModel(traces=(magnitude(),))
     widget.set_plot_model(model)
 
     widget.apply_theme(Theme.LIGHT)

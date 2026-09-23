@@ -143,8 +143,8 @@ Trace(
 - 一个 PlotModel 保存零条或多条 Trace。
 - Cartesian 只接受 real Trace。
 - Polar / Smith 只接受 complex Trace。
-- 单 X 轴：同一 PlotModel 内所有 Trace 必须使用相同 `x_unit`。
-- 最多两个 Y 轴（左 / 右），每条 Trace 声明挂哪一侧；**同一轴内 `y_unit` 必须一致**，跨轴可不同。典型用法为幅度（左，dB）+ 相位（右，degree）同屏。
+- 单 X 轴、**单 Y 轴**：一个 plot 承载一种显示格式，其中所有 Trace 共用该格式（对标 PLTS）。因此同一 PlotModel 内所有 Trace 的 `x_unit` 与 `y_unit` 都必须一致。
+- 不同单位的量需要开多个 plot 比较，不通过第二个 Y 轴叠加。
 - 一屏多图的网格编排由 `ViewLayout` 承载，不属于 PlotModel（见 `UI_DESIGN.md` §4）。
 - `add_trace()` / `remove_trace()` 返回新的 PlotModel，不修改原对象。
 - PlotModel 不依赖 PyQt6 或具体绘图库。
