@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QMainWindow
 from pytestqt.qtbot import QtBot
 
 from interconnect_studio.core import ViewType
+from interconnect_studio.services import ImportService
 from interconnect_studio.ui import MainWindow
 from interconnect_studio.ui.theme import Theme
 
@@ -71,7 +72,7 @@ def test_main_window_loads_s2p_and_updates_all_primary_panels(qtbot: QtBot) -> N
     assert window.parameter_format.points_value.text() == "2"
     assert window.parameter_format.z0_value.text() == "75 Ω"
 
-    assert "Loaded:" in window.message_log.text()
+    assert "Imported:" in window.message_log.text()
     assert "S11 Log Mag, S21 Log Mag" in window.message_log.text()
 
 
@@ -242,3 +243,51 @@ def test_duplicate_trace_is_reported_not_raised(qtbot: QtBot) -> None:
     panel.add_button.click()  # S11 Log Mag already present
 
     assert "Trace already exists" in window.message_log.text()
+
+
+IMPORT_DIR = Path(__file__).parents[1] / "data" / "import"
+
+
+def test_file_menu_offers_the_three_plts_import_entries(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.import_single_action.text() == "&Single File..."
+    assert window.import_multiple_action.text() == "&Multiple Files (Build a File)..."
+    assert window.build_config_action.text() == "Build with a &Config File..."
+
+
+def test_importing_a_three_port_file_shows_all_nine_parameters(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.load_touchstone_file(IMPORT_DIR / "three_port.s3p")
+
+    assert window.parameter_format.n_ports == 3
+    assert window.parameter_format.ports_value.text() == "3"
+    loaded = window.add_trace(2, 0, "log_mag")
+    assert loaded.plot.traces[-1].name == "S31 Log Mag"
+
+
+def test_open_imported_places_a_built_network_in_the_chosen_view(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    imported = ImportService().build_from_config(IMPORT_DIR / "build_config.csv")
+
+    window.open_imported(imported, ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+
+    current = window.data_browser.current_window()
+    assert current is not None
+    assert current.label == "build_config.s3p : 1"
+    assert current.data_file.source_path is None
+    assert "Imported: build_config.s3p" in window.message_log.text()
+
+
+def test_load_touchstone_file_types_other_formats_by_name(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    loaded = window.load_touchstone_file(IMPORT_DIR / "two_port.cti")
+
+    assert loaded.name == "two_port.cti"
+    assert loaded.network.n_freq == 3

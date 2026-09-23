@@ -24,13 +24,13 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [x] Touchstone Writer
 - [x] Port Mapping
 - [x] Network 基础 S 参数访问接口
-- [ ] 通用 N 端口（去掉 1/2/4 限制）
-- [ ] Touchstone 2.0 / CITIfile（读写）
-- [ ] 文本导入（tab / 逗号分隔）
+- [x] 通用 N 端口（去掉 1/2/4 限制）
+- [ ] Touchstone 2.0 / CITIfile（读写）——读取已完成，写出待做
+- [x] 文本导入（tab / 逗号分隔）
 - [ ] 时域数据导入（文本 / Touchstone 时间轴，需给 FFT Stop Frequency）
-- [ ] 导入 Subset（Start / Stop / Points / Step）与插值
+- [x] 导入 Subset（只截取 Start / Stop 范围内的测量点；不改变频点、不插值，产品决策）
 - [ ] 导入多文件时的单端 → 差分映射
-- [ ] 多文件拼接（Build：按参数或按端口映射；`.csv` 配置文件驱动）
+- [x] 多文件拼接（Build：按参数或按端口映射；`.csv` 配置文件驱动；单端 → 单端）
 - [ ] 只含平衡参数的数据反算单端参数
 - [ ] DUT Configuration 模型（单端 / 差分拓扑、逻辑端口、端口标签、配置文件存取）
 - [ ] 数据质量检查（Passivity / Causality / Reciprocity）

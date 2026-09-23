@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
     QDockWidget,
-    QFileDialog,
     QMainWindow,
     QMenu,
     QMenuBar,
@@ -25,13 +24,25 @@ from PyQt6.QtWidgets import (
 from interconnect_studio.algorithms.network import SParameterFormat
 from interconnect_studio.core import (
     DataFile,
-    DataFormatError,
     InputValidationError,
     PlotModel,
     ViewType,
 )
-from interconnect_studio.services import LoadedTouchstonePlot, TouchstonePlotService
-from interconnect_studio.ui.dialogs import AddTraceDialog
+from interconnect_studio.io import ImportFileType, guess_file_type
+from interconnect_studio.services import (
+    ImportedNetwork,
+    ImportService,
+    LoadedTouchstonePlot,
+    TouchstonePlotService,
+)
+from interconnect_studio.ui.dialogs import (
+    AddTraceDialog,
+    BuildConfigDialog,
+    ImportMultipleFilesDialog,
+    ImportSingleFileDialog,
+    SelectAnalysisViewDialog,
+)
+from interconnect_studio.ui.models.data_browser_model import DEFAULT_AVAILABLE_VIEW_TYPES
 from interconnect_studio.ui.panels import (
     DataBrowserPanel,
     MessageLogPanel,
@@ -55,9 +66,11 @@ class MainWindow(QMainWindow):
         self,
         service: TouchstonePlotService | None = None,
         parent: QWidget | None = None,
+        import_service: ImportService | None = None,
     ) -> None:
         super().__init__(parent)
         self._service = service or TouchstonePlotService()
+        self._import_service = import_service or ImportService()
         self._loaded: LoadedTouchstonePlot | None = None
         self._theme = DEFAULT_THEME
         self._next_file_number = 1
@@ -99,17 +112,70 @@ class MainWindow(QMainWindow):
         return self._loaded
 
     def load_touchstone_file(self, path: str | Path) -> LoadedTouchstonePlot:
-        """Load a .s2p file through the application service and refresh the UI."""
+        """Import a whole file, typed by its name, into a Frequency Domain window.
 
-        loaded = self._service.load_s2p(path)
+        The programmatic shortcut for Import a Single File with range "All".
+        """
+
+        file_path = Path(path)
+        file_type = guess_file_type(file_path) or ImportFileType.TOUCHSTONE
+        return self.open_imported(self._import_service.import_single(file_path, file_type))
+
+    def open_imported(
+        self,
+        imported: ImportedNetwork,
+        view_type: ViewType = ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED,
+    ) -> LoadedTouchstonePlot:
+        """Open an imported network in a new window of a view type and show it."""
+
+        loaded = self._service.show_network(imported.network, imported.name, imported.source_path)
         self._loaded = loaded
-        self._add_to_hierarchy(loaded)
+        self._add_to_hierarchy(loaded, view_type)
         self._apply(loaded)
-        self._log(f"Loaded: {loaded.path}")
-        self._log("Default traces: S11 Log Mag, S21 Log Mag")
+        network = imported.network
+        self._log(f"Imported: {imported.source_path or imported.name}")
+        self._log(
+            f"{network.n_ports} ports, {network.n_freq} points, "
+            f"{network.frequencies_hz[0]:g}-{network.frequencies_hz[-1]:g} Hz"
+        )
+        self._log(
+            "Default traces: " + ", ".join(trace.name for trace in loaded.plot.traces)
+        )
         self.add_trace_action.setEnabled(True)
-        self.status_bar.showMessage(f"Loaded {loaded.path.name}")
+        self.status_bar.showMessage(f"Imported {imported.name}")
         return loaded
+
+    def import_single_file(self) -> None:
+        """File > Import > Single File."""
+
+        dialog = ImportSingleFileDialog(self._import_service, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.imported is not None:
+            self._open_with_view_selection(dialog.imported)
+
+    def import_multiple_files(self) -> None:
+        """File > Import > Multiple Files (Build a File)."""
+
+        dialog = ImportMultipleFilesDialog(self._import_service, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.imported is not None:
+            self._open_with_view_selection(dialog.imported)
+
+    def build_with_config_file(self) -> None:
+        """File > Import > Build with a Config File."""
+
+        dialog = BuildConfigDialog(self._import_service, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.imported is not None:
+            self._open_with_view_selection(dialog.imported)
+
+    def _open_with_view_selection(self, imported: ImportedNetwork) -> None:
+        """Ask for the analysis view, as PLTS does after an import, then open."""
+
+        selector = SelectAnalysisViewDialog(DEFAULT_AVAILABLE_VIEW_TYPES, parent=self)
+        if selector.exec() != QDialog.DialogCode.Accepted:
+            return
+        view_type = selector.selected_view_type()
+        if view_type is None:
+            return
+        self.open_imported(imported, view_type)
 
     def add_trace(
         self,
@@ -120,7 +186,7 @@ class MainWindow(QMainWindow):
         """Add one trace to the current plot through the application service."""
 
         if self._loaded is None:
-            raise InputValidationError("Open a .s2p file before adding a trace.")
+            raise InputValidationError("Import a file before adding a trace.")
 
         update = self._service.add_trace(
             self._loaded,
@@ -143,10 +209,10 @@ class MainWindow(QMainWindow):
         """Show Add Trace dialog and apply the selected trace."""
 
         if self._loaded is None:
-            QMessageBox.information(self, "Add Trace", "Open a .s2p file first.")
+            QMessageBox.information(self, "Add Trace", "Import a file first.")
             return
 
-        dialog = AddTraceDialog(self)
+        dialog = AddTraceDialog(self, n_ports=self._loaded.network.n_ports)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
@@ -161,24 +227,6 @@ class MainWindow(QMainWindow):
             self._log(f"Error: {exc}")
             QMessageBox.warning(self, "Add Trace Failed", str(exc))
 
-    def open_touchstone_dialog(self) -> None:
-        """Show a file dialog and load the selected .s2p file."""
-
-        file_name, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open Touchstone",
-            "",
-            "Touchstone 2-Port (*.s2p);;All Files (*)",
-        )
-        if not file_name:
-            return
-
-        try:
-            self.load_touchstone_file(file_name)
-        except (DataFormatError, InputValidationError) as exc:
-            self._log(f"Error: {exc}")
-            QMessageBox.critical(self, "Open Touchstone Failed", str(exc))
-
     def new_plot(
         self,
         response_port: int,
@@ -188,12 +236,13 @@ class MainWindow(QMainWindow):
         """Replace the current cell's plot with a single new trace."""
 
         if self._loaded is None:
-            raise InputValidationError("Open a .s2p file before creating a plot.")
+            raise InputValidationError("Import a file before creating a plot.")
 
         cleared = LoadedTouchstonePlot(
-            path=self._loaded.path,
+            name=self._loaded.name,
             network=self._loaded.network,
             plot=PlotModel(),
+            path=self._loaded.path,
         )
         self._loaded = cleared
         return self.add_trace(response_port, source_port, data_format)
@@ -221,33 +270,26 @@ class MainWindow(QMainWindow):
             self._log(f"Error: {exc}")
             self.status_bar.showMessage(str(exc))
 
-    def _add_to_hierarchy(self, loaded: LoadedTouchstonePlot) -> None:
-        """Open the loaded file in a Frequency Domain (Single-Ended) window.
-
-        That is the only view type the application can display so far; PLTS
-        asks for the view type on import, which will come with the others.
-        """
+    def _add_to_hierarchy(self, loaded: LoadedTouchstonePlot, view_type: ViewType) -> None:
+        """Open the loaded data in a new window of the chosen view type."""
 
         data_file = DataFile(
             id=f"file-{self._next_file_number}",
-            name=loaded.path.name,
+            name=loaded.name,
             network=loaded.network,
             source_path=loaded.path,
             imported_at=datetime.now(),
         )
         self._next_file_number += 1
 
-        tree, window = self.data_browser.browser_tree.open(
-            ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED,
-            data_file,
-        )
+        tree, window = self.data_browser.browser_tree.open(view_type, data_file)
         self.data_browser.set_browser_tree(tree)
         self.data_browser.select_window(window.number)
 
     def _apply(self, loaded: LoadedTouchstonePlot) -> None:
         self.view_area.set_current_plot(loaded.plot)
         self.parameter_format.set_summary(
-            loaded.path.name,
+            loaded.name,
             loaded.network.n_ports,
             loaded.network.n_freq,
             loaded.network.z0,
@@ -286,10 +328,20 @@ class MainWindow(QMainWindow):
     def _build_actions(self) -> None:
         file_menu = QMenu("&File", self)
         self.menu_bar.addMenu(file_menu)
-        open_action = QAction("&Open Touchstone...", self)
-        open_action.setShortcut("Ctrl+O")
-        open_action.triggered.connect(self.open_touchstone_dialog)
-        file_menu.addAction(open_action)
+        import_menu = QMenu("&Import", self)
+        file_menu.addMenu(import_menu)
+        self.import_single_action = QAction("&Single File...", self)
+        self.import_single_action.setShortcut("Ctrl+O")
+        self.import_single_action.setIconText("Import")
+        self.import_single_action.triggered.connect(self.import_single_file)
+        import_menu.addAction(self.import_single_action)
+        self.import_multiple_action = QAction("&Multiple Files (Build a File)...", self)
+        self.import_multiple_action.setIconText("Build File")
+        self.import_multiple_action.triggered.connect(self.import_multiple_files)
+        import_menu.addAction(self.import_multiple_action)
+        self.build_config_action = QAction("Build with a &Config File...", self)
+        self.build_config_action.triggered.connect(self.build_with_config_file)
+        import_menu.addAction(self.build_config_action)
 
         self.add_trace_action = QAction("&Add Trace...", self)
         self.add_trace_action.setShortcut("Ctrl+T")
@@ -328,7 +380,8 @@ class MainWindow(QMainWindow):
 
         toolbar = QToolBar("Main", self)
         toolbar.setObjectName("main_toolbar")
-        toolbar.addAction(open_action)
+        toolbar.addAction(self.import_single_action)
+        toolbar.addAction(self.import_multiple_action)
         toolbar.addAction(self.add_trace_action)
         self.addToolBar(toolbar)
 

@@ -98,31 +98,35 @@ Touchstone 1.x：
 
 Touchstone 2.0（`.ts`）：
 
-- Reader / Writer：支持
+- Reader：支持（`[Two-Port Data Order]`、`[Reference]`、`[Matrix Format]`；混合模式数据暂不支持）；Writer：待做
 - per-port z0：**要求各端口一致**，不一致则抛 `DataFormatError`（`Network` 为单标量 z0，见 `DOMAIN_MODEL.md` §5）
 
 CITIfile：
 
-- Reader / Writer：支持（Keysight 仪器原生格式）
+- Reader：支持（Keysight 仪器原生格式；无参考阻抗字段，按 50 Ω 处理，待核对）；Writer：待做
 
 PLTS 对 Touchstone 2.0 / CITIfile 端口阻抗不一致的文件同样拒绝导入（*Importing Data*），行为一致。
 
 文本：
 
-- Reader：tab 或逗号分隔
+- Reader：tab 或逗号分隔（频域格式见 `ALGORITHM_GUIDE.md` §2.6）
 - 时域数据（文本 / Touchstone，横轴为时间）导入；需指定 FFT 用的 Stop Frequency（PLTS 默认 20 GHz）
 - DCA XY Verbose 波形（`.txt` / `.csv`）
 
 导入对话框（对标 PLTS Import a Single File）：
 
 - Data Domain（频域 / 时域）、文件类型、DUT Configuration
-- 数据范围：All / Subset（Start / Stop / Points / Step），需要插值时自动勾选 Interpolate，Reset
+- 数据范围：All / Subset（Start / Stop），Reset；**不改变频点、不插值**（产品决策：PLTS 的 Points / Step 修改与 Interpolate 不提供，Subset 只截取测量点）
 - 只含平衡参数的数据可导入并反算单端参数
+- 导入后弹出 Select Analysis View，选择打开的分析类型
 
 多文件拼接（对标 PLTS Import Multiple Files / Build a File）：
 
 - 按单个参数或按端口映射；映射类型单端 → 单端、差分 → 差分、单端 → 差分
 - 以 `.csv` 配置文件描述拼接（Build with a Configuration File），结果可直接导出为 `.sNp`
+- 各源文件须频点一致、`z0` 相同（不重采样）
+
+已实现（频域部分）：Import a Single File（Citifile / Touchstone 1.x 任意端口 / Touchstone 2.0 / 文本 tab / 逗号，Subset）、Select Analysis View、Import Multiple Files（单端 → 单端，按参数 / 按端口）、Build with a Config File、拼接结果导出 `.sNp`。未实现：时域导入、DCA XY Verbose、DUT Configuration 对话框、差分与单端 → 差分映射、只含平衡参数的数据、Yes to All / No to All。
 
 批量与合并：
 
@@ -477,7 +481,7 @@ Exit：单元测试通过，且**首批 analytical golden case 已建立**（理
 - Interpolation
 - Renormalization
 - Mixed-Mode
-- 文本导入、导入时单端 → 差分映射、导入 Subset / 插值
+- 文本导入、导入时单端 → 差分映射、导入 Subset（只截取测量点，不插值）
 - DUT Configuration（单端 / 差分拓扑、逻辑端口、端口标签）
 - 多文件拼接导入（Build）、批量打开 / 导入
 - 数据导出（Touchstone / CITIfile，含 Subset 与端口重映射；文本 / CSV 导出待决策，见 §2 注）

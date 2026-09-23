@@ -59,3 +59,17 @@ def test_add_trace_dialog_selection_returns_zero_based_ports(qtbot: QtBot) -> No
     assert selection.source_port == 1
     assert selection.data_format.value == "phase"
     assert dialog.result() == QDialog.DialogCode.Rejected
+
+
+def test_add_trace_dialog_lists_n_port_parameters_row_by_row(qtbot: QtBot) -> None:
+    dialog = AddTraceDialog(n_ports=3)
+    qtbot.addWidget(dialog)
+
+    names = [
+        dialog.parameter_combo.itemText(index) for index in range(dialog.parameter_combo.count())
+    ]
+    assert names[:4] == ["S11", "S12", "S13", "S21"]
+    assert len(names) == 9
+    dialog.parameter_combo.setCurrentText("S31")
+    assert dialog.selection().response_port == 2
+    assert dialog.selection().source_port == 0

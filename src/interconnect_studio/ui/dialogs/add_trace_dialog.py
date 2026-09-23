@@ -23,22 +23,31 @@ class TraceSelection:
     data_format: SParameterFormat
 
 
+def _parameters(n_ports: int) -> list[tuple[str, int, int]]:
+    """S-parameters with zero-based (response, source), in listing order.
+
+    Two ports keep the familiar S11, S21, S12, S22 order; other port counts
+    are listed row by row.
+    """
+
+    if n_ports == 2:
+        return [("S11", 0, 0), ("S21", 1, 0), ("S12", 0, 1), ("S22", 1, 1)]
+    return [
+        (f"S{row + 1},{col + 1}" if n_ports >= 10 else f"S{row + 1}{col + 1}", row, col)
+        for row in range(n_ports)
+        for col in range(n_ports)
+    ]
+
+
 class AddTraceDialog(QDialog):
-    """Select an S-parameter and display format for a two-port network."""
+    """Select an S-parameter and display format for an N-port network."""
 
-    _PARAMETERS = (
-        ("S11", 0, 0),
-        ("S21", 1, 0),
-        ("S12", 0, 1),
-        ("S22", 1, 1),
-    )
-
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, n_ports: int = 2) -> None:
         super().__init__(parent)
         self.setWindowTitle("Add Trace")
 
         self.parameter_combo = QComboBox(self)
-        for name, response_port, source_port in self._PARAMETERS:
+        for name, response_port, source_port in _parameters(n_ports):
             self.parameter_combo.addItem(name, (response_port, source_port))
         self.parameter_combo.currentIndexChanged.connect(self._refresh_formats)
 

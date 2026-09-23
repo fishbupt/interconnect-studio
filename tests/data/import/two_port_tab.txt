@@ -1,0 +1,5 @@
+! NAME Interconnect Studio fixture
+% freq(MHz)	S11(real)	S11(imag)	S12(real)	S12(imag)	S21(real)	S21(imag)	S22(real)	S22(imag)
+100	11	0	12	0	21	0	22	0
+200	11	1	12	1	21	1	22	1
+300	11	2	12	2	21	2	22	2

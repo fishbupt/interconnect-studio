@@ -31,7 +31,28 @@ Touchstone 1.x 的矩阵排列**因端口数而异**，是已知的易错点：
 - 把 2 端口规则套用到 4 端口会导致整个 S 矩阵转置。互易无源件 `S = Sᵀ`，该错误不可见；在 mode conversion、串扰与非互易器件上则是静默错误。
 - 读写使用同一套错误约定时 round-trip 测试仍会通过，因此**必须用非对称矩阵的 fixture 验证**，且 fixture 的数值排列要独立于实现推导。
 
-Touchstone 2.0 使用显式的 `[Network Data]` 段并统一为行主序，不沿用 2 端口特例。
+Touchstone 2.0 使用显式的 `[Network Data]` 段，≥3 端口为行主序；**2 端口的顺序由必填关键字 `[Two-Port Data Order]` 显式给出**：`12_21` 为行主序（S11 S12 S21 S22），`21_12` 与 1.x 相同（S11 S21 S12 S22）。`[Matrix Format] Lower / Upper` 只存下 / 上三角（行主序），读入时按对称补全。
+
+# 2.6 Import
+
+对标 PLTS *Importing Data* 的频域部分（`io/`、`algorithms/network/subset.py`、`algorithms/network/build.py`）。
+
+**不重采样（产品决策）**：导入与多文件拼接都不改变频点，不做插值。
+
+- Subset 只按 `[start_hz, stop_hz]` 保留测量点（闭区间），不能超出测量范围，至少保留一个点；Points / Step 仅显示、不可编辑，Interpolate 恒为关闭。
+- 多文件拼接要求所有源文件频点一致（相对容差 `1e-9`）且 `z0` 相同，否则报错，而不是插值对齐。
+
+多文件拼接（Build）语义：
+
+- 每个 DUT 参数 `S[i, j]` 取自某一源文件的某一参数；按端口映射时，把文件端口 `(k, l)` 映到 DUT 端口 `(i, j)`，覆盖**两端都来自该文件**的所有参数对。
+- 后做的映射覆盖先做的（PLTS：可改写）；所有 DUT 参数都有来源才能完成拼接。
+- Build config CSV：首行 `folder,<路径>`（可相对配置文件）；其余每行 `序号, 文件名, [源端口], [目标端口]`，端口 1-based、按顺序配对。
+
+文件格式约定：
+
+- CITIfile：只读 `DATA S[i,j] RI` 数组（CITIfile 定义只有 RI），频率来自 `VAR_LIST` 或单段 `SEG_LIST`；格式无参考阻抗字段，**按 50 Ω 处理（假设，待与实际 PLTS / PNA 导出文件核对）**。多 package 文件拒绝。
+- 文本（tab / 逗号）：PLTS 帮助只给出时域文本的格式，频域格式按其导出约定自定：`!` 注释，`! XDATA UNIT <单位>`（缺省 Hz），`BEGIN` / `END` 忽略；表头一行（可带 `%`），首列 `freq` / `freq(GHz)`，其余列为 `S21(real)`、`S21(imag)`（≥10 端口写 `S[12,3](real)`），列序任意但矩阵须完整；参考阻抗由调用方给定（默认 50 Ω）。
+- Touchstone 2.0 混合模式数据（`[Mixed-Mode Order]`）暂不支持，待 Mixed-Mode 模块落地。
 
 # 3. Precision
 

@@ -114,7 +114,8 @@ def test_read_touchstone_ignores_comments_and_accepts_fortran_exponents(
     ("suffix", "content", "message"),
     [
         (".txt", "# GHz S RI R 50\n1 0 0\n", "suffix"),
-        (".s3p", "# GHz S RI R 50\n1 0 0\n", "supports 1, 2 or 4 ports"),
+        (".s0p", "# GHz S RI R 50\n1 0 0\n", "at least 1"),
+        (".ts", "[Version] 2.0\n", "read_touchstone2"),
         (".s1p", "# THz S RI R 50\n1 0 0\n", "frequency unit"),
         (".s1p", "# GHz Y RI R 50\n1 0 0\n", "Only S-parameters"),
         (".s1p", "# GHz S XY R 50\n1 0 0\n", "data format"),

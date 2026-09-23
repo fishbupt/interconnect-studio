@@ -15,11 +15,16 @@ from interconnect_studio.io import read_touchstone
 
 @dataclass(frozen=True, slots=True)
 class LoadedTouchstonePlot:
-    """Result of loading a two-port Touchstone file for the default view."""
+    """A network shown in the current plot.
 
-    path: Path
+    ``name`` is the display name (file name, or the name given to a built
+    network); ``path`` is the source file, ``None`` for built networks.
+    """
+
+    name: str
     network: Network
     plot: PlotModel
+    path: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,18 +48,25 @@ class TouchstonePlotService:
             raise InputValidationError(
                 f"The first UI workflow requires a 2-port network, got {network.n_ports} ports."
             )
+        return self.show_network(network, file_path.name, file_path)
 
-        s11 = create_s_parameter_trace(network, 0, 0, "log_mag")
-        s21 = create_s_parameter_trace(network, 1, 0, "log_mag")
+    def show_network(
+        self, network: Network, name: str, path: Path | None = None
+    ) -> LoadedTouchstonePlot:
+        """Create the default plot for any network: S11, plus S21 when it has 2+ ports."""
+
+        traces = [create_s_parameter_trace(network, 0, 0, "log_mag")]
+        if network.n_ports >= 2:
+            traces.append(create_s_parameter_trace(network, 1, 0, "log_mag"))
 
         plot = PlotModel(
-            traces=(s11, s21),
+            traces=tuple(traces),
             kind=PlotKind.CARTESIAN,
-            title=file_path.name,
+            title=name,
             x_label="Frequency",
             y_label="Log Magnitude",
         )
-        return LoadedTouchstonePlot(path=file_path, network=network, plot=plot)
+        return LoadedTouchstonePlot(name=name, network=network, plot=plot, path=path)
 
     def add_trace(
         self,
@@ -96,7 +108,7 @@ class TouchstonePlotService:
             plot = PlotModel(
                 traces=(trace,),
                 kind=kind,
-                title=loaded.path.name,
+                title=loaded.name,
                 x_label="Frequency",
                 y_label=format_display_name(fmt),
             )
@@ -104,9 +116,10 @@ class TouchstonePlotService:
 
         return TraceUpdate(
             loaded=LoadedTouchstonePlot(
-                path=loaded.path,
+                name=loaded.name,
                 network=loaded.network,
                 plot=plot,
+                path=loaded.path,
             ),
             replaced_plot=replaced_plot,
         )

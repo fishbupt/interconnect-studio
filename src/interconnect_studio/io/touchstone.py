@@ -1,4 +1,8 @@
-"""Touchstone 1.x reader and writer."""
+"""Touchstone 1.x reader and writer (any port count).
+
+Touchstone 2.0 is read by ``interconnect_studio.io.touchstone2``, which
+shares the option-line and number parsing helpers defined here.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +19,7 @@ from interconnect_studio.core import DataFormatError, Network
 
 _TOUCHSTONE_SUFFIX: Final[re.Pattern[str]] = re.compile(r"^\.s(?P<ports>\d+)p$", re.IGNORECASE)
 
-_FREQUENCY_SCALE: Final[dict[str, float]] = {
+FREQUENCY_SCALE: Final[dict[str, float]] = {
     "hz": 1.0,
     "khz": 1.0e3,
     "mhz": 1.0e6,
@@ -23,11 +27,11 @@ _FREQUENCY_SCALE: Final[dict[str, float]] = {
 }
 
 _SUPPORTED_FORMATS: Final[set[str]] = {"ri", "ma", "db"}
-_SUPPORTED_PORT_COUNTS: Final[set[int]] = {1, 2, 4}
+_TOUCHSTONE2_SUFFIX: Final[str] = ".ts"
 
 
 @dataclass(frozen=True, slots=True)
-class _TouchstoneOptions:
+class TouchstoneOptions:
     frequency_unit: str = "ghz"
     parameter: str = "s"
     data_format: str = "ma"
@@ -35,27 +39,25 @@ class _TouchstoneOptions:
 
 
 def read_touchstone(path: str | Path) -> Network:
-    """Read a Touchstone 1.x S-parameter file into a Network.
+    """Read a Touchstone 1.x S-parameter file (``.sNp``) into a Network.
 
-    Supported files are .s1p, .s2p and .s4p using RI, MA or DB data
-    formats and Hz, kHz, MHz or GHz frequency units.
+    Any port count is accepted. Data formats RI, MA and DB and frequency
+    units Hz, kHz, MHz and GHz are supported. Touchstone 2.0 ``.ts`` files
+    are read by ``read_touchstone2``.
     """
 
     file_path = Path(path)
-    n_ports = _port_count_from_suffix(file_path)
-    if n_ports not in _SUPPORTED_PORT_COUNTS:
+    if file_path.suffix.lower() == _TOUCHSTONE2_SUFFIX:
         raise DataFormatError(
-            f"Touchstone reader currently supports 1, 2 or 4 ports, got {n_ports}."
+            f"{file_path.name} is a Touchstone 2.0 file; read it with read_touchstone2."
         )
 
-    try:
-        text = file_path.read_text(encoding="utf-8-sig")
-    except OSError as exc:
-        raise DataFormatError(f"Unable to read Touchstone file: {file_path}") from exc
-    except UnicodeError as exc:
-        raise DataFormatError(f"Touchstone file is not valid UTF-8 text: {file_path}") from exc
+    n_ports = _port_count_from_suffix(file_path)
+    if n_ports < 1:
+        raise DataFormatError(f"Touchstone port count must be at least 1, got {n_ports}.")
+    text = read_text_file(file_path, "Touchstone")
 
-    options = _TouchstoneOptions()
+    options = TouchstoneOptions()
     option_seen = False
     numeric_tokens: list[str] = []
 
@@ -74,7 +76,7 @@ def read_touchstone(path: str | Path) -> Network:
                 raise DataFormatError(
                     f"Multiple Touchstone option lines are not supported (line {line_number})."
                 )
-            options = _parse_option_line(line, line_number)
+            options = parse_option_line(line, line_number)
             option_seen = True
             continue
 
@@ -88,16 +90,16 @@ def read_touchstone(path: str | Path) -> Network:
             "Touchstone numeric data does not contain a complete number of frequency records."
         )
 
-    numeric_values = _parse_numeric_tokens(numeric_tokens)
+    numeric_values = parse_numeric_tokens(numeric_tokens)
     records = numeric_values.reshape((-1, values_per_point))
 
-    frequency_scale = _FREQUENCY_SCALE[options.frequency_unit]
+    frequency_scale = FREQUENCY_SCALE[options.frequency_unit]
     frequencies_hz = records[:, 0] * frequency_scale
 
     n_freq = records.shape[0]
 
     pairs = records[:, 1:].reshape((n_freq, n_ports * n_ports, 2))
-    complex_values = _pairs_to_complex(pairs, options.data_format)
+    complex_values = pairs_to_complex(pairs, options.data_format)
 
     # Touchstone 1.x orders each data point as:
     #   2 ports:  S11 S21 S12 S22   -- column-major, the only special case
@@ -117,6 +119,17 @@ def read_touchstone(path: str | Path) -> Network:
         raise DataFormatError(f"Touchstone data violates Network invariants: {exc}") from exc
 
 
+def read_text_file(path: Path, kind: str) -> str:
+    """Read a text data file, raising ``DataFormatError`` on IO or decoding errors."""
+
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise DataFormatError(f"Unable to read {kind} file: {path}") from exc
+    except UnicodeError as exc:
+        raise DataFormatError(f"{kind} file is not valid UTF-8 text: {path}") from exc
+
+
 def _port_count_from_suffix(path: Path) -> int:
     match = _TOUCHSTONE_SUFFIX.match(path.suffix)
     if match is None:
@@ -126,7 +139,7 @@ def _port_count_from_suffix(path: Path) -> int:
     return int(match.group("ports"))
 
 
-def _parse_option_line(line: str, line_number: int) -> _TouchstoneOptions:
+def parse_option_line(line: str, line_number: int) -> TouchstoneOptions:
     tokens = line[1:].split()
     if len(tokens) < 3:
         raise DataFormatError(f"Incomplete Touchstone option line at line {line_number}.")
@@ -135,7 +148,7 @@ def _parse_option_line(line: str, line_number: int) -> _TouchstoneOptions:
     parameter = tokens[1].lower()
     data_format = tokens[2].lower()
 
-    if frequency_unit not in _FREQUENCY_SCALE:
+    if frequency_unit not in FREQUENCY_SCALE:
         raise DataFormatError(
             f"Unsupported frequency unit '{tokens[0]}' at line {line_number}."
         )
@@ -165,7 +178,7 @@ def _parse_option_line(line: str, line_number: int) -> _TouchstoneOptions:
             f"Reference resistance must be finite and positive at line {line_number}."
         )
 
-    return _TouchstoneOptions(
+    return TouchstoneOptions(
         frequency_unit=frequency_unit,
         parameter=parameter,
         data_format=data_format,
@@ -173,7 +186,7 @@ def _parse_option_line(line: str, line_number: int) -> _TouchstoneOptions:
     )
 
 
-def _parse_numeric_tokens(tokens: list[str]) -> NDArray[np.float64]:
+def parse_numeric_tokens(tokens: list[str]) -> NDArray[np.float64]:
     try:
         return np.asarray([_parse_float(token) for token in tokens], dtype=np.float64)
     except ValueError as exc:
@@ -184,7 +197,7 @@ def _parse_float(token: str) -> float:
     return float(token.replace("D", "E").replace("d", "e"))
 
 
-def _pairs_to_complex(
+def pairs_to_complex(
     pairs: NDArray[np.float64],
     data_format: str,
 ) -> NDArray[np.complex128]:
@@ -228,16 +241,12 @@ def write_touchstone(
             f"Touchstone suffix declares {suffix_ports} ports but Network has "
             f"{network.n_ports} ports."
         )
-    if network.n_ports not in _SUPPORTED_PORT_COUNTS:
-        raise DataFormatError(
-            f"Touchstone writer currently supports 1, 2 or 4 ports, got {network.n_ports}."
-        )
 
     fmt = data_format.lower()
     unit = frequency_unit.lower()
     if fmt not in _SUPPORTED_FORMATS:
         raise DataFormatError(f"Unsupported Touchstone data format '{data_format}'.")
-    if unit not in _FREQUENCY_SCALE:
+    if unit not in FREQUENCY_SCALE:
         raise DataFormatError(f"Unsupported frequency unit '{frequency_unit}'.")
     if precision < 1:
         raise DataFormatError("precision must be at least 1.")
@@ -252,7 +261,7 @@ def write_touchstone(
             "Touchstone 1.x writer requires a finite positive reference impedance."
         )
 
-    scale = _FREQUENCY_SCALE[unit]
+    scale = FREQUENCY_SCALE[unit]
     option_line = f"# {unit.upper()} S {fmt.upper()} R {_format_float(z0, precision)}"
 
     output_lines = ["! Generated by Interconnect Studio", option_line]
