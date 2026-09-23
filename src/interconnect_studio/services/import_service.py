@@ -22,7 +22,12 @@ from interconnect_studio.algorithms.network import (
     port_assignments,
     subset_frequency_range,
 )
-from interconnect_studio.core import DataFormatError, InputValidationError, Network
+from interconnect_studio.core import (
+    DataFormatError,
+    InputValidationError,
+    Network,
+    PortGroup,
+)
 from interconnect_studio.io import (
     ImportFileType,
     guess_file_type,
@@ -47,11 +52,14 @@ class ImportedNetwork:
     """Result of an import: the network, its display name and its source file.
 
     ``source_path`` is ``None`` for networks built from several files.
+    ``port_group`` records the DUT configuration chosen at import; it is
+    ``None`` when the data is treated as plain single-ended ports.
     """
 
     name: str
     network: Network
     source_path: Path | None = None
+    port_group: PortGroup | None = None
 
 
 @dataclass(frozen=True, slots=True)

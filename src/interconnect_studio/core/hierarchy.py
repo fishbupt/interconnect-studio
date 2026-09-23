@@ -19,6 +19,7 @@ from pathlib import Path
 
 from interconnect_studio.core.errors import InputValidationError
 from interconnect_studio.core.network import Network
+from interconnect_studio.core.port_group import PortGroup
 
 
 def _validate_name(value: str, label: str) -> str:
@@ -97,7 +98,9 @@ class DataFile:
 
     ``source_path`` is the file it was read from, and is ``None`` for results
     produced by algorithms. ``id`` is stable across renames and is what
-    ``Trace.source_id`` refers to.
+    ``Trace.source_id`` refers to. ``port_group`` records the DUT
+    configuration chosen at import, and is ``None`` for plain single-ended
+    data.
     """
 
     id: str
@@ -105,6 +108,7 @@ class DataFile:
     network: Network
     source_path: Path | None = None
     imported_at: datetime | None = None
+    port_group: PortGroup | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "id", _validate_name(self.id, "DataFile id"))
@@ -115,6 +119,10 @@ class DataFile:
             raise InputValidationError("DataFile source_path must be a Path or None.")
         if self.imported_at is not None and not isinstance(self.imported_at, datetime):
             raise InputValidationError("DataFile imported_at must be a datetime or None.")
+        if self.port_group is not None:
+            if not isinstance(self.port_group, PortGroup):
+                raise InputValidationError("DataFile port_group must be a PortGroup or None.")
+            self.port_group.validate_covers(self.network.n_ports)
 
 
 @dataclass(frozen=True, slots=True)

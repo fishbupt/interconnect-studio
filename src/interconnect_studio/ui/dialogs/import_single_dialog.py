@@ -1,5 +1,6 @@
 """PLTS "Import a Single File" dialog (File > Import > Single File)."""
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Final
 
@@ -19,14 +20,19 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from interconnect_studio.algorithms.mixed_mode import (
+    DEFAULT_FOUR_PORT_TOPOLOGY,
+    Topology,
+)
 from interconnect_studio.core import DataFormatError, InputValidationError, Network
 from interconnect_studio.io import ImportFileType, guess_file_type
 from interconnect_studio.services import ImportedNetwork, ImportService
+from interconnect_studio.ui.dialogs.dut_configuration_dialog import DutConfigurationDialog
 from interconnect_studio.ui.dialogs.frequency_range_box import FrequencyRangeBox
 
 TIME_DOMAIN_TOOLTIP: Final[str] = "Time-domain import is not available yet."
 DUT_CONFIGURATION_TOOLTIP: Final[str] = (
-    "DUT Configuration is not available yet; data is imported as single-ended ports."
+    "DUT Configuration applies to four-port data; other port counts import as single-ended."
 )
 
 
@@ -64,6 +70,7 @@ class ImportSingleFileDialog(QDialog):
         self._service = service
         self._network: Network | None = None
         self._imported: ImportedNetwork | None = None
+        self._topology: Topology | None = None
 
         self.file_type_combo = file_type_combo(self)
         self.path_edit = QLineEdit(self)
@@ -104,6 +111,7 @@ class ImportSingleFileDialog(QDialog):
         layout.addWidget(self.error_label)
         layout.addWidget(self.buttons)
 
+        self.change_button.clicked.connect(self._change_configuration)
         self.browse_button.clicked.connect(self._browse)
         self.path_edit.editingFinished.connect(self._load)
         self.file_type_combo.currentIndexChanged.connect(self._load)
@@ -139,13 +147,31 @@ class ImportSingleFileDialog(QDialog):
         if self._network is None:
             return
         try:
-            self._imported = self._service.import_single(
+            imported = self._service.import_single(
                 self.path_edit.text().strip(), self.file_type(), self.range_box.frequency_range()
             )
         except (DataFormatError, InputValidationError) as exc:
             self.error_label.setText(str(exc))
             return
+        self._imported = replace(
+            imported,
+            port_group=self._topology.port_group if self._topology is not None else None,
+        )
         super().accept()
+
+    def topology(self) -> Topology | None:
+        """DUT topology chosen for this import, if any."""
+
+        return self._topology
+
+    def _change_configuration(self) -> None:
+        dialog = DutConfigurationDialog(
+            self._topology or DEFAULT_FOUR_PORT_TOPOLOGY,
+            parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._topology = dialog.topology()
+            self._refresh_configuration()
 
     def _browse(self) -> None:
         filters = ";;".join(file_type.file_filter for file_type in ImportFileType)
@@ -165,11 +191,23 @@ class ImportSingleFileDialog(QDialog):
                 self._network = self._service.read(path, self.file_type())
             except (DataFormatError, InputValidationError) as exc:
                 self.error_label.setText(str(exc))
-        self.configuration_label.setText(
-            f"{self._network.n_ports}-port, single-ended" if self._network is not None else "-"
-        )
+        four_port = self._network is not None and self._network.n_ports == 4
+        self._topology = DEFAULT_FOUR_PORT_TOPOLOGY if four_port else None
+        self.change_button.setEnabled(four_port)
+        self._refresh_configuration()
         self.range_box.set_network(self._network)
         self._refresh_ok()
+
+    def _refresh_configuration(self) -> None:
+        if self._network is None:
+            self.configuration_label.setText("-")
+            return
+        if self._topology is None:
+            self.configuration_label.setText(f"{self._network.n_ports}-port, single-ended")
+            return
+        self.configuration_label.setText(
+            f"{self._network.n_ports}-port, differential — {self._topology.label()}"
+        )
 
     def _refresh_ok(self) -> None:
         ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)

@@ -247,3 +247,52 @@ def test_file_type_list_order(qtbot: QtBot) -> None:
 
     assert labels[:3] == ["Touchstone 1.0 (*.sNp)", "Touchstone 2.0 (*.ts)", "Citifile (*.cti)"]
     assert dialog.file_type() is ImportFileType.TOUCHSTONE
+
+
+def test_four_port_import_enables_dut_configuration(qtbot: QtBot) -> None:
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+
+    dialog.set_path(DATA_DIR / "4port.s4p")
+
+    assert dialog.change_button.isEnabled() is True
+    assert dialog.topology() is not None
+    assert dialog.topology().id == "through_1_2_3_4"
+    assert "differential" in dialog.configuration_label.text()
+
+
+def test_two_port_import_leaves_dut_configuration_disabled(qtbot: QtBot) -> None:
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+
+    dialog.set_path(DATA_DIR / "2port.s2p")
+
+    assert dialog.change_button.isEnabled() is False
+    assert dialog.topology() is None
+    assert dialog.configuration_label.text() == "2-port, single-ended"
+
+
+def test_four_port_import_carries_the_port_group(qtbot: QtBot) -> None:
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+    dialog.set_path(DATA_DIR / "4port.s4p")
+
+    dialog.accept()
+
+    imported = dialog.imported
+    assert imported is not None
+    assert imported.port_group is not None
+    assert imported.port_group.lines[0].near == (0, 2)
+    assert imported.port_group.lines[0].far == (1, 3)
+
+
+def test_two_port_import_carries_no_port_group(qtbot: QtBot) -> None:
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+    dialog.set_path(DATA_DIR / "2port.s2p")
+
+    dialog.accept()
+
+    imported = dialog.imported
+    assert imported is not None
+    assert imported.port_group is None
