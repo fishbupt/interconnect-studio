@@ -184,6 +184,15 @@ pair / polarity / ordering / normalization 的约定见 `DOMAIN_MODEL.md` §7，
 
 解析基准为两条理想无耦合传输线：等长时无模式转换；不等长时 `Sdd21 = (ta+tb)/2`、`Scd21 = (ta-tb)/2`——后者正是钉住 1/√2 归一化与分块顺序的用例。
 
+理想线只验证代数。物理形状的回归基准放在 `golden_data/mixed_mode/`：一对有损、有色散、偶奇模速度不同的耦合线（Case001 对称，Case002 带 2 ps 线内偏斜）。输入由四端口开路阻抗矩阵算出，参考由偶模 / 奇模二端口闭式解给出，**不经过被测变换**：
+
+```text
+Sdd11 = S11(z_odd,  theta_odd,  z0)      Sdd21 = S21(z_odd,  theta_odd,  z0)
+Scc11 = S11(z_even, theta_even, z0)      Scc21 = S21(z_even, theta_even, z0)
+```
+
+差分模即奇模：电压 `2*v_odd`、电流 `i_odd`，故特征阻抗 `2*z_odd`、参考 `2*z0`，与单端比值相同。生成脚本 `scripts/generate_golden_mixed_mode.py` 保存完整推导。
+
 ## 显示与参考阻抗
 
 混合模式参数复用单端路径的 `format_coefficient`，两者不会各自漂移。差别只在参考阻抗：

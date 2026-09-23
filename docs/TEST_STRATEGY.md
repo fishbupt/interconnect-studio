@@ -23,7 +23,7 @@ Unit Tests + Numerical Regression
 tests/
 ├── unit/
 ├── integration/    <planned>
-├── regression/     <planned>
+├── regression/
 ├── ui/
 ├── instruments/    <planned>
 └── data/

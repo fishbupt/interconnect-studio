@@ -59,7 +59,7 @@ interconnect-studio/
 ├── tests/
 │   ├── unit/
 │   ├── integration/            <planned>
-│   ├── regression/             <planned>
+│   ├── regression/
 │   ├── ui/
 │   └── data/
 ├── golden_data/

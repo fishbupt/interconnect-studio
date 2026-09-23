@@ -1,0 +1,38 @@
+{
+  "scc11": {
+    "max_abs_error": 2.363752820986992e-15,
+    "max_magnitude_error_db": 6.248841983265076e-13,
+    "max_phase_error_deg": 2.8292018052451437e-12,
+    "rms_error": 2.7584053341295786e-16
+  },
+  "scc21": {
+    "max_abs_error": 2.7012892057857034e-15,
+    "max_magnitude_error_db": 1.1571929598639439e-14,
+    "max_phase_error_deg": 1.631947017280509e-13,
+    "rms_error": 3.352838658867123e-16
+  },
+  "scd21": {
+    "max_abs_error": 4.0096537078343347e-16,
+    "max_magnitude_error_db": 0.0,
+    "max_phase_error_deg": 0.0,
+    "rms_error": 1.1568667131595754e-16
+  },
+  "sdc21": {
+    "max_abs_error": 3.8705675114544005e-16,
+    "max_magnitude_error_db": 0.0,
+    "max_phase_error_deg": 0.0,
+    "rms_error": 9.699899899857103e-17
+  },
+  "sdd11": {
+    "max_abs_error": 1.1723593161039687e-15,
+    "max_magnitude_error_db": 8.91038579095283e-13,
+    "max_phase_error_deg": 1.124684200830835e-12,
+    "rms_error": 1.9275620013992863e-16
+  },
+  "sdd21": {
+    "max_abs_error": 1.3368496100808165e-15,
+    "max_magnitude_error_db": 1.350058453174603e-14,
+    "max_phase_error_deg": 4.5494545463686166e-14,
+    "rms_error": 2.423889534973589e-16
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "algorithm": "to_mixed_mode",
+  "input_sha256": "afd1962342348510e86efbd825163a36f02cff14383f366d1b8d3000756b3d54",
+  "parameters": {
+    "alpha_f": 0.136,
+    "alpha_sqrt_f": 0.43,
+    "eps_eff_even": 3.55,
+    "eps_eff_odd": 3.2,
+    "length_m": 0.1524,
+    "loss_even": 0.95,
+    "loss_odd": 1.1,
+    "skew_s": 0.0,
+    "z0_ohm": 50.0,
+    "z_even_ohm": 61.0,
+    "z_odd_ohm": 46.0
+  },
+  "reference": "ANALYTICAL",
+  "reference_sha256": "89393a4d95713d17253dc9169fde68e45479ca109ac83311438412f4c2f624af",
+  "reference_version": "coupled transmission-line modal decomposition",
+  "tolerance": {
+    "atol": 1e-12,
+    "rtol": 1e-09
+  },
+  "topology": "through_1_2_3_4"
+}
