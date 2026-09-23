@@ -65,7 +65,7 @@ PLTS 没有 Property Panel 和 Log Panel，现有 `main_window.py` 中的这两�
 | Data Browser | Upper Pane | 数据层级导航 |
 | Parameter / Format | Lower Pane | 开新 plot、向现有 plot 加 trace、为每个 plot 选格式、数据质量检查入口 |
 
-后续功能面板（本轮只预留停靠位，不实现）：Marker、Limit Lines、Mask（眼图）、当前 plot 的表格数据。
+后续功能面板（本轮只预留停靠位，不实现）：Marker（Math Definition）、Limit Lines / Eye Mask、当前 plot 的表格数据（Tabular Trace Data）、Equations、DUT Configuration、DUT Files、眼图测量结果（Parameter Measurement Result）。均为 PLTS 默认面板，见 `PLTS_REFERENCE.md` §3.1。
 
 # 4. View Layout
 
@@ -119,6 +119,8 @@ Group
 - 树使用 `QAbstractItemModel` 适配领域对象，放在 `ui/models/`。
 
 > 待确认：`Group` / `Measurement` 的"固定"目前理解为**层级固定、条目可由用户增删命名**。若 PLTS 实际是预置且不可增删的分类，此节与 `DOMAIN_MODEL.md` §9 需相应修改。
+>
+> 原文核对（`PLTS_REFERENCE.md` §8）：PLTS Data Browser 顶层是预置、不可增删的**分析类型**（频域单端 / 平衡、时域单端 / 差分、眼图单端 / 差分、RLCG 四种）及 Template View / Multi-data 节点，其下为已打开的 window（以 `.dut` 文件标识）。是否据此修改本节待决策。
 
 # 7. Selection Model
 

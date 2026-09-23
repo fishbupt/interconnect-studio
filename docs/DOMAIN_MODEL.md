@@ -346,6 +346,8 @@ class Group:
 - 参数（S11/S21/...）与显示格式**不是树节点**，由 UI 的 Parameter / Format 面板承担（见 `UI_DESIGN.md` §3）。
 
 > 待确认：`Group` / `Measurement` 目前按"层级固定、条目用户可增删"建模。若 PLTS 实际为预置不可增删的分类，此节需改为枚举。
+>
+> 原文核对（`PLTS_REFERENCE.md` §8）：PLTS Data Browser 顶层是预置、不可增删的**分析类型**（频域单端 / 平衡、时域单端 / 差分、眼图单端 / 差分、RLCG 四种）及 Template View / Multi-data 节点，其下为已打开的 window（以 `.dut` 文件标识）。是否据此修改本节待决策。
 
 # 10. Project
 

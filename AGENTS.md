@@ -25,6 +25,7 @@
 7. `docs/GOLDEN_DATA.md`
 8. `docs/CODING_GUIDELINES.md`
 9. `docs/ROADMAP.md`
+10. `docs/PLTS_REFERENCE.md`（涉及对标 PLTS 的功能时）
 
 ## 3. Technology Stack
 
