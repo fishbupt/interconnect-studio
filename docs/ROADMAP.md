@@ -25,8 +25,11 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [x] Port Mapping
 - [x] Network 基础 S 参数访问接口
 - [ ] 通用 N 端口（去掉 1/2/4 限制）
-- [ ] Touchstone 2.0 / CITIfile
+- [ ] Touchstone 2.0 / CITIfile（读写）
+- [ ] 文本导入（tab / 逗号分隔）
+- [ ] 导入多文件时的单端 → 差分映射
 - [ ] 数据质量检查（Passivity / Causality / Reciprocity）
+- [ ] 数据质量强制修正（Enforcement，写出修正后的文件）
 - [ ] Port Group 模型
 - [ ] Interpolation
 - [ ] Renormalization
@@ -71,9 +74,14 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [x] Linear Mag / Unwrapped Phase / Group Delay / SWR / Impedance formats
 - [x] Add Trace / Format Selection
 - [ ] Smith / Polar
-- [ ] Marker
+- [ ] Marker（含 marker math、readout 排序、可停靠 marker bar）
+- [ ] Scaling bar（缩放工具栏）
+- [ ] View → Toolbars 各工具栏开关
 - [ ] Autoscale
 - [ ] Multi Plot
+- [ ] Trace Smoothing（平滑孔径）
+- [ ] 多窗口管理：Tile / Cascade / Maximize / Minimize
+- [ ] Template / Multi-Data Template（Data Browser 中的独立节点，多数据集同屏对比）
 
 ## Phase 4 — Time Domain
 
@@ -85,6 +93,10 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] Band Pass
 - [ ] TDR/TDT
 - [ ] Reference Shift
+- [ ] 参考面调整（批量 / N 端口）
+- [ ] TDR 阻抗 Flatten Slope（TC9）
+
+变换算法：PLTS 使用 inverse chirp-Z Fourier transform，不是普通 IFFT。
 
 Exit：PLTS / Analytical Golden Regression。
 
@@ -123,31 +135,48 @@ Exit：PLTS / Analytical Golden Regression。
 - [ ] 传播延迟 / 电长度
 - [ ] ILD / ILfit
 - [ ] 有效 Dk / Df
-- [ ] Limit Line / Mask / Pass-Fail
-- [ ] Report Generation
+- [ ] Limit Line / Mask / Pass-Fail（Smith / Polar 格式下不适用）
+- [ ] Report Generation（对标 Characterization Report Generator）
+- [ ] Delta-L（PCB 损耗方法学）
 
 合规标准本身为外部可加载配置，不内置。
 
+## Phase 7.6 — RLCG 与模型导出
+
+- [ ] RLCG 传输线参数提取（含 W-Element 模式）
+- [ ] HSPICE W-Element 导出
+- [ ] ADS ML2CTL 导出
+- [ ] TDA MeasureXtractor 导出
+
+注：此前曾把宽带 SPICE 子电路导出排除在范围外；RLCG 的模型导出使该决定需要重新审视。
+
 ## Phase 8 — Instrument Control（待决策）
 
-仪器连接与自动测量是否实现尚未决定。若实现，接口按「测量源」抽象以容纳 TDR 采样示波器；校准（ECal / SOLT / TRL）与本阶段同期。
+仪器连接与自动测量是否实现尚未决定。若实现，接口按「测量源」抽象以容纳 TDR 采样示波器。
+
+PLTS 在此范围内的能力，供将来决策参考：Calibration & Measurement Wizard、ECal / SOLT / TRL、差分串扰 TRL 校准。
 
 ## Phase 9 — Automation
 
 - [ ] Batch Processing
 - [ ] Script API
 - [ ] CLI
+- [ ] SCPI 命令接口
 - [ ] MCP Integration
+
+不含 COM 对象模型（Windows 专有）与功能分级授权。
 
 ## Phase 10 — High-Speed Interconnect
 
 - [ ] Eye Diagram
 - [ ] NRZ
 - [ ] PAM4
-- [ ] Equalization
-- [ ] Mask
+- [ ] Equalization（FFE / DFE）
+- [ ] Mask（Eye Diagram Mask Test）
 - [ ] Jitter
-- [ ] COM
+- [ ] COM（Channel Operating Margin）
+- [ ] 多通道仿真（TX / 串扰源 + RX 均衡）
+- [ ] 由方程合成眼图
 
 # Agent Maturity
 

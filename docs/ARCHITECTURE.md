@@ -45,6 +45,7 @@ interconnect-studio/
 │   │   ├── gating/             <planned>  V1.0
 │   │   ├── crosstalk/          <planned>  V1.0
 │   │   ├── si_metrics/         <planned>  V1.0
+│   │   ├── rlcg/               <planned>  V1.1  传输线参数提取
 │   │   ├── deembedding/        <planned>  V1.0
 │   │   └── afr/                <planned>  V1.1
 │   ├── io/
@@ -144,13 +145,17 @@ io → ui
 
 # 8. Planned Extensions
 
-- Eye / PAM4 / COM（V2.0）
+- Eye / PAM4 / COM、多通道仿真（V2.0）
+- RLCG 提取与模型导出（V1.1）
+- Delta-L（V1.0）
 - Batch Processing
 - CLI / Script API
 - MCP Integration
 - Plugin System
 
-待决策（是否实现未定）：Calibration、VNA / TDR 仪器自动化、CSV / MATLAB 导出、宽带 SPICE 子电路导出。
+待决策（是否实现未定）：Calibration、VNA / TDR 仪器自动化、CSV / MATLAB 导出。
+
+明确排除：COM 对象模型、功能分级授权。
 
 # 9. Architecture Decision Records
 
