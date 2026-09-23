@@ -104,30 +104,44 @@ class ViewLayout:
 
 # 6. Data Browser
 
-对标 PLTS 的三层结构：
+对标 PLTS 的三层结构（领域模型见 `DOMAIN_MODEL.md` §9，原文依据见 `PLTS_REFERENCE.md` §3.7）：
 
 ```text
-Group
-└── Measurement
-    └── DataFile        （导入的 .sNp 文件）
+Data Analysis
+├── Time Domain (Differential)
+├── Time Domain (Single-Ended)
+├── Frequency Domain (Balanced)
+├── Frequency Domain (Single-Ended)
+│   └── dut.s2p : 1          ← 已打开的 window（文件名 : window 序号）
+├── Eye Diagram (Differential)
+└── Eye Diagram (Single-Ended)
+RLCG
+├── RLCG (Differential)
+├── RLCG (Common)
+├── RLCG (W-Element)
+└── RLCG (Self/Mutual)
+Calibration
+├── Error Terms
+└── Measured Standards
+Template View
+├── Create New
+└── Create New for Multi-data
 ```
 
-- **层级固定为三层**：不可嵌套更深，也不可跳层。
-- `Group` 与 `Measurement` 是容器，条目由用户创建与命名。
-- `DataFile` 是叶子，持有 `Network` 与来源元数据。
+- **层级固定为三层**：分类 → 视图类型 → window。分类与视图类型是预置目录，始终显示；只有 window 随打开 / 关闭变化。
+- 叶子是 window（`ViewWindow`），显示为「文件名 : window 序号」；选中 window 即选中其 `DataFile`。
+- 有 window 的视图类型自动展开，其余折叠，与 PLTS 一致。
+- 尚未实现的视图类型照样列出、置灰并提示 "Not available yet"，保持与 PLTS 相同的布局；目前只有 Frequency Domain (Single-Ended) 可用，打开文件即在其下新建一个 window。
 - 参数与显示格式的选择**不在树里**，由 Parameter / Format 面板承担（PLTS 即如此）。
 - 树使用 `QAbstractItemModel` 适配领域对象，放在 `ui/models/`。
-
-> 待确认：`Group` / `Measurement` 的"固定"目前理解为**层级固定、条目可由用户增删命名**。若 PLTS 实际是预置且不可增删的分类，此节与 `DOMAIN_MODEL.md` §9 需相应修改。
->
-> 原文核对（`PLTS_REFERENCE.md` §8）：PLTS Data Browser 顶层是预置、不可增删的**分析类型**（频域单端 / 平衡、时域单端 / 差分、眼图单端 / 差分、RLCG 四种）及 Template View / Multi-data 节点，其下为已打开的 window（以 `.dut` 文件标识）。是否据此修改本节待决策。
+- 待实现（PLTS 行为）：点击视图类型为活动文件新开空白 window；window 右键 Close View / Close File / Copy File Name / Rename File；Template View 下列出已保存 template。
 
 # 7. Selection Model
 
 任一时刻存在三个"当前对象"：
 
 ```text
-current_file        （Data Browser 中选中的 DataFile）
+current_file        （Data Browser 中选中 window 的 DataFile）
 current_plot        （View Area 中被选中的格子）
 current_trace
 ```
@@ -205,4 +219,4 @@ src/interconnect_studio/ui/
 - [ ] 布局状态在 Project 文件中的序列化格式（待 Project 格式决策）
 - [ ] 多图联动的默认行为
 - [ ] 字体与间距规范
-- [ ] `Group` / `Measurement` 是否为预置不可增删的分类（见 §6 待确认项）
+- [x] Data Browser 层级：按 PLTS 改为分类 → 视图类型 → window（见 §6）

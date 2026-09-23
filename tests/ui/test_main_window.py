@@ -3,6 +3,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QMainWindow
 from pytestqt.qtbot import QtBot
 
+from interconnect_studio.core import ViewType
 from interconnect_studio.ui import MainWindow
 from interconnect_studio.ui.theme import Theme
 
@@ -74,17 +75,16 @@ def test_main_window_loads_s2p_and_updates_all_primary_panels(qtbot: QtBot) -> N
     assert "S11 Log Mag, S21 Log Mag" in window.message_log.text()
 
 
-def test_data_browser_shows_fixed_three_level_hierarchy(qtbot: QtBot) -> None:
+def test_loading_opens_a_frequency_domain_single_ended_window(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
     window.load_touchstone_file(S2P)
 
-    groups = window.data_browser.groups
-    assert len(groups) == 1
-    assert groups[0].name == "Group 1"
-    assert groups[0].measurements[0].name == "Measurement 1"
-    assert groups[0].measurements[0].files[0].name == "valid_2port_ri.s2p"
+    windows = window.data_browser.browser_tree.windows
+    assert len(windows) == 1
+    assert windows[0].view_type is ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED
+    assert windows[0].label == "valid_2port_ri.s2p : 1"
 
 
 def test_loading_selects_the_new_data_file(qtbot: QtBot) -> None:
@@ -99,18 +99,20 @@ def test_loading_selects_the_new_data_file(qtbot: QtBot) -> None:
     assert current.network.n_ports == 2
 
 
-def test_loading_twice_appends_under_the_same_measurement(qtbot: QtBot) -> None:
+def test_loading_twice_opens_two_numbered_windows(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
     window.load_touchstone_file(S2P)
     window.load_touchstone_file(S2P)
 
-    groups = window.data_browser.groups
-    assert len(groups) == 1
-    files = groups[0].measurements[0].files
-    assert len(files) == 2
-    assert files[0].id != files[1].id
+    windows = window.data_browser.browser_tree.windows_of(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+    assert [item.number for item in windows] == [1, 2]
+    assert windows[0].data_file.id != windows[1].data_file.id
+
+    current = window.data_browser.current_window()
+    assert current is not None
+    assert current.number == 2
 
 
 def test_main_window_enables_add_trace_after_loading(qtbot: QtBot) -> None:

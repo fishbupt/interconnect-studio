@@ -53,10 +53,10 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] `ui/` 子结构：views / widgets / panels / models / dialogs
 - [ ] ViewLayout（固定网格）与视图区
 - [ ] 外围面板改为 Qt dock
-- [ ] 数据层级模型（Group / Measurement / DataFile）与 Trace 溯源
-- [ ] Data Browser（Group → Measurement → DataFile）
-  - 原文核对：PLTS 的 Data Browser 顶层是预置的分析类型（频域单端 / 平衡、时域单端 / 差分、眼图、RLCG 四种）与 Template View / Multi-data 节点，其下为已打开的 window；并非用户自建的 Group / Measurement。见 `PLTS_REFERENCE.md` §8，层级设计待重新决策
-  - 文件右键：Close View / Close File / Copy File Name / Rename File
+- [ ] 数据层级模型（`BrowserCategory` / `ViewType` / `ViewWindow` / `DataFile`）与 Trace 溯源（层级已落地，溯源待做）
+- [x] Data Browser 按 PLTS 层级：Data Analysis / RLCG / Calibration / Template View → 视图类型 → window（未实现的视图类型置灰）
+  - [ ] 点击视图类型为活动文件新开 window；window 右键 Close View / Close File / Copy File Name / Rename File
+  - [ ] Template View 下列出已保存 template
 - [ ] Parameter / Format 面板
   - 数据来源文件下拉、S 参数 / 方程切换、New Plot / New Trace、ALL 与分组快捷（RL / IL / NEXT / FEXT、TDR / TDT、on One / on Many）
   - 多端口参数选择对话框（拖选、按名称批量输入、参数名列表存取）

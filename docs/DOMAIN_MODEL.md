@@ -308,46 +308,80 @@ class FixturePair:
 
 # 9. Data Hierarchy
 
-对标 PLTS 的 Data Browser，**固定三层**：
+对标 PLTS 的 Data Browser，**固定三层**：分类 → 视图类型 → window。依据与原文截图见 `PLTS_REFERENCE.md` §3.7。
 
 ```text
-Group → Measurement → DataFile
+Data Analysis
+├── Time Domain (Differential)
+├── Time Domain (Single-Ended)
+├── Frequency Domain (Balanced)
+├── Frequency Domain (Single-Ended)
+│   └── dut.s2p : 1          ← 已打开的 window（文件名 : window 序号）
+├── Eye Diagram (Differential)
+└── Eye Diagram (Single-Ended)
+RLCG
+├── RLCG (Differential)
+├── RLCG (Common)
+├── RLCG (W-Element)
+└── RLCG (Self/Mutual)
+Calibration
+├── Error Terms
+└── Measured Standards
+Template View
+├── Create New
+└── Create New for Multi-data
 ```
 
 ```python
+class BrowserCategory(Enum):
+    DATA_ANALYSIS = "Data Analysis"
+    RLCG = "RLCG"
+    CALIBRATION = "Calibration"
+    TEMPLATE_VIEW = "Template View"
+
+
+class ViewType(Enum):
+    """第二层，固定目录；每项带显示名与所属分类。"""
+    TIME_DOMAIN_DIFFERENTIAL = ("Time Domain (Differential)", BrowserCategory.DATA_ANALYSIS)
+    ...
+    CREATE_NEW_FOR_MULTI_DATA = ("Create New for Multi-data", BrowserCategory.TEMPLATE_VIEW)
+
+
 @dataclass(frozen=True, slots=True)
 class DataFile:
-    """叶子节点：一个导入的 .sNp 文件或算法产物。"""
+    """一个导入的 .sNp 文件或算法产物。不是树节点。"""
     id: str                    # 稳定标识，Trace 通过它溯源
     name: str                  # 显示名，可由用户重命名
     network: Network
     source_path: Path | None   # 来源文件；算法产物为 None
-    imported_at: datetime
+    imported_at: datetime | None
 
 
 @dataclass(frozen=True, slots=True)
-class Measurement:
-    name: str
-    files: tuple[DataFile, ...]
+class ViewWindow:
+    """叶子：一个 DataFile 在一种视图类型下打开的 window。"""
+    view_type: ViewType
+    data_file: DataFile
+    number: int                # window 序号，全树唯一，显示为 "name : n"
 
 
 @dataclass(frozen=True, slots=True)
-class Group:
-    name: str
-    measurements: tuple[Measurement, ...]
+class DataBrowserTree:
+    windows: tuple[ViewWindow, ...]
+
+    def windows_of(self, view_type: ViewType) -> tuple[ViewWindow, ...]: ...
+    def open(self, view_type: ViewType, data_file: DataFile) -> tuple[DataBrowserTree, ViewWindow]: ...
 ```
 
 约定：
 
-- 层级固定为三层，不可嵌套更深，也不可跳层。
-- `Group` 与 `Measurement` 是纯容器，条目由用户创建与命名。
+- 分类与视图类型是**预置、不可增删**的目录（枚举），顺序与 PLTS 一致；只有 window 由用户打开和关闭。
+- `DataFile` 不是树节点：同一个文件可在多个视图类型下各开一个 window，因此在树中出现多次。
+- window 序号全树唯一、递增，与 PLTS 的 "Beatty : 2" 一致。
 - `DataFile.id` 在 Project 内唯一，且不随重命名改变。
-- 去嵌、Mixed-Mode 等算法产物同样封装为 `DataFile`，并在 metadata 中记录来源与算法参数，使派生结果与导入数据在树中同构。
+- 去嵌、Mixed-Mode 等算法产物同样封装为 `DataFile`，并在 metadata 中记录来源与算法参数。
 - 参数（S11/S21/...）与显示格式**不是树节点**，由 UI 的 Parameter / Format 面板承担（见 `UI_DESIGN.md` §3）。
-
-> 待确认：`Group` / `Measurement` 目前按"层级固定、条目用户可增删"建模。若 PLTS 实际为预置不可增删的分类，此节需改为枚举。
->
-> 原文核对（`PLTS_REFERENCE.md` §8）：PLTS Data Browser 顶层是预置、不可增删的**分析类型**（频域单端 / 平衡、时域单端 / 差分、眼图单端 / 差分、RLCG 四种）及 Template View / Multi-data 节点，其下为已打开的 window（以 `.dut` 文件标识）。是否据此修改本节待决策。
+- Template View 下 PLTS 还列出已保存的 template（含内置的 USB3.0、HDMI、SATA、DisplayPort、COM 等标准 template）。template 功能落地后作为该分类下的动态条目加入；按 `PRODUCT.md` FR-010，具体标准 template 为外部可加载配置，不内置。
 
 # 10. Project
 
@@ -356,8 +390,8 @@ Project 保存用户工程状态，不保存 QWidget 实例。
 ```python
 @dataclass
 class Project:
-    groups: tuple[Group, ...]
-    windows: tuple[Window, ...]     # 每个 window 持有自己的 ViewLayout
+    data_files: tuple[DataFile, ...]
+    browser: DataBrowserTree        # 已打开的 window；每个 window 持有自己的 ViewLayout
     fixtures: ...
     settings: ...
 ```

@@ -35,7 +35,7 @@ Keysight PLTS 数据分析侧功能与 UI 元素的**原文核对清单**，是 
 | 时域含「Reference Shift」 | 原文无此项。对应能力是 Tools → Time Domain Settings 的 Start / Stop Time 与 Reference Plane Adjustment 的 Port Rotation / Extension。 |
 | 「Renormalization」 | PLTS 有三处：System Z0（所有端口同值，**只影响时域显示**）、Reference Plane Adjustment 的 Port Reference Impedance（**每端口可不同**，0–1000 Ω）、Diff/Com Port Reference Impedance（每个差分端口独立设差模 / 共模阻抗）。后两者产生 per-port 参考阻抗，与 `DOMAIN_MODEL.md` §5 单标量 `z0` 冲突，见 §8。 |
 | 「CSV / MATLAB 导出」待决策 | PLTS 的 Export 含 Text（tab / comma delimited），即 CSV；plot 右键 Save Traces As 也直接存 `.csv`。原文没有 MATLAB 导出格式，MATLAB 在 PLTS 中是方程计算接口（Collaborate with MATLAB）。 |
-| Data Browser 为 Group → Measurement → DataFile | 原文 Data Browser 顶层是**预置的 Data Analysis 类型**（见 §3.4）+ Template View + Multi-data 节点，其下是已打开的 window（按 `.dut` 文件）。见 §8。 |
+| Data Browser 为 Group → Measurement → DataFile | 原文为 Data Analysis / RLCG / Calibration / Template View 四个预置分类 → 预置视图类型 → 已打开的 window，见 §3.7。已据此重构。 |
 | 有效 Dk / Df | PLTS 对应功能是 PCB Material Characterization（选件 N19308B），用 2D stripline 仿真 + Svensson-Djordjevic 介质模型 + Huray / Cannonball 粗糙度模型拟合出 Dk、Df、表面粗糙度，范围远大于「有效 Dk / Df」。 |
 
 **此前清单完全遗漏的大项**：Trace Math / 方程系统、Quick Math、统计 trace、Trace Statistics、Marker 的搜索 / 耦合 / 保存 / 导出 / 表格、各种时域测量（上升时间、Skew、Trace Align、过剩 / 总 L 与 C、Correct Impedance Profile）、Channel Loss Compensation、System Z0、Velocity Factor、DUT Configuration、State 文件、Merge Manager、Batched File Converter、批量打开 / 导入、多文件 Build、打印与图片导出、User Preferences、Run Macro、PCB Material Characterization，以及大量 plot / trace 级交互（见 §3–§7）。
@@ -134,6 +134,52 @@ Data Sharing：
 - Wizard 的 Load Measurement：直接选 DUT 文件进入分析（GettingStarted/PLTS_Wizard.htm）。
 - Test Suite：保存 DUT 配置、测量设置、校准选择与 Template，`.xml` 导入导出 `[仪器]`（GettingStarted/Test_Suite_Wizard.htm）。
 - F1 / 对话框 Help 按钮跳转上下文帮助（GettingStarted/About_PLTS_Help.htm）。
+
+## 3.7 Data Browser 树（GettingStarted/The_PLTS_Screen.htm、Working_with_Windows_Plots_and_Traces.htm、Analyzing/Templates.htm、VNACalAndMeas/LoadErrorTermsRefresh_Cal.htm）
+
+依据帮助中的 Data Browser 截图（`DataBrowserPane.jpg`、`dataBrowser.gif`、`MultidataBrowser.gif`、`COM_TemplateViews.png`、`DataBrowserFileMgt.png`、`errorTermsPlot.jpg`）与远程接口的视图名列表（SCPI `MEASure:VIEW:NAME`、COM `OpenAnalysisView`）整理：
+
+```text
+Data Analysis
+├── Time Domain (Differential)
+├── Time Domain (Single-Ended)
+│   └── Beatty : 2                    ← 已打开的 window：文件名 : window 序号
+├── Frequency Domain (Balanced)
+├── Frequency Domain (Single-Ended)
+├── Eye Diagram (Differential)
+└── Eye Diagram (Single-Ended)
+RLCG
+├── RLCG (Differential)
+├── RLCG (Common)
+├── RLCG (W-Element)
+└── RLCG (Self/Mutual)
+Calibration
+├── Error Terms
+│   └── 8 port cal - Error Terms : 1
+└── Measured Standards
+Template View
+├── Create New                        ← 当前文件进入此节点后可另存为 template
+├── Create New for Multi-data
+├── USB3.0 Connector (12p)
+├── USB3.0 Cable (12p)
+├── HDMI 1_4 Category 1 (12p)
+├── HDMI 1_4 Category 2 (12p)
+├── SATA 3_0 Internal Cable_Connector (8p)
+├── DisplayPort 1_2 HBR (20p)
+├── COM (12p)
+├── COM 50GBASE-KR_postd1p0 (12p)
+├── COM 200GAUI-4_and_400GAUI-8_C2C_d2p1_120d (12p)
+├── COM 200GAUI-4_and_400GAUI-8_C2M_120e_MTF (12p)
+├── COM 200GAUI-4_and_400GAUI-8_C2M_120e_tp0_tp2 (12p)
+└── MiniSAS (32p)                     ← MatLab_Equations.htm 提到，截图中未出现
+```
+
+- Data Analysis 六项的名称与顺序直接见截图。
+- RLCG 在所有截图中都是折叠的；子项名取自 SCPI / COM 的视图名与 RLCG window 标题（"RLCG (W-Element)"），顺序按 SCPI 与 COM 枚举（Differential、Common、W-Element、Self/Mutual）。树中实际显示的文字未能从截图直接确认。
+- Calibration 的两项见 Load Error Terms 页截图；Error Terms 显示 6 个 plot（Directivity、CrossTalk、ReflectionTracking、TransmissionTracking、SourceMatch、LoadMatch），Measured Standards 显示 Opens / Shorts / Loads / 各 Thru 的原始测量。均依赖校准数据 `[仪器]`。
+- Template View 下的标准 template 随版本变化（旧版截图为 HDMI 1_3、DisplayPort 1_1 HBR），括号内为端口数。
+- 叶子 window 以「文件名 : 序号」显示，序号全局递增；有 window 的视图类型带 +/−，被选中的 window 高亮。点击视图类型为活动文件新开一个空白 window。
+- window 右键：Close View、Close File、Copy File Name、Rename File。
 
 # 4. Analyzing Data
 
@@ -469,7 +515,7 @@ Time Domain Settings 对话框（Tools → Time Domain Settings）：
 
 # 8. 与现有设计冲突、需决策的点
 
-1. **Data Browser 层级**：`DOMAIN_MODEL.md` §9 与 `UI_DESIGN.md` §6 以 Group → Measurement → DataFile 「对标 PLTS」，并有「待确认」注。原文中 Data Browser 顶层是预置、不可增删的分析类型（§3.4）以及 Template View / Multi-data 节点，其下是已打开的 window（以 `.dut` 文件标识）。即「预置分类」这一假设成立，但分类维度是**分析类型**，不是用户自建的 Group / Measurement。
+1. **Data Browser 层级**：已按 §3.7 重构为分类 → 视图类型 → window（`DOMAIN_MODEL.md` §9）。尚未决定的只剩 Template View 下标准 template 的来源（按 `PRODUCT.md` FR-010 应为外部配置）。
 2. **Per-port 参考阻抗**：PLTS 的 Port Reference Impedance 允许每个端口不同，Diff/Com Port Reference Impedance 允许每个差分端口独立设阻抗；`DOMAIN_MODEL.md` §5 的 `Network.z0` 是单标量。若要对标这两项，需要新的领域类型（§5 已预留「通过新的领域模型扩展」）。
 3. **System Z0 语义**：PLTS 的 System Z0 只改变时域显示，是「显示设置」而非对数据做 renormalization；我们的 Renormalization 需与之区分。
 4. **CSV 导出**：`PRODUCT.md` 把「CSV / MATLAB 导出」列为待决策，但 PLTS 的 Text（comma delimited）导出、Save Traces As、marker 导出都是 CSV。

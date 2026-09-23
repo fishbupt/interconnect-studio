@@ -5,11 +5,13 @@ import numpy as np
 import pytest
 
 from interconnect_studio.core import (
+    BrowserCategory,
+    DataBrowserTree,
     DataFile,
-    Group,
     InputValidationError,
-    Measurement,
     Network,
+    ViewType,
+    ViewWindow,
 )
 
 
@@ -59,34 +61,98 @@ def test_data_file_rejects_non_network() -> None:
         DataFile(id="f1", name="DUT", network="not a network")  # type: ignore[arg-type]
 
 
-def test_measurement_holds_files() -> None:
-    measurement = Measurement(name="Run 1", files=(data_file("f1"), data_file("f2")))
+def test_categories_follow_plts_order() -> None:
+    assert [category.label for category in BrowserCategory] == [
+        "Data Analysis",
+        "RLCG",
+        "Calibration",
+        "Template View",
+    ]
 
-    assert len(measurement.files) == 2
+
+def test_view_types_under_each_category_follow_plts() -> None:
+    labels = {
+        category: [view.label for view in category.view_types] for category in BrowserCategory
+    }
+
+    assert labels[BrowserCategory.DATA_ANALYSIS] == [
+        "Time Domain (Differential)",
+        "Time Domain (Single-Ended)",
+        "Frequency Domain (Balanced)",
+        "Frequency Domain (Single-Ended)",
+        "Eye Diagram (Differential)",
+        "Eye Diagram (Single-Ended)",
+    ]
+    assert labels[BrowserCategory.RLCG] == [
+        "RLCG (Differential)",
+        "RLCG (Common)",
+        "RLCG (W-Element)",
+        "RLCG (Self/Mutual)",
+    ]
+    assert labels[BrowserCategory.CALIBRATION] == ["Error Terms", "Measured Standards"]
+    assert labels[BrowserCategory.TEMPLATE_VIEW] == ["Create New", "Create New for Multi-data"]
 
 
-def test_measurement_defaults_to_no_files() -> None:
-    assert Measurement(name="Run 1").files == ()
+def test_every_view_type_belongs_to_exactly_one_category() -> None:
+    listed = [view for category in BrowserCategory for view in category.view_types]
+
+    assert sorted(listed, key=lambda view: view.name) == sorted(
+        ViewType, key=lambda view: view.name
+    )
 
 
-def test_measurement_rejects_duplicate_file_ids() -> None:
+def test_window_label_shows_file_name_and_number() -> None:
+    window = ViewWindow(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, data_file(name="dut.s2p"), 3)
+
+    assert window.label == "dut.s2p : 3"
+
+
+@pytest.mark.parametrize("bad_number", [0, -1, True])
+def test_window_rejects_non_positive_numbers(bad_number: int) -> None:
+    with pytest.raises(InputValidationError, match="positive integer"):
+        ViewWindow(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, data_file(), bad_number)
+
+
+def test_window_rejects_non_view_type() -> None:
+    with pytest.raises(InputValidationError, match="ViewType"):
+        ViewWindow("Frequency Domain", data_file(), 1)  # type: ignore[arg-type]
+
+
+def test_empty_tree_numbers_windows_from_one() -> None:
+    tree, window = DataBrowserTree().open(ViewType.TIME_DOMAIN_DIFFERENTIAL, data_file())
+
+    assert window.number == 1
+    assert tree.windows == (window,)
+
+
+def test_open_numbers_windows_across_view_types() -> None:
+    tree, first = DataBrowserTree().open(ViewType.TIME_DOMAIN_DIFFERENTIAL, data_file())
+    tree, second = tree.open(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, data_file())
+
+    assert (first.number, second.number) == (1, 2)
+    assert tree.windows_of(ViewType.TIME_DOMAIN_DIFFERENTIAL) == (first,)
+    assert tree.windows_of(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED) == (second,)
+    assert tree.windows_of(ViewType.ERROR_TERMS) == ()
+
+
+def test_same_file_can_open_in_several_view_types() -> None:
+    item = data_file()
+    tree, _ = DataBrowserTree().open(ViewType.TIME_DOMAIN_SINGLE_ENDED, item)
+    tree, _ = tree.open(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, item)
+
+    assert [window.data_file for window in tree.windows] == [item, item]
+
+
+def test_tree_rejects_duplicate_window_numbers() -> None:
+    first = ViewWindow(ViewType.TIME_DOMAIN_SINGLE_ENDED, data_file(), 1)
+    second = ViewWindow(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, data_file(), 1)
+
     with pytest.raises(InputValidationError, match="unique"):
-        Measurement(name="Run 1", files=(data_file("f1"), data_file("f1", name="Other")))
+        DataBrowserTree(windows=(first, second))
 
 
-def test_group_holds_measurements() -> None:
-    group = Group(name="Board A", measurements=(Measurement(name="Run 1"),))
-
-    assert group.measurements[0].name == "Run 1"
-
-
-def test_group_rejects_non_measurement_children() -> None:
-    with pytest.raises(InputValidationError, match="tuple of Measurement"):
-        Group(name="Board A", measurements=(data_file(),))  # type: ignore[arg-type]
-
-
-def test_hierarchy_is_immutable() -> None:
-    group = Group(name="Board A")
+def test_tree_is_immutable() -> None:
+    tree = DataBrowserTree()
 
     with pytest.raises(AttributeError):
-        group.name = "new"  # type: ignore[misc]
+        tree.windows = ()  # type: ignore[misc]

@@ -26,16 +26,13 @@ from interconnect_studio.algorithms.network import SParameterFormat
 from interconnect_studio.core import (
     DataFile,
     DataFormatError,
-    Group,
     InputValidationError,
-    Measurement,
     PlotModel,
+    ViewType,
 )
 from interconnect_studio.services import LoadedTouchstonePlot, TouchstonePlotService
 from interconnect_studio.ui.dialogs import AddTraceDialog
 from interconnect_studio.ui.panels import (
-    DEFAULT_GROUP,
-    DEFAULT_MEASUREMENT,
     DataBrowserPanel,
     MessageLogPanel,
     ParameterFormatPanel,
@@ -225,10 +222,10 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(str(exc))
 
     def _add_to_hierarchy(self, loaded: LoadedTouchstonePlot) -> None:
-        """Append the loaded file under the default group and measurement.
+        """Open the loaded file in a Frequency Domain (Single-Ended) window.
 
-        Project management does not exist yet, so everything lands in one
-        default group and measurement.
+        That is the only view type the application can display so far; PLTS
+        asks for the view type on import, which will come with the others.
         """
 
         data_file = DataFile(
@@ -240,23 +237,12 @@ class MainWindow(QMainWindow):
         )
         self._next_file_number += 1
 
-        groups = self.data_browser.groups
-        if groups:
-            group = groups[0]
-            measurement = group.measurements[0]
-            measurement = Measurement(
-                name=measurement.name,
-                files=(*measurement.files, data_file),
-            )
-            group = Group(name=group.name, measurements=(measurement,))
-        else:
-            group = Group(
-                name=DEFAULT_GROUP,
-                measurements=(Measurement(name=DEFAULT_MEASUREMENT, files=(data_file,)),),
-            )
-
-        self.data_browser.set_groups((group,))
-        self.data_browser.select_data_file(data_file.id)
+        tree, window = self.data_browser.browser_tree.open(
+            ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED,
+            data_file,
+        )
+        self.data_browser.set_browser_tree(tree)
+        self.data_browser.select_window(window.number)
 
     def _apply(self, loaded: LoadedTouchstonePlot) -> None:
         self.view_area.set_current_plot(loaded.plot)
