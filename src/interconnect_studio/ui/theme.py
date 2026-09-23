@@ -85,7 +85,7 @@ LIGHT = Palette(
 
 _PALETTES: dict[Theme, Palette] = {Theme.DARK: DARK, Theme.LIGHT: LIGHT}
 
-DEFAULT_THEME = Theme.DARK
+DEFAULT_THEME = Theme.LIGHT
 
 
 def palette_for(theme: Theme) -> Palette:

@@ -24,6 +24,8 @@ class DataBrowserPanel(QWidget):
         self.tree.setModel(self.model)
         self.tree.setHeaderHidden(True)
         self.tree.setExpandsOnDoubleClick(False)
+        self.tree.expanded.connect(lambda index: self.model.set_expanded(index, True))
+        self.tree.collapsed.connect(lambda index: self.model.set_expanded(index, False))
 
         selection = self.tree.selectionModel()
         if selection is not None:

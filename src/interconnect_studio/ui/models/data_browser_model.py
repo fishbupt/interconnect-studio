@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from typing import Final
 
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
+from PyQt6.QtGui import QFont, QIcon
 
 from interconnect_studio.core import (
     BrowserCategory,
@@ -12,6 +13,7 @@ from interconnect_studio.core import (
     ViewType,
     ViewWindow,
 )
+from interconnect_studio.ui.icons import FolderKind, document_icon, folder_icon
 
 # Qt requires these signatures to default to a null index; a module-level
 # singleton keeps that without constructing one per call.
@@ -64,6 +66,7 @@ class DataBrowserModel(QAbstractItemModel):
     ) -> None:
         super().__init__(parent)
         self._available = frozenset(available_view_types)
+        self._expanded: set[BrowserCategory | ViewType] = set()
         self._tree = DataBrowserTree()
         self._roots: list[_Node] = []
         self.set_tree(tree or DataBrowserTree())
@@ -79,6 +82,8 @@ class DataBrowserModel(QAbstractItemModel):
 
         self.beginResetModel()
         self._tree = tree
+        # A reset collapses every row in attached views, so no folder is open.
+        self._expanded.clear()
         self._roots = [
             self._build_category(category, row) for row, category in enumerate(BrowserCategory)
         ]
@@ -88,6 +93,22 @@ class DataBrowserModel(QAbstractItemModel):
         """Whether the application can display this view type yet."""
 
         return view_type in self._available
+
+    def set_expanded(self, index: QModelIndex, expanded: bool) -> None:
+        """Record whether a folder row is expanded, so its icon opens or closes.
+
+        Views call this from their expanded / collapsed signals; the model has
+        no other way to learn the expansion state.
+        """
+
+        node = self._node(index)
+        if node is None or not isinstance(node.payload, BrowserCategory | ViewType):
+            return
+        if expanded:
+            self._expanded.add(node.payload)
+        else:
+            self._expanded.discard(node.payload)
+        self.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
 
     def window_at(self, index: QModelIndex) -> ViewWindow | None:
         """Return the window an index points at, or None for other rows."""
@@ -166,8 +187,8 @@ class DataBrowserModel(QAbstractItemModel):
         self,
         index: QModelIndex,
         role: int = Qt.ItemDataRole.DisplayRole,
-    ) -> str | None:
-        """Display name and, for unavailable view types, a tooltip."""
+    ) -> str | QIcon | QFont | None:
+        """Name, folder or page icon, category font, and unavailable tooltip."""
 
         node = self._node(index)
         if node is None:
@@ -177,6 +198,12 @@ class DataBrowserModel(QAbstractItemModel):
             if isinstance(payload, BrowserCategory | ViewType | ViewWindow):
                 return payload.label
             return None
+        if role == Qt.ItemDataRole.DecorationRole:
+            return self._icon(payload)
+        if role == Qt.ItemDataRole.FontRole and isinstance(payload, BrowserCategory):
+            font = QFont()
+            font.setBold(True)
+            return font
         if role == Qt.ItemDataRole.ToolTipRole and not self._is_enabled(node):
             return _UNAVAILABLE_TOOLTIP
         return None
@@ -206,6 +233,15 @@ class DataBrowserModel(QAbstractItemModel):
             return None
         node = index.internalPointer()
         return node if isinstance(node, _Node) else None
+
+    def _icon(self, payload: object) -> QIcon | None:
+        if isinstance(payload, BrowserCategory):
+            return folder_icon(FolderKind.CATEGORY, is_open=payload in self._expanded)
+        if isinstance(payload, ViewType):
+            return folder_icon(FolderKind.VIEW_TYPE, is_open=payload in self._expanded)
+        if isinstance(payload, ViewWindow):
+            return document_icon()
+        return None
 
     def _is_enabled(self, node: _Node) -> bool:
         payload = node.payload

@@ -98,7 +98,7 @@ def test_apply_theme_reaches_every_cell(qtbot: QtBot) -> None:
     qtbot.addWidget(area)
     area.set_grid(2, 2)
 
-    area.apply_theme(Theme.LIGHT)
+    area.apply_theme(Theme.DARK)
 
-    assert area.theme is Theme.LIGHT
-    assert all(area.plot_widget_at(index).theme is Theme.LIGHT for index in range(4))
+    assert area.theme is Theme.DARK
+    assert all(area.plot_widget_at(index).theme is Theme.DARK for index in range(4))

@@ -150,23 +150,27 @@ def test_main_window_switches_plot_for_incompatible_format(qtbot: QtBot) -> None
     assert "Plot switched to: S22 Phase" in window.message_log.text()
 
 
-def test_main_window_defaults_to_dark_theme(qtbot: QtBot) -> None:
+def test_main_window_defaults_to_light_theme(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
-
-    assert window.theme is Theme.DARK
-    assert window.plot_widget.theme is Theme.DARK
-    assert window.light_theme_action.isChecked() is False
-
-
-def test_light_theme_action_switches_theme(qtbot: QtBot) -> None:
-    window = MainWindow()
-    qtbot.addWidget(window)
-
-    window.light_theme_action.setChecked(True)
 
     assert window.theme is Theme.LIGHT
     assert window.plot_widget.theme is Theme.LIGHT
+    assert window.dark_theme_action.isChecked() is False
+
+
+def test_dark_theme_action_switches_theme(qtbot: QtBot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.dark_theme_action.setChecked(True)
+
+    assert window.theme is Theme.DARK
+    assert window.plot_widget.theme is Theme.DARK
+
+    window.dark_theme_action.setChecked(False)
+
+    assert window.theme is Theme.LIGHT
 
 
 def test_layout_menu_switches_grid(qtbot: QtBot) -> None:

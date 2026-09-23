@@ -61,11 +61,11 @@ def test_axis_units_are_set_for_si_prefix_scaling(qtbot: QtBot) -> None:
     assert widget._plot_item.getAxis("left").labelUnits == "dB"
 
 
-def test_widget_defaults_to_dark_theme(qtbot: QtBot) -> None:
+def test_widget_defaults_to_light_theme(qtbot: QtBot) -> None:
     widget = CartesianPlotWidget()
     qtbot.addWidget(widget)
 
-    assert widget.theme is Theme.DARK
+    assert widget.theme is Theme.LIGHT
 
 
 def test_apply_theme_switches_background(qtbot: QtBot) -> None:
@@ -73,10 +73,10 @@ def test_apply_theme_switches_background(qtbot: QtBot) -> None:
     qtbot.addWidget(widget)
     widget.set_plot_model(PlotModel(traces=(magnitude(),)))
 
-    widget.apply_theme(Theme.LIGHT)
+    widget.apply_theme(Theme.DARK)
 
-    assert widget.theme is Theme.LIGHT
-    expected = palette_for(Theme.LIGHT).surface
+    assert widget.theme is Theme.DARK
+    expected = palette_for(Theme.DARK).surface
     assert widget.plot_widget.backgroundBrush().color().name() == expected
 
 
@@ -86,6 +86,6 @@ def test_apply_theme_keeps_plot_model(qtbot: QtBot) -> None:
     model = PlotModel(traces=(magnitude(),))
     widget.set_plot_model(model)
 
-    widget.apply_theme(Theme.LIGHT)
+    widget.apply_theme(Theme.DARK)
 
     assert widget.model is model

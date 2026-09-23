@@ -320,11 +320,11 @@ class MainWindow(QMainWindow):
             self.layout_actions[(rows, cols)] = action
 
         view_menu.addSeparator()
-        self.light_theme_action = QAction("&Light Theme", self)
-        self.light_theme_action.setCheckable(True)
-        self.light_theme_action.setChecked(self._theme is Theme.LIGHT)
-        self.light_theme_action.toggled.connect(self._on_light_theme_toggled)
-        view_menu.addAction(self.light_theme_action)
+        self.dark_theme_action = QAction("&Dark Theme", self)
+        self.dark_theme_action.setCheckable(True)
+        self.dark_theme_action.setChecked(self._theme is Theme.DARK)
+        self.dark_theme_action.toggled.connect(self._on_dark_theme_toggled)
+        view_menu.addAction(self.dark_theme_action)
 
         toolbar = QToolBar("Main", self)
         toolbar.setObjectName("main_toolbar")
@@ -358,8 +358,8 @@ class MainWindow(QMainWindow):
     def _on_layout_selected(self, rows: int, cols: int) -> None:
         self.set_grid(rows, cols)
 
-    def _on_light_theme_toggled(self, checked: bool) -> None:
-        self.set_theme(Theme.LIGHT if checked else Theme.DARK)
+    def _on_dark_theme_toggled(self, checked: bool) -> None:
+        self.set_theme(Theme.DARK if checked else Theme.LIGHT)
 
     def _log(self, message: str) -> None:
         self.message_log.append(message)

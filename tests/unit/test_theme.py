@@ -3,8 +3,8 @@ import pytest
 from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, palette_for, trace_color
 
 
-def test_dark_is_the_default_theme() -> None:
-    assert DEFAULT_THEME is Theme.DARK
+def test_light_is_the_default_theme() -> None:
+    assert DEFAULT_THEME is Theme.LIGHT
 
 
 @pytest.mark.parametrize("theme", list(Theme))

@@ -15,7 +15,7 @@
 - **matplotlib** 仅用于报告导出（V1.1），不进入交互路径。
 - Smith 圆图与眼图使用 pyqtgraph 自定义 item 绘制——这两样在任何绘图库中都需自绘。
 - 现有 `plot_widget.py`（QPainter 自绘）在迁移后废弃。`PlotModel` / `Trace` 抽象不受影响。
-- 主题：深色默认、浅色可切换，见 §9.5。
+- 主题：浅色默认、深色可切换，见 §9.5。
 
 # 2.5 Reference
 
@@ -131,6 +131,7 @@ Template View
 - **层级固定为三层**：分类 → 视图类型 → window。分类与视图类型是预置目录，始终显示；只有 window 随打开 / 关闭变化。
 - 叶子是 window（`ViewWindow`），显示为「文件名 : window 序号」；选中 window 即选中其 `DataFile`。
 - 有 window 的视图类型自动展开，其余折叠，与 PLTS 一致。
+- 图标仿 Windows 资源管理器：分类与视图类型为黄色文件夹，展开时显示为打开的文件夹、折叠时为关闭的文件夹；分类文件夹带放大镜角标（同 PLTS），并以粗体显示；window 为文档图标。图标在代码中绘制（`ui/icons.py`），两套主题同色，不引入图片资源；置灰行的图标由 Qt 自动生成禁用态。
 - 尚未实现的视图类型照样列出、置灰并提示 "Not available yet"，保持与 PLTS 相同的布局；目前只有 Frequency Domain (Single-Ended) 可用，打开文件即在其下新建一个 window。
 - 参数与显示格式的选择**不在树里**，由 Parameter / Format 面板承担（PLTS 即如此）。
 - 树使用 `QAbstractItemModel` 适配领域对象，放在 `ui/models/`。
@@ -171,8 +172,8 @@ current_trace
 
 主题：
 
-- **深色为默认**，浅色可切换。深色是仪器 / EDA 类软件的主流，长时间看曲线负担小，深底上多条彩色 trace 区分度高。
-- 浅色主题用于截图入报告、打印场景。
+- **浅色为默认**（产品决策），深色可在 View → Dark Theme 切换。浅色与 PLTS 及 Windows 桌面习惯一致，截图入报告、打印可直接使用。
+- 深色主题用于长时间看曲线的场景：深底上多条彩色 trace 区分度高。
 - 两套主题都必须完整覆盖，不允许只调深色、浅色放任默认。
 
 原则：

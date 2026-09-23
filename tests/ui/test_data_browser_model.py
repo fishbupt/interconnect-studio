@@ -1,5 +1,6 @@
 import numpy as np
 from PyQt6.QtCore import QModelIndex, Qt
+from PyQt6.QtGui import QFont, QIcon
 from pytestqt.qtbot import QtBot
 
 from interconnect_studio.core import (
@@ -173,3 +174,78 @@ def test_panel_selection_emits_current_file(qtbot: QtBot) -> None:
     window = panel.current_window()
     assert window is not None
     assert window.number == 2
+
+
+def icon_key(model: DataBrowserModel, index: QModelIndex) -> int:
+    icon = model.data(index, Qt.ItemDataRole.DecorationRole)
+    assert isinstance(icon, QIcon)
+    assert not icon.isNull()
+    return icon.cacheKey()
+
+
+def test_every_row_has_an_icon() -> None:
+    model = DataBrowserModel(tree())
+
+    for category in BrowserCategory:
+        icon_key(model, model.index_of_category(category))
+        for view_type in category.view_types:
+            icon_key(model, model.index_of_view_type(view_type))
+    icon_key(model, model.index_of_window(1))
+
+
+def test_categories_views_and_windows_use_different_icons() -> None:
+    model = DataBrowserModel(tree())
+
+    keys = {
+        icon_key(model, model.index_of_category(BrowserCategory.DATA_ANALYSIS)),
+        icon_key(model, model.index_of_view_type(FD_SE)),
+        icon_key(model, model.index_of_window(1)),
+    }
+    assert len(keys) == 3
+
+
+def test_folder_icon_opens_when_expanded() -> None:
+    model = DataBrowserModel(tree())
+    index = model.index_of_view_type(FD_SE)
+    closed = icon_key(model, index)
+
+    model.set_expanded(index, True)
+    opened = icon_key(model, index)
+    model.set_expanded(index, False)
+
+    assert opened != closed
+    assert icon_key(model, index) == closed
+
+
+def test_window_rows_ignore_expansion() -> None:
+    model = DataBrowserModel(tree())
+    index = model.index_of_window(1)
+    before = icon_key(model, index)
+
+    model.set_expanded(index, True)
+
+    assert icon_key(model, index) == before
+
+
+def test_categories_are_bold() -> None:
+    model = DataBrowserModel(tree())
+
+    font = model.data(model.index_of_category(BrowserCategory.RLCG), Qt.ItemDataRole.FontRole)
+    assert isinstance(font, QFont)
+    assert font.bold()
+    assert model.data(model.index_of_view_type(FD_SE), Qt.ItemDataRole.FontRole) is None
+
+
+def test_panel_opens_folder_icons_of_expanded_rows(qtbot: QtBot) -> None:
+    panel = DataBrowserPanel()
+    qtbot.addWidget(panel)
+    panel.set_browser_tree(tree())
+    model = panel.model
+    fd_se = model.index_of_view_type(FD_SE)
+    eye = model.index_of_view_type(ViewType.EYE_DIAGRAM_DIFFERENTIAL)
+
+    assert icon_key(model, fd_se) != icon_key(model, eye)
+
+    panel.tree.collapse(fd_se)
+
+    assert icon_key(model, fd_se) == icon_key(model, eye)
