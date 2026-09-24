@@ -33,12 +33,13 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [x] 多文件拼接（Build：按参数或按端口映射；`.csv` 配置文件驱动；单端 → 单端）
 - [ ] 只含平衡参数的数据反算单端参数
 - [ ] DUT Configuration 模型（单端 / 差分拓扑、逻辑端口、端口标签、配置文件存取）
-- [ ] 数据质量检查（Passivity / Causality / Reciprocity）
+- [x] 数据质量检查：Passivity / Reciprocity（只读，返回逐频点指标与越界频点）
+- [ ] 数据质量检查：Causality——参考方法待决策，见 `ALGORITHM_GUIDE.md` §12.5
 - [ ] 数据质量强制修正（Enforcement，写出修正后的文件）
-- [ ] Port Group 模型
+- [x] Port Group 模型
 - [ ] Interpolation
 - [ ] Renormalization
-- [ ] Mixed Mode
+- [x] Mixed Mode（变换 + 拓扑 + 耦合线对 Golden Case）
 - [ ] per-port / 差模共模参考阻抗的领域类型（对标 PLTS Port Reference Impedance、Diff/Com Port Reference Impedance；与单标量 `z0` 冲突，待决策）
 
 Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。

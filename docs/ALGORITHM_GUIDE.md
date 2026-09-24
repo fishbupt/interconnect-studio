@@ -206,12 +206,33 @@ Scc11 = S11(z_even, theta_even, z0)      Scc21 = S21(z_even, theta_even, z0)
 检查为只读：**不修改数据、不自动修正、不在 `Network` 上留质量标记**。修正是下面单独的 Enforcement 算法的职责。
 
 ```python
-check_passivity(network)     # 奇异值 <= 1
-check_reciprocity(network)   # S == S.T
-check_causality(network)     # Kramers-Kronig / 希尔伯特变换一致性
+check_passivity(network, *, tolerance=ARITHMETIC_TOLERANCE)     # sigma_max(S) <= 1
+check_reciprocity(network, *, tolerance=ARITHMETIC_TOLERANCE)   # S == S.T
+check_network(network, *, tolerance=ARITHMETIC_TOLERANCE)       # 跑全部已实现项
 ```
 
-约定：
+三者都返回 `QualityResult`：逐频点的 `metric`（shape `(n_freq,)`，无量纲）、
+理想上限 `limit`、容差 `tolerance`，以及由它们导出的 `excess` / `violations` /
+`passed` / `worst_metric` / `worst_frequency_hz` / `summary()`。
+
+- Passivity 用**奇异值**而非逐个 `|S[i,j]|`：奇异值界定了所有激励组合下的功率比，
+  单参数扫描会漏掉相干叠加的情形（例如全 0.8 的 2×2，`sigma_max = 1.6`）。
+- 该检验在实正交端口变换下不变，因此 1/√2 混合模式矩阵与其单端矩阵奇异值相同，
+  混合模式结果可以直接用单端检验判定。
+- Reciprocity 的 `metric` 为逐频点 `max |S[i,j] - S[j,i]|`；1 端口恒为 0。
+
+容差：
+
+| 常量 | 值 | 依据 |
+| --- | --- | --- |
+| `ARITHMETIC_TOLERANCE` | `1e-9` | float64 SVD 舍入在这种规模下约 `1e-15`，`1e-9` 远高于算术噪声、远低于任何测量误差。用于检验**本项目自己的算法输出**，也是默认值。 |
+| `MEASUREMENT_TOLERANCE` | `1e-3` | **临时值，非引用数据**。校准后的无源件实测常高出 1 几个 `1e-4`，用 `ARITHMETIC_TOLERANCE` 会把每个文件都报红。UI 向用户显示 pass/fail 前，必须先用真实 PLTS / PNA 导出文件定这个数。 |
+
+`check_causality` **未实现**：参考方法尚未决定（Kramers-Kronig 直接积分 /
+带限 Hilbert 变换 / 时域 t<0 能量，后者依赖 Phase 4 的 DC 外推与加窗）。
+按 `AGENTS.md` §13，这属于"算法公式存在多种合理解释"，不自行选定。
+
+其余约定：
 
 - 返回量化指标与越界频点列表，由调用方决定如何呈现。
 - 每项检查必须明确容差及其依据；测量数据永远不会精确满足这些条件。
