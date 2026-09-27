@@ -23,6 +23,11 @@ from interconnect_studio.algorithms.network.quality import (
     check_passivity,
     check_reciprocity,
 )
+from interconnect_studio.algorithms.network.renormalize import (
+    DEFAULT_S_DEFINITION,
+    SParameterDefinition,
+    renormalize,
+)
 from interconnect_studio.algorithms.network.subset import (
     subset_frequency_range,
     subset_point_count,
@@ -34,12 +39,14 @@ from interconnect_studio.algorithms.network.traces import (
 
 __all__ = [
     "ARITHMETIC_TOLERANCE",
+    "DEFAULT_S_DEFINITION",
     "MEASUREMENT_TOLERANCE",
     "PASSIVITY",
     "RECIPROCITY",
     "REFLECTION_ONLY_FORMATS",
     "ParameterAssignment",
     "QualityResult",
+    "SParameterDefinition",
     "SParameterFormat",
     "build_network",
     "check_network",
@@ -52,6 +59,7 @@ __all__ = [
     "plot_kind_for_s_parameter_format",
     "port_assignments",
     "remap_ports",
+    "renormalize",
     "subset_frequency_range",
     "subset_point_count",
 ]

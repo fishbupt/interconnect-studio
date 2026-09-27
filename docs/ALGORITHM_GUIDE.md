@@ -155,18 +155,42 @@ Z_L   = Z0 * (1 + Gamma) / (1 - Gamma)
 - 复数特征阻抗场景（有损夹具、AFR `fixture_z0`）下是计量领域的标准选择。
 - 实数 `z0` 下与 power wave 完全等价，因此不影响与 PLTS / PNA 的 50 Ω golden 对比。
 
+实现：
+
+```python
+renormalize(network, new_z0, *, s_def=SParameterDefinition.PSEUDO) -> Network
+```
+
+`Network` 为单标量 `z0`，所有端口同参考阻抗，因此变换是闭式而非矩阵合同。
+由 `S = (Z - z)(Z + z)^-1` 消去 `Z`，令 `r = (z1 - z2)/(z1 + z2)`：
+
+```text
+S' = (S + r I) (I + r S)^-1
+```
+
+`r` 是两个参考阻抗互看的反射系数。走 `r` 而不显式构造 `Z`，理想开路 / 短路
+（`I - S` 奇异）也保持有限。无源网络 `rho(r S) <= |r| < 1`，`I + r S` 必可逆；
+实现用 `solve` 而非 `inv`，奇异时报错而不是给出垃圾数值。
+
+`new_z0` 要求实部为正——参考阻抗的物理含义如此，也是 `Gamma` 式成立的前提。
+
 实现约定：
 
-- 波量定义作为显式枚举参数 `s_def` 暴露，默认 `PSEUDO`；后续可扩展 `POWER` 而不构成破坏性变更。
+- 波量定义作为显式枚举参数 `s_def` 暴露，默认 `PSEUDO`；`POWER` 已在枚举中占位但
+  **未实现**（调用即 `NotImplementedError`），补上时不构成破坏性变更。
 - power wave（Kurokawa）在复数 `z0` 下的对应式为 `Z_L = (Z0* + Gamma * Z0) / (1 - Gamma)`，两者仅在复数 `z0` 下不同。
 - scikit-rf 默认 `s_def='power'`。复数 `z0` 下交叉对拍时必须显式传 `s_def='pseudo'`。
 
-测试覆盖：
+测试覆盖（参考解均为闭式，不经过被测变换）：
 
-- 50 → 75 Ω
-- 75 → 50 Ω
-- 复数 `z0`（区分 pseudo 与 power 的唯一场景）
-- round trip
+- 50 → 75 Ω、75 → 50 Ω：一端口负载，`Gamma = (Z_L - z0)/(Z_L + z0)` 按定义写出
+- 二端口：均匀传输线在新参考阻抗下重新写出，逐点对比
+- 复数 `z0`（区分 pseudo 与 power 的唯一场景）：断言结果等于 pseudo 式、
+  且与 power 式明显不同——这条把 §11 的选择钉死
+- round trip（实数与复数各一次）
+- 四端口回归：耦合线对金标准上 round trip，并验证无源性与互易性不变
+- 物理闭环：把线对重归一化到自身奇模阻抗 46 Ω，差分端口参考即落在线对的
+  差分阻抗 92 Ω 上，`SDD11` 塌到 1e-12 以下
 
 注：`Network` 为单标量 `z0`（见 `DOMAIN_MODEL.md` §5），不存在 unequal port impedance 场景。
 

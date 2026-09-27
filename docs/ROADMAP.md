@@ -38,7 +38,7 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [ ] 数据质量强制修正（Enforcement，写出修正后的文件）
 - [x] Port Group 模型
 - [ ] Interpolation
-- [ ] Renormalization
+- [x] Renormalization（pseudo wave；power wave 待实现）
 - [x] Mixed Mode（变换 + 拓扑 + 耦合线对 Golden Case）
 - [ ] per-port / 差模共模参考阻抗的领域类型（对标 PLTS Port Reference Impedance、Diff/Com Port Reference Impedance；与单标量 `z0` 冲突，待决策）
 
