@@ -1,5 +1,12 @@
 """Core domain models for Interconnect Studio."""
 
+from interconnect_studio.core.dut import (
+    QUICK_TOPOLOGIES,
+    DutConfiguration,
+    LogicalPort,
+    quick_topologies_for,
+    quick_topology,
+)
 from interconnect_studio.core.errors import DataFormatError, InputValidationError
 from interconnect_studio.core.hierarchy import (
     BrowserCategory,
@@ -18,12 +25,15 @@ from interconnect_studio.core.trace import Trace, TraceRecipe
 
 __all__ = [
     "MAX_PLOTS",
+    "QUICK_TOPOLOGIES",
     "BrowserCategory",
     "DataBrowserTree",
     "DataFile",
     "DataFormatError",
+    "DutConfiguration",
     "InputValidationError",
     "Line",
+    "LogicalPort",
     "MixedModeNetwork",
     "Mode",
     "Network",
@@ -37,4 +47,6 @@ __all__ = [
     "ViewTemplate",
     "ViewType",
     "ViewWindow",
+    "quick_topologies_for",
+    "quick_topology",
 ]

@@ -13,41 +13,58 @@ from interconnect_studio.core.errors import InputValidationError
 class Line:
     """One transmission line's ports at each end.
 
-    ``near`` and ``far`` hold one port for a single-ended line and two for a
+    ``near`` and ``far`` hold one port for a single-ended end and two for a
     differential one. **Tuple order carries polarity**: the first entry is the
     positive conductor. Polarity follows the physical trace, so a topology
     whose through path runs from port 0 to port 3 puts port 3 first at the
     far end, even though a higher index sorts later.
+
+    ``far`` may be empty. That says the path's other end is not among this
+    DUT's ports, or that no through partner has been asserted -- a
+    reflection-only differential DUT, or a plain single-ended port before
+    any topology is chosen.
+
+    The two ends need not be alike. A balun has a differential near end and
+    a single-ended far end, and ``is_differential`` is then False because no
+    differential mode exists across the whole path.
 
     Ports are Python-internal 0-based indices.
     """
 
     name: str
     near: tuple[int, ...]
-    far: tuple[int, ...]
+    far: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
             raise InputValidationError("Line name must be a non-empty string.")
+        if not isinstance(self.near, tuple) or not self.near:
+            raise InputValidationError("Line near must be a non-empty tuple of ports.")
+        if not isinstance(self.far, tuple):
+            raise InputValidationError("Line far must be a tuple of ports.")
         for label, ports in (("near", self.near), ("far", self.far)):
-            if not isinstance(ports, tuple) or not ports:
-                raise InputValidationError(f"Line {label} must be a non-empty tuple of ports.")
+            if len(ports) > 2:
+                raise InputValidationError(
+                    f"Line {label} holds one port (single-ended) or two (differential), "
+                    f"got {len(ports)}."
+                )
             for port in ports:
                 if isinstance(port, bool) or not isinstance(port, int) or port < 0:
                     raise InputValidationError(f"Line {label} ports must be non-negative integers.")
-        if len(self.near) != len(self.far):
-            raise InputValidationError(
-                "Line near and far must hold the same number of ports; "
-                f"got {len(self.near)} and {len(self.far)}."
-            )
         if len(set(self.near + self.far)) != len(self.near) + len(self.far):
             raise InputValidationError("Line ports must be unique.")
 
     @property
-    def is_differential(self) -> bool:
-        """Whether this line carries a differential pair."""
+    def ends(self) -> tuple[tuple[int, ...], ...]:
+        """The line's ends that have ports, near end first."""
 
-        return len(self.near) == 2
+        return (self.near, self.far) if self.far else (self.near,)
+
+    @property
+    def is_differential(self) -> bool:
+        """Whether every end of this line carries a differential pair."""
+
+        return all(len(end) == 2 for end in self.ends)
 
     @property
     def ports(self) -> tuple[int, ...]:

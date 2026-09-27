@@ -80,7 +80,7 @@ def _transform_matrix(port_group: PortGroup, n_ports: int) -> NDArray[np.float64
 
     row = 0
     for line in port_group.lines:
-        for end in (line.near, line.far):
+        for end in line.ends:
             positive, negative = end
             # Differential rows occupy the first half, common rows the second,
             # keeping the matrix in [[Sdd, Sdc], [Scd, Scc]] block order.

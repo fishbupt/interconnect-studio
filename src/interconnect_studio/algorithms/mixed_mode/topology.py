@@ -9,7 +9,12 @@ choosing a mixed-mode pair mapping, and the two can never disagree.
 from dataclasses import dataclass
 from typing import Final
 
-from interconnect_studio.core import InputValidationError, Line, PortGroup
+from interconnect_studio.core import (
+    DutConfiguration,
+    InputValidationError,
+    Line,
+    PortGroup,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +49,22 @@ class Topology:
             lines=(
                 Line(name="Pair 1", near=(near_p, near_n), far=(far_p, far_n)),
             )
+        )
+
+    def dut_configuration(self, *, name: str | None = None) -> DutConfiguration:
+        """This wiring as a DUT configuration.
+
+        Four-port Diff-Diff is the one family of presets defined here rather
+        than in ``core.dut.QUICK_TOPOLOGIES``, because a through path is the
+        honest way to state it: the pairing follows from the wiring instead
+        of being asserted next to it.
+        """
+
+        return DutConfiguration(
+            name=name or self.name,
+            n_ports=4,
+            port_group=self.port_group,
+            port_labels=DutConfiguration.default_labels(4),
         )
 
     def label(self) -> str:

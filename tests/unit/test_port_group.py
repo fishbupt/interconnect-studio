@@ -22,9 +22,38 @@ def test_tuple_order_carries_polarity() -> None:
     assert line.far[0] == 3
 
 
-def test_line_rejects_mismatched_end_sizes() -> None:
-    with pytest.raises(InputValidationError, match="same number of ports"):
-        Line(name="Pair 1", near=(0, 1), far=(2,))
+def test_a_line_may_have_ends_of_different_size() -> None:
+    """A balun is differential at one end and single-ended at the other.
+
+    No differential mode exists across the whole path, so the line is not
+    differential even though one of its ends is a pair.
+    """
+
+    line = Line(name="Balun", near=(0, 1), far=(2,))
+
+    assert line.is_differential is False
+    assert line.ports == (0, 1, 2)
+
+
+def test_a_line_may_have_no_far_end() -> None:
+    """Reflection-only, or a port with no through partner asserted yet."""
+
+    line = Line(name="Pair 1", near=(0, 1))
+
+    assert line.far == ()
+    assert line.ends == ((0, 1),)
+    assert line.is_differential is True
+    assert line.ports == (0, 1)
+
+
+def test_line_rejects_an_empty_near_end() -> None:
+    with pytest.raises(InputValidationError, match="near must be a non-empty"):
+        Line(name="Pair 1", near=(), far=(2, 3))
+
+
+def test_line_rejects_an_end_with_more_than_two_ports() -> None:
+    with pytest.raises(InputValidationError, match="single-ended.*or two"):
+        Line(name="Pair 1", near=(0, 1, 2), far=(3, 4, 5))
 
 
 def test_line_rejects_duplicate_ports() -> None:

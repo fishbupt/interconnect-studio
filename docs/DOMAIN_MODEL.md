@@ -201,10 +201,10 @@ class LimitSegment:
 ```python
 @dataclass(frozen=True, slots=True)
 class Line:
-    """一条传输线（单端或差分）的两端端口。"""
+    """一条信号路径两端的端口。"""
     name: str
     near: tuple[int, ...]   # 单端 1 个；差分 2 个，顺序为 (正, 负)
-    far: tuple[int, ...]
+    far: tuple[int, ...] = ()
 
 @dataclass(frozen=True, slots=True)
 class PortGroup:
@@ -215,7 +215,12 @@ class PortGroup:
 
 - 端口号为 Python 内部 0-based。
 - 同一 `PortGroup` 内所有端口号不重复。
-- `near` 与 `far` 的长度必须一致（同一条线两端同构）。
+- 每一端最多 2 个端口：1 个为单端，2 个为差分。
+- **`far` 可以为空**：表示路径另一端不在本 DUT 的端口里（仅反射的差分件），
+  或尚未声明直通关系（选拓扑之前的普通单端口）。
+- **两端不必同构**：Balun 近端差分、远端单端。此时 `is_differential` 为假——
+  整条路径上不存在差分模，混合模式变换会明确拒绝它而不是猜。
+- `ends` 给出有端口的那些端（近端在前），混合模式与逻辑端口都按它遍历。
 - **元组顺序即极性来源**：第一个是正端。极性随物理走线，因此直通路径 0→3 会让远端元组写成 `(3, 2)`——索引大的排在前，这与 §7 的「索引小的为正」只是默认预设、不矛盾。
 
 派生关系：
@@ -335,6 +340,51 @@ class Topology:
 | `through_1_4_2_3` | 1→4, 2→3 | 1-2 / 4-3（交叉） |
 
 选错拓扑不会报错，只会让 SDD/SCC 静默错位，因此加载四端口数据时必须显式确认。
+
+# 7.6 DUT Configuration
+
+测量文件只带 N 个物理端口，不带含义。DUT Configuration 提供含义：哪些端口构成
+差分对、哪些是单端、端口标签是什么、用户口中的端口号如何编。
+
+PLTS 明确指出改 DUT Configuration **只影响差分运算，不重映射数据**
+（`PLTS_REFERENCE.md` §3.5），本项目相同：配置永远不碰 S 矩阵。
+
+```python
+@dataclass(frozen=True, slots=True)
+class LogicalPort:
+    number: int              # 1-based，即显示值
+    label: str
+    dut_ports: tuple[int, ...]   # 单端 1 个；差分 2 个，正端在前
+
+@dataclass(frozen=True, slots=True)
+class DutConfiguration:
+    name: str
+    n_ports: int
+    port_group: PortGroup
+    port_labels: tuple[str, ...]   # 每个物理端口一个
+```
+
+- `logical_ports` 是**派生属性**，不另存一份：按 `PortGroup` 的 line 顺序、
+  近端在前遍历——与混合模式变换的遍历完全相同，因此逻辑端口 2 正是 `SDD21`
+  响应的那个端口，两者不可能漂移。
+- `port_labels` 描述 DUT，显示时优先于文件自带的 `Network.port_names`。
+- `single_ended(n)` 是 Reset 状态，也是文件在用户选拓扑之前的状态：
+  每个端口各自一条 `far` 为空的 line，不声明任何直通关系。
+- `is_differential`（每个逻辑端口都是差分对）是混合模式变换的前提。
+
+预设：
+
+- 四端口 Diff-Diff 三种接线由 `Topology` 定义（§7.5），经
+  `Topology.dut_configuration()` 转为 `DutConfiguration`。
+- 其余 PLTS Quick Topologies（2 端口 SE-SE / Differential Reflection、
+  3 端口 Diff-SE / SE-SE、4 端口 Diff-SE / SE-Diff / SE-SE）在
+  `core.dut.QUICK_TOPOLOGIES`。两处不重复定义同一种接线。
+- **待核对**：PLTS 帮助只给出每个预设的名字，没有给出预设内部各 DUT 端口的
+  归属。现有归属按「名字依次指代 DUT 的两侧、端口号从小到大」推断；模型支持
+  任意归属，但这些默认值在对外宣称兼容 PLTS 之前需要对着真实对话框核对。
+
+持久化：`io/dut_config.py`，JSON，后缀 `.dutcfg`。PLTS 的 `.dcf` 格式未公开，
+因此这是本项目自有格式，**不能读 PLTS 写出的 `.dcf`，也不作此声称**。
 
 # 8. Fixture
 

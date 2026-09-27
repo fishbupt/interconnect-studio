@@ -32,7 +32,8 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [ ] 导入多文件时的单端 → 差分映射
 - [x] 多文件拼接（Build：按参数或按端口映射；`.csv` 配置文件驱动；单端 → 单端）
 - [ ] 只含平衡参数的数据反算单端参数
-- [ ] DUT Configuration 模型（单端 / 差分拓扑、逻辑端口、端口标签、配置文件存取）
+- [x] DUT Configuration 模型（单端 / 差分拓扑、逻辑端口、端口标签、`.dutcfg` 存取）——预设内部端口归属待对着 PLTS 对话框核对
+- [ ] DUT Configuration 接入 Import 对话框与 Parameter / Format 面板
 - [x] 数据质量检查：Passivity / Reciprocity（只读，返回逐频点指标与越界频点）
 - [ ] 数据质量检查：Causality——参考方法待决策，见 `ALGORITHM_GUIDE.md` §12.5
 - [ ] 数据质量强制修正（Enforcement，写出修正后的文件）
