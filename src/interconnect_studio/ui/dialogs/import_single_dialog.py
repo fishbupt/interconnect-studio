@@ -20,7 +20,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from interconnect_studio.algorithms.mixed_mode import DEFAULT_FOUR_PORT_TOPOLOGY
 from interconnect_studio.core import (
     DataFormatError,
     DutConfiguration,
@@ -32,6 +31,7 @@ from interconnect_studio.services import ImportedNetwork, ImportService
 from interconnect_studio.ui.dialogs.dut_configuration_dialog import (
     DutConfigurationDialog,
     configuration_choices,
+    default_configuration,
 )
 from interconnect_studio.ui.dialogs.frequency_range_box import FrequencyRangeBox
 
@@ -216,13 +216,11 @@ class ImportSingleFileDialog(QDialog):
         self._refresh_ok()
 
     def _default_configuration(self) -> DutConfiguration | None:
-        """PLTS opens four-port data as a differential pair; the rest single-ended."""
+        """What this file opens as; the DUT dialog's Reset restores the same."""
 
         if self._network is None:
             return None
-        if self._network.n_ports == 4:
-            return DEFAULT_FOUR_PORT_TOPOLOGY.dut_configuration()
-        return DutConfiguration.single_ended(self._network.n_ports)
+        return default_configuration(self._network.n_ports)
 
     def _refresh_configuration(self) -> None:
         if self._network is None or self._configuration is None:

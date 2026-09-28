@@ -166,6 +166,12 @@ Parameter / Format 面板的网格形状跟随视图类型，始终与数据实�
 
 DUT Configuration 对话框（Import 的 Change 按钮）对任意端口数可用：第一项恒为Single-Ended（不声明任何直通关系），其后是四端口的三种直通接线，再其后是该端口数的 Quick Topologies。每项画自己的示意图：差分端用括号把两根导体并成一个逻辑端口，没有远端的线画成伸进 DUT 的短截线。四端口共 7 项，按每行 4 个排布。
 
+对话框底部左侧是 Reset / Save As / Load（改本对话框状态的动作），右侧是 OK / Cancel（关闭对话框的动作）；不用 Qt 的 button role 自动排，那会把 Save As、Load 塞到 OK 与 Cancel 之间。
+
+- **预选项是该文件导入时的配置**（`default_configuration`，四端口为 PLTS 的 Diff-Diff），不是列表第一项。打开对话框直接按 OK 不能把配置悄悄降级成单端。Single-Ended 只是**列**在第一位。
+- **Reset** 回到同一个 `default_configuration`，与导入默认同源，两处不会各说各话。
+- **Load** 读进来的配置若与某个预设完全相等则选中该预设；否则**作为新的一项加进网格并选中**——文件里自带的名字、端口标签、以及任何预设覆盖不到的分组都必须留住，硬贴到最近的预设等于丢掉文件说过的话。端口数不符、文件损坏都用 `QMessageBox.warning` 提示且不改变当前选择。
+
 # 7. Selection Model
 
 任一时刻存在三个"当前对象"：
