@@ -35,7 +35,9 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [x] DUT Configuration 模型（单端 / 差分拓扑、逻辑端口、端口标签、`.dutcfg` 存取）——预设内部端口归属待对着 PLTS 对话框核对
 - [x] DUT Configuration 接入 Import 对话框（任意端口数可选配置；导入结果携带`DutConfiguration`）
 - [x] DUT Configuration 对话框的 Reset / Save As / Load
-- [ ] DUT Configuration 面板（PLTS Lower Pane 的常驻面板）、端口标签与逻辑端口编号的编辑
+- [x] DUT Configuration 对话框内编辑端口标签（含逻辑端口与极性提示）
+- [ ] 端口标签在对话框之外的显示：Parameter / Format 面板、trace 名、DUT Files 面板（标签目前只存进 `DutConfiguration` 并随 `.dutcfg` 存取）
+- [ ] DUT Configuration 面板（PLTS Lower Pane 的常驻面板）、DUT 端口重编号
 - [x] 数据质量检查：Passivity / Reciprocity（只读，返回逐频点指标与越界频点）
 - [ ] 数据质量检查：Causality——参考方法待决策，见 `ALGORITHM_GUIDE.md` §12.5
 - [ ] 数据质量强制修正（Enforcement，写出修正后的文件）

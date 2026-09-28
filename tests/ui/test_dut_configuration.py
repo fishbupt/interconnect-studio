@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QDialogButtonBox, QFileDialog, QMessageBox
 from pytestqt.qtbot import QtBot
 
 from interconnect_studio.algorithms.mixed_mode import (
@@ -255,3 +255,152 @@ def test_loading_a_broken_file_warns_instead_of_raising(
     dialog.load()
 
     assert "not valid JSON" in warnings[0]
+
+
+def test_labels_start_at_the_defaults(qtbot: QtBot) -> None:
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+
+    assert dialog.labels.labels() == ("Port 1", "Port 2", "Port 3", "Port 4")
+
+
+def test_typed_labels_reach_the_configuration(qtbot: QtBot) -> None:
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+
+    dialog.labels.set_labels(("TX+", "RX+", "TX-", "RX-"))
+
+    assert dialog.configuration().port_labels == ("TX+", "RX+", "TX-", "RX-")
+    assert dialog.configuration().logical_ports[0].label == "TX+ / TX-"
+
+
+def test_labels_survive_picking_another_wiring(qtbot: QtBot) -> None:
+    """Labels describe the DUT, so a different topology must not clear them."""
+
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+    dialog.labels.set_labels(("TX+", "RX+", "TX-", "RX-"))
+
+    dialog._buttons.button(2).setChecked(True)  # a different through wiring
+
+    assert dialog.labels.labels() == ("TX+", "RX+", "TX-", "RX-")
+    assert dialog.configuration().port_labels == ("TX+", "RX+", "TX-", "RX-")
+
+
+def test_adopting_a_whole_configuration_takes_its_labels(qtbot: QtBot) -> None:
+    """Load and Reset replace everything, including the labels."""
+
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+    dialog.labels.set_labels(("TX+", "RX+", "TX-", "RX-"))
+
+    dialog.set_configuration(quick_topology("4_se_se"))
+
+    assert dialog.labels.labels() == ("Port 1", "Port 2", "Port 3", "Port 4")
+
+
+def test_a_blank_label_blocks_ok_and_save(qtbot: QtBot) -> None:
+    dialog = DutConfigurationDialog(2)
+    qtbot.addWidget(dialog)
+
+    dialog.labels.editors[0].setText("   ")
+
+    ok = dialog.dialog_buttons.button(QDialogButtonBox.StandardButton.Ok)
+    assert ok is not None and ok.isEnabled() is False
+    assert dialog.save_button.isEnabled() is False
+    assert "needs a label" in dialog.error_label.text()
+
+
+def test_restoring_a_label_unblocks_ok(qtbot: QtBot) -> None:
+    dialog = DutConfigurationDialog(2)
+    qtbot.addWidget(dialog)
+    dialog.labels.editors[0].setText("")
+
+    dialog.labels.editors[0].setText("IN")
+
+    ok = dialog.dialog_buttons.button(QDialogButtonBox.StandardButton.Ok)
+    assert ok is not None and ok.isEnabled() is True
+    assert dialog.error_label.text() == ""
+
+
+def test_save_as_does_nothing_while_a_label_is_blank(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dialog = DutConfigurationDialog(2)
+    qtbot.addWidget(dialog)
+    dialog.labels.editors[0].setText("")
+    monkeypatch.setattr(
+        QFileDialog, "getSaveFileName", lambda *a, **k: (str(tmp_path / "x.dutcfg"), "")
+    )
+
+    dialog.save_as()
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_reset_restores_the_default_labels(qtbot: QtBot) -> None:
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+    dialog.labels.set_labels(("A", "B", "C", "D"))
+
+    dialog.reset()
+
+    assert dialog.labels.labels() == ("Port 1", "Port 2", "Port 3", "Port 4")
+
+
+def test_saved_labels_come_back_on_load(
+    qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    saved = tmp_path / "fixture.dutcfg"
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+    dialog.labels.set_labels(("TX+", "RX+", "TX-", "RX-"))
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(saved), ""))
+    dialog.save_as()
+
+    reopened = DutConfigurationDialog(4)
+    qtbot.addWidget(reopened)
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a, **k: (str(saved), ""))
+
+    reopened.load()
+
+    assert reopened.labels.labels() == ("TX+", "RX+", "TX-", "RX-")
+
+
+def test_a_label_only_difference_is_the_same_wiring(qtbot: QtBot) -> None:
+    """Otherwise every relabelled preset would pile up as a new tile."""
+
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+    before = len(dialog.views)
+
+    dialog.set_configuration(
+        DEFAULT_FOUR_PORT_TOPOLOGY.dut_configuration().with_labels(
+            ("TX+", "RX+", "TX-", "RX-")
+        )
+    )
+
+    assert len(dialog.views) == before
+    assert dialog.labels.labels() == ("TX+", "RX+", "TX-", "RX-")
+
+
+def test_logical_port_column_shows_pairing_and_polarity(qtbot: QtBot) -> None:
+    """Labelling a pair is guesswork without knowing which port is which."""
+
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+
+    shown = [label.text() for label in dialog.labels._logical_labels]
+
+    # Through 1-2, 3-4 pairs ports 1,3 as logical port 1 and 2,4 as port 2.
+    assert shown == ["L1 +", "L2 +", "L1 −", "L2 −"]
+
+
+def test_logical_port_column_follows_the_selected_wiring(qtbot: QtBot) -> None:
+    dialog = DutConfigurationDialog(4)
+    qtbot.addWidget(dialog)
+
+    dialog.set_configuration(topology_by_id("through_1_3_2_4").dut_configuration())
+
+    shown = [label.text() for label in dialog.labels._logical_labels]
+    assert shown == ["L1 +", "L1 −", "L2 +", "L2 −"]

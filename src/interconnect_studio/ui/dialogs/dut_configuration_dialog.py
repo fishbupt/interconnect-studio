@@ -10,6 +10,10 @@ nothing about how the ports connect, which is the honest state for a file
 nobody has described yet. It is not the preselected one -- that is
 ``default_configuration``, what the file was actually imported as.
 
+Port labels describe the DUT, not the topology picked for it, so the dialog
+holds them once and applies them to whichever choice is selected. Switching
+between wirings keeps what the user typed.
+
 ``configuration_choices`` and ``default_configuration`` are presentation
 policy -- what to offer, and what to preselect -- so they live here rather
 than in the domain model, and the Import dialog reads them from here so the
@@ -25,7 +29,9 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
     QGridLayout,
+    QGroupBox,
     QHBoxLayout,
+    QLabel,
     QMessageBox,
     QPushButton,
     QRadioButton,
@@ -48,7 +54,7 @@ from interconnect_studio.io import (
     write_dut_configuration,
 )
 from interconnect_studio.ui.theme import DEFAULT_THEME, Theme
-from interconnect_studio.ui.widgets import DutConfigurationView
+from interconnect_studio.ui.widgets import DutConfigurationView, PortLabelTable
 
 _CHOICES_PER_ROW = 4
 _FILE_FILTER = f"DUT Configuration (*{DUT_CONFIG_SUFFIX})"
@@ -106,6 +112,15 @@ class DutConfigurationDialog(QDialog):
         for index, choice in enumerate(self._choices):
             self._place_choice(choice, index)
 
+        self.labels = PortLabelTable(n_ports, self)
+        label_box = QGroupBox("Port Labels", self)
+        label_layout = QVBoxLayout(label_box)
+        label_layout.addWidget(self.labels)
+        self.error_label = QLabel(self)
+        self.error_label.setWordWrap(True)
+        # Matches the Import dialog's error styling.
+        self.error_label.setStyleSheet("color: #c0392b;")
+
         self.reset_button = QPushButton("Reset", self)
         self.reset_button.setToolTip(
             f"Back to {default_configuration(n_ports).name}, what this file opens as."
@@ -133,9 +148,17 @@ class DutConfigurationDialog(QDialog):
         actions.addStretch(1)
         actions.addWidget(self.dialog_buttons)
 
+        body = QHBoxLayout()
+        body.addLayout(self._grid, 1)
+        body.addWidget(label_box)
+
         layout = QVBoxLayout(self)
-        layout.addLayout(self._grid)
+        layout.addLayout(body)
+        layout.addWidget(self.error_label)
         layout.addLayout(actions)
+
+        self._buttons.idToggled.connect(self._on_choice_toggled)
+        self.labels.labels_changed.connect(self._refresh_validity)
 
         # Not self._choices[0]: opening the dialog on a four-port file and
         # pressing OK untouched must not quietly demote it from the
@@ -143,21 +166,26 @@ class DutConfigurationDialog(QDialog):
         self.set_configuration(configuration or default_configuration(n_ports))
 
     def configuration(self) -> DutConfiguration:
-        """Currently selected configuration."""
+        """The selected wiring, carrying the labels currently typed in."""
 
-        return self._choices[self._buttons.checkedId()]
+        return self._choices[self._buttons.checkedId()].with_labels(self.labels.labels())
 
     def set_configuration(self, configuration: DutConfiguration) -> None:
         """Select a configuration, adding it as a choice if it is new.
 
-        An exact match keeps the offered preset. Anything else -- a loaded
-        file's own name, its own port labels, or a grouping no preset
-        covers -- becomes its own choice, because silently snapping it to a
-        preset would throw away what the file said.
+        Labels come along and are adopted as the dialog's own, so matching
+        ignores them: two choices differing only in labels are the same
+        wiring. A different name or grouping is not, and becomes its own
+        choice rather than being snapped to the nearest preset, which would
+        throw away what the file said.
         """
 
+        self.labels.set_labels(configuration.port_labels)
         for index, choice in enumerate(self._choices):
-            if choice == configuration:
+            if (
+                choice.port_group == configuration.port_group
+                and choice.name == configuration.name
+            ):
                 self._select(index)
                 return
         self._choices.append(configuration)
@@ -170,8 +198,10 @@ class DutConfigurationDialog(QDialog):
         self.set_configuration(default_configuration(self._n_ports))
 
     def save_as(self) -> None:
-        """Write the selected configuration to a ``.dutcfg`` file."""
+        """Write the selected configuration, labels included, to a file."""
 
+        if not self.labels.is_valid():
+            return
         configuration = self.configuration()
         file_name, _ = QFileDialog.getSaveFileName(
             self,
@@ -216,6 +246,27 @@ class DutConfigurationDialog(QDialog):
         button = self._buttons.button(index)
         if button is not None:
             button.setChecked(True)
+        self._refresh_validity()
+
+    def _on_choice_toggled(self, index: int, checked: bool) -> None:
+        if checked:
+            self._refresh_validity()
+
+    def _refresh_validity(self) -> None:
+        """A blank label cannot be saved or accepted, so say so and block it."""
+
+        valid = self.labels.is_valid()
+        self.error_label.setText(
+            "" if valid else "Every port needs a label before this can be used."
+        )
+        for button in (
+            self.dialog_buttons.button(QDialogButtonBox.StandardButton.Ok),
+            self.save_button,
+        ):
+            if button is not None:
+                button.setEnabled(valid)
+        if valid:
+            self.labels.show_logical_ports(self.configuration())
 
     def _place_choice(self, configuration: DutConfiguration, index: int) -> None:
         row, column = divmod(index, _CHOICES_PER_ROW)
