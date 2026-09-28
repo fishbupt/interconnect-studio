@@ -104,6 +104,19 @@ Qt Main Thread
 
 禁止 Worker 直接更新 Widget。
 
+实现：`ui/task_runner.py` 的 `TaskRunner`（`QThreadPool` + `QRunnable`），全项目共用一个，
+不为每个功能各起一条线程。
+
+- 放在 `ui/` 而不是 `services/`：它是 Qt 管道，放进 `services/` 会让该包依赖 PyQt6，
+  而 services 不依赖 GUI 正是它可测的前提。**被运行的是一个普通 callable**，
+  真正的工作仍然留在 Core / Algorithms / IO，可以脱离 Qt 直接测。
+- 结果与错误经 signal 回到提交它的线程；异常只把一行消息给用户，完整 traceback 进 `logging`。
+- `TaskHandle.cancel()` **不能**中断已经进入 NumPy 的运算，它只是不再投递结果——
+  这正是「用户关掉对话框」需要的语义，docstring 里写明了，不假装能中断。
+
+判据不是「感觉慢」而是实测：无源性检查是逐频点 SVD，4 端口 1601 点 11 ms，
+32 端口 16001 点约 4 s，64 端口 32001 点 35 s。后两者都是合法文件。
+
 # 6. Typical Data Flow
 
 ```text

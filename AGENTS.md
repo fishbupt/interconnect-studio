@@ -50,7 +50,7 @@ interconnect-studio/
 ├── src/
 │   └── interconnect_studio/
 │       ├── app/
-│       ├── ui/                     views / widgets / panels / models / dialogs
+│       ├── ui/                     views / widgets / panels / models / dialogs / task_runner
 │       ├── core/
 │       ├── algorithms/
 │       ├── io/
