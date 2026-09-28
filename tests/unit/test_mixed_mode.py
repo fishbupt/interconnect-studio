@@ -20,6 +20,7 @@ from interconnect_studio.algorithms.mixed_mode import (
     is_mixed_mode_reflection,
     mixed_mode_parameter_name,
     to_mixed_mode,
+    to_single_ended,
     topology_by_id,
 )
 from interconnect_studio.algorithms.mixed_mode.transform import _transform_matrix
@@ -318,3 +319,87 @@ def test_trace_is_named_and_has_units() -> None:
     assert trace.x_unit == "Hz"
     assert trace.y_unit == "dB"
     assert trace.n_points == len(FREQUENCIES)
+
+
+def test_single_ended_is_recovered_from_a_balanced_matrix() -> None:
+    """The roadmap case: a file holding only balanced parameters."""
+
+    network = two_line_network((0, 1), (2, 3))
+    group = DEFAULT_FOUR_PORT_TOPOLOGY.port_group
+
+    recovered = to_single_ended(to_mixed_mode(network, group))
+
+    np.testing.assert_allclose(recovered.s, network.s, atol=1e-15)
+    assert recovered.z0 == network.z0
+
+
+@pytest.mark.parametrize("topology", FOUR_PORT_TOPOLOGIES, ids=lambda t: t.id)
+def test_the_round_trip_holds_for_every_topology(topology: Topology) -> None:
+    network = two_line_network(topology.through[0], topology.through[1])
+
+    recovered = to_single_ended(to_mixed_mode(network, topology.port_group))
+
+    np.testing.assert_allclose(recovered.s, network.s, atol=1e-15)
+
+
+def test_recovery_matches_a_hand_written_balanced_matrix() -> None:
+    """Built from mode parameters alone, never from a single-ended matrix.
+
+    Two matched, uncoupled lines of transmission ``t_a`` and ``t_b`` give
+    ``Sdd21 = Scc21 = (ta+tb)/2`` and ``Scd21 = Sdc21 = (ta-tb)/2``. Feeding
+    only those back must reproduce the two lines.
+    """
+
+    through, convert = (T_A + T_B) / 2, (T_A - T_B) / 2
+    s = np.zeros((len(FREQUENCIES), 4, 4), dtype=np.complex128)
+    s[:, 1, 0] = s[:, 0, 1] = through  # Sdd21, Sdd12
+    s[:, 3, 2] = s[:, 2, 3] = through  # Scc21, Scc12
+    s[:, 3, 0] = s[:, 0, 3] = convert  # Scd21, Sdc12
+    s[:, 1, 2] = s[:, 2, 1] = convert  # Sdc21, Scd12
+    mixed = MixedModeNetwork(
+        FREQUENCIES, s, 100.0, 25.0, DEFAULT_FOUR_PORT_TOPOLOGY.port_group
+    )
+
+    recovered = to_single_ended(mixed)
+
+    np.testing.assert_allclose(recovered.s, two_line_network((0, 1), (2, 3)).s, atol=1e-15)
+
+
+def test_recovery_derives_the_single_ended_reference() -> None:
+    mixed = to_mixed_mode(two_line_network((0, 1), (2, 3)), DEFAULT_FOUR_PORT_TOPOLOGY.port_group)
+
+    assert to_single_ended(mixed).z0 == 50.0
+
+
+def test_recovery_rejects_mode_impedances_that_disagree() -> None:
+    """2*z0 and z0/2 must name one z0; by hand they need not."""
+
+    mixed = MixedModeNetwork(
+        FREQUENCIES,
+        np.zeros((len(FREQUENCIES), 4, 4), dtype=np.complex128),
+        100.0,
+        30.0,
+        DEFAULT_FOUR_PORT_TOPOLOGY.port_group,
+    )
+
+    with pytest.raises(InputValidationError, match="disagree on the single-ended z0"):
+        to_single_ended(mixed)
+
+
+def test_recovery_rejects_something_that_is_not_a_mixed_mode_network() -> None:
+    with pytest.raises(InputValidationError, match="MixedModeNetwork"):
+        to_single_ended(two_line_network((0, 1), (2, 3)))  # type: ignore[arg-type]
+
+
+def test_a_reflection_only_pair_round_trips() -> None:
+    """One differential port, no far end: the two-port edge of the model."""
+
+    group = PortGroup(lines=(Line(name="Pair 1", near=(0, 1)),))
+    s = np.zeros((len(FREQUENCIES), 2, 2), dtype=np.complex128)
+    s[:, 0, 0] = 0.3
+    s[:, 1, 1] = 0.1
+    network = Network(FREQUENCIES, s, z0=50.0)
+
+    recovered = to_single_ended(to_mixed_mode(network, group))
+
+    np.testing.assert_allclose(recovered.s, network.s, atol=1e-15)

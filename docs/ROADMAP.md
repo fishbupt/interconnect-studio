@@ -31,7 +31,8 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [x] 导入 Subset（只截取 Start / Stop 范围内的测量点；不改变频点、不插值，产品决策）
 - [ ] 导入多文件时的单端 → 差分映射
 - [x] 多文件拼接（Build：按参数或按端口映射；`.csv` 配置文件驱动；单端 → 单端）
-- [ ] 只含平衡参数的数据反算单端参数
+- [x] 只含平衡参数的数据反算单端参数（`to_single_ended`）
+- [ ] Touchstone 2.0 `[Mixed-Mode Order]` 读入（格式侧，算法侧已就绪）
 - [x] DUT Configuration 模型（单端 / 差分拓扑、逻辑端口、端口标签、`.dutcfg` 存取）——预设内部端口归属待对着 PLTS 对话框核对
 - [x] DUT Configuration 接入 Import 对话框（任意端口数可选配置；导入结果携带`DutConfiguration`）
 - [x] DUT Configuration 对话框的 Reset / Save As / Load

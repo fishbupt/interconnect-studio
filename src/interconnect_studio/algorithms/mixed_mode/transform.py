@@ -14,6 +14,11 @@ Output ports are in block order -- every differential port, then every common
 port -- so the result reads as ``[[Sdd, Sdc], [Scd, Scc]]``. Within a block,
 ports run line by line, near end before far end.
 
+The transform runs both ways. ``M`` is orthogonal, so recovering the
+single-ended matrix from a balanced one is ``M.T @ S_mm @ M`` -- no
+inverse, no conditioning to worry about. That is what lets a file holding
+only balanced parameters be read as an ordinary network.
+
 Reference: Bockelman & Eisenstadt, "Combined differential and common-mode
 scattering parameters", IEEE MTT 43(7), 1995.
 """
@@ -66,6 +71,66 @@ def to_mixed_mode(network: Network, port_group: PortGroup) -> MixedModeNetwork:
         z0_common=network.z0 / 2.0,
         port_group=port_group,
     )
+
+
+def to_single_ended(mixed: MixedModeNetwork) -> Network:
+    """Recover the single-ended network a mixed-mode matrix came from.
+
+    Parameters
+    ----------
+    mixed:
+        Balanced network. Its ``port_group`` says which single-ended ports
+        each mode port is built from, so the answer is unique.
+
+    Returns
+    -------
+    Network
+        Same frequencies (Hz, shape ``(n_freq,)``) and matrix shape, with
+        ``z0`` the single-ended reference the mode impedances imply.
+
+    Raises
+    ------
+    InputValidationError
+        If the two mode reference impedances do not describe one
+        single-ended ``z0``.
+
+    Notes
+    -----
+    ``M`` is orthogonal, so this is a transpose rather than an inverse and
+    round-trips to machine precision. Port names are not recovered: a
+    mixed-mode network never carried them.
+    """
+
+    if not isinstance(mixed, MixedModeNetwork):
+        raise InputValidationError("mixed must be a MixedModeNetwork.")
+
+    z0 = _single_ended_reference(mixed)
+    n_ports = mixed.s.shape[1]
+    mixed.port_group.validate_covers(n_ports)
+
+    transform = _transform_matrix(mixed.port_group, n_ports)
+    single_ended = transform.T @ mixed.s @ transform
+
+    return Network(mixed.frequencies_hz, single_ended, z0=z0)
+
+
+def _single_ended_reference(mixed: MixedModeNetwork) -> complex:
+    """The ``z0`` implied by a pair of mode reference impedances.
+
+    A differential port references ``2 * z0`` and a common port ``z0 / 2``,
+    so the two must agree on one ``z0``. They can disagree only if the
+    network was built by hand, and then there is no honest answer to pick.
+    """
+
+    from_differential = mixed.z0_differential / 2.0
+    from_common = mixed.z0_common * 2.0
+    if not np.isclose(from_differential, from_common, rtol=1e-12, atol=0.0):
+        raise InputValidationError(
+            "Mode reference impedances disagree on the single-ended z0: "
+            f"{mixed.z0_differential} / 2 is {from_differential}, but "
+            f"{mixed.z0_common} * 2 is {from_common}."
+        )
+    return complex(from_differential)
 
 
 def _transform_matrix(port_group: PortGroup, n_ports: int) -> NDArray[np.float64]:

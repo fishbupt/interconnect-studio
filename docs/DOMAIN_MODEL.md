@@ -308,6 +308,8 @@ class MixedModeNetwork:
 
 持有 `PortGroup` 而不是扁平的 pair 列表：配对、极性与近远端关系都在其中，不必再维护第二份表示。
 
+`PortGroup` 同时使反向变换成为确定的：它说明每个模式端口由哪两个单端口构成，因此 `to_single_ended` 的结果唯一，不需要调用方再补充信息。
+
 参数访问：
 
 ```python

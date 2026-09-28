@@ -13,7 +13,10 @@ from interconnect_studio.algorithms.mixed_mode.traces import (
     is_mixed_mode_reflection,
     mixed_mode_parameter_name,
 )
-from interconnect_studio.algorithms.mixed_mode.transform import to_mixed_mode
+from interconnect_studio.algorithms.mixed_mode.transform import (
+    to_mixed_mode,
+    to_single_ended,
+)
 
 __all__ = [
     "DEFAULT_FOUR_PORT_TOPOLOGY",
@@ -25,5 +28,6 @@ __all__ = [
     "is_mixed_mode_reflection",
     "mixed_mode_parameter_name",
     "to_mixed_mode",
+    "to_single_ended",
     "topology_by_id",
 ]

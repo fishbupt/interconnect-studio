@@ -203,6 +203,13 @@ pair / polarity / ordering / normalization 的约定见 `DOMAIN_MODEL.md` §7，
 - 配对由调用方显式传入，算法层不设默认值。
 - 输出为 `MixedModeNetwork`，不是 `Network`（差分与共模参考阻抗不同）。
 - 归一化使用 1/√2 功率不变变换。
+- **双向**：`to_single_ended(mixed)` 由 `S = Mᵀ S_mm M` 反算单端矩阵。M 正交，
+  所以这是转置而非求逆——没有求逆、没有条件数问题，round trip 精确到机器精度。
+  这也是「只含平衡参数的数据」能当普通网络读的原因。
+- 单端 `z0` 由两个模式参考阻抗反推：差分口为 `2*z0`、共模口为 `z0/2`，
+  两者必须指向同一个 `z0`。手工构造的 `MixedModeNetwork` 可能不满足，
+  此时报错而不是任选一个——没有诚实的选法。
+- 混合模式网络不携带端口名，因此反算结果也不恢复端口名。
 
 测试：pure differential / pure common / mode conversion / round trip；三种四端口拓扑各覆盖一次。
 

@@ -17,8 +17,12 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from interconnect_studio.algorithms.mixed_mode import to_mixed_mode, topology_by_id
-from interconnect_studio.core import Mode
+from interconnect_studio.algorithms.mixed_mode import (
+    to_mixed_mode,
+    to_single_ended,
+    topology_by_id,
+)
+from interconnect_studio.core import MixedModeNetwork, Mode
 from interconnect_studio.io.touchstone import read_touchstone
 
 GOLDEN_ROOT = Path(__file__).resolve().parents[2] / "golden_data" / "mixed_mode"
@@ -146,3 +150,54 @@ def test_the_wrong_topology_breaks_the_insertion_loss_shape() -> None:
     assert np.abs(sdd21 - reference["sdd21"]).max() > 0.5
     assert not np.all(np.diff(loss_db) < 0.0)
     assert loss_db.min() < -30.0
+
+
+def test_single_ended_is_recovered_from_the_analytical_mixed_mode_matrix() -> None:
+    """The roadmap case, checked without ever running the forward transform.
+
+    Case001's pair is symmetric end to end and reciprocal, so its whole
+    mixed-mode matrix follows from the four closed-form modal quantities
+    stored in the reference: the blocks are diagonal, ``Sdd22 == Sdd11``
+    and ``Sdd12 == Sdd21``. Building it from those and recovering the
+    single-ended matrix has to reproduce the file on disk, which was built
+    from an impedance matrix by a different route entirely.
+    """
+
+    config, reference, input_path = load_case("Case001_coupled_pair")
+    n_freq = reference["sdd11"].size
+
+    mixed_s = np.zeros((n_freq, 4, 4), dtype=np.complex128)
+    for block, eleven, twenty_one in (
+        (0, reference["sdd11"], reference["sdd21"]),
+        (2, reference["scc11"], reference["scc21"]),
+    ):
+        mixed_s[:, block, block] = mixed_s[:, block + 1, block + 1] = eleven
+        mixed_s[:, block + 1, block] = mixed_s[:, block, block + 1] = twenty_one
+
+    topology = topology_by_id(str(config["topology"]))
+    recovered = to_single_ended(
+        MixedModeNetwork(
+            reference["frequencies_hz"].real, mixed_s, 100.0, 25.0, topology.port_group
+        )
+    )
+
+    tolerance = config["tolerance"]
+    np.testing.assert_allclose(
+        recovered.s,
+        read_touchstone(input_path).s,
+        rtol=tolerance["rtol"],
+        atol=tolerance["atol"],
+    )
+    assert recovered.z0 == 50.0
+
+
+def test_the_round_trip_holds_on_real_four_port_data() -> None:
+    """Cheap, but it is the property the whole pair of transforms rests on."""
+
+    for case in CASES:
+        network = read_touchstone(next((GOLDEN_ROOT / case / "input").glob("*.s4p")))
+        topology = topology_by_id("through_1_2_3_4")
+
+        recovered = to_single_ended(to_mixed_mode(network, topology.port_group))
+
+        np.testing.assert_allclose(recovered.s, network.s, atol=1e-14, err_msg=case)
