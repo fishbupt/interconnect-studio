@@ -48,7 +48,7 @@ def test_single_file_dialog_types_the_file_and_shows_its_range(qtbot: QtBot) -> 
     dialog.set_path(DATA_DIR / "two_port.cti")
 
     assert dialog.file_type() is ImportFileType.CITIFILE
-    assert dialog.configuration_label.text() == "2-port, single-ended"
+    assert dialog.configuration_label.text().startswith("2-port, SE-SE")
     assert dialog.range_box.points_value.text() == "3"
     assert dialog.range_box.step_value.text() == "100"
     assert ok_enabled(dialog.buttons) is True
@@ -249,30 +249,35 @@ def test_file_type_list_order(qtbot: QtBot) -> None:
     assert dialog.file_type() is ImportFileType.TOUCHSTONE
 
 
-def test_four_port_import_enables_dut_configuration(qtbot: QtBot) -> None:
+def test_four_port_import_defaults_to_the_plts_pair(qtbot: QtBot) -> None:
     dialog = ImportSingleFileDialog(ImportService())
     qtbot.addWidget(dialog)
 
     dialog.set_path(DATA_DIR / "4port.s4p")
 
+    configuration = dialog.dut_configuration()
     assert dialog.change_button.isEnabled() is True
-    assert dialog.topology() is not None
-    assert dialog.topology().id == "through_1_2_3_4"
-    assert "differential" in dialog.configuration_label.text()
+    assert configuration is not None
+    assert configuration.topology_summary == "Diff-Diff"
+    assert "1,3\u21922,4" in dialog.configuration_label.text()
 
 
-def test_two_port_import_leaves_dut_configuration_disabled(qtbot: QtBot) -> None:
+def test_two_port_import_can_still_be_reconfigured(qtbot: QtBot) -> None:
+    """Two ports have presets of their own, so the button stays live."""
+
     dialog = ImportSingleFileDialog(ImportService())
     qtbot.addWidget(dialog)
 
     dialog.set_path(DATA_DIR / "2port.s2p")
 
-    assert dialog.change_button.isEnabled() is False
-    assert dialog.topology() is None
-    assert dialog.configuration_label.text() == "2-port, single-ended"
+    configuration = dialog.dut_configuration()
+    assert dialog.change_button.isEnabled() is True
+    assert configuration is not None
+    assert configuration.topology_summary == "SE-SE"
+    assert configuration.is_differential is False
 
 
-def test_four_port_import_carries_the_port_group(qtbot: QtBot) -> None:
+def test_four_port_import_carries_its_configuration(qtbot: QtBot) -> None:
     dialog = ImportSingleFileDialog(ImportService())
     qtbot.addWidget(dialog)
     dialog.set_path(DATA_DIR / "4port.s4p")
@@ -281,12 +286,15 @@ def test_four_port_import_carries_the_port_group(qtbot: QtBot) -> None:
 
     imported = dialog.imported
     assert imported is not None
-    assert imported.port_group is not None
-    assert imported.port_group.lines[0].near == (0, 2)
-    assert imported.port_group.lines[0].far == (1, 3)
+    assert imported.dut_configuration is not None
+    group = imported.dut_configuration.port_group
+    assert group.lines[0].near == (0, 2)
+    assert group.lines[0].far == (1, 3)
 
 
-def test_two_port_import_carries_no_port_group(qtbot: QtBot) -> None:
+def test_two_port_import_carries_a_single_ended_configuration(qtbot: QtBot) -> None:
+    """Every import carries one now; single-ended is a statement, not a gap."""
+
     dialog = ImportSingleFileDialog(ImportService())
     qtbot.addWidget(dialog)
     dialog.set_path(DATA_DIR / "2port.s2p")
@@ -295,4 +303,5 @@ def test_two_port_import_carries_no_port_group(qtbot: QtBot) -> None:
 
     imported = dialog.imported
     assert imported is not None
-    assert imported.port_group is None
+    assert imported.dut_configuration is not None
+    assert imported.dut_configuration.is_differential is False

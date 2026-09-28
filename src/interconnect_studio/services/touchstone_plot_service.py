@@ -11,12 +11,12 @@ from interconnect_studio.algorithms.network import (
 )
 from interconnect_studio.algorithms.network.traces import format_display_name
 from interconnect_studio.core import (
+    DutConfiguration,
     InputValidationError,
     Mode,
     Network,
     PlotKind,
     PlotModel,
-    PortGroup,
     Trace,
 )
 from interconnect_studio.io import read_touchstone
@@ -34,7 +34,7 @@ class LoadedTouchstonePlot:
     network: Network
     plot: PlotModel
     path: Path | None = None
-    port_group: PortGroup | None = None
+    dut_configuration: DutConfiguration | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,7 +65,7 @@ class TouchstonePlotService:
         network: Network,
         name: str,
         path: Path | None = None,
-        port_group: PortGroup | None = None,
+        dut_configuration: DutConfiguration | None = None,
     ) -> LoadedTouchstonePlot:
         """Create the default plot for any network: S11, plus S21 when it has 2+ ports."""
 
@@ -81,7 +81,11 @@ class TouchstonePlotService:
             y_label="Log Magnitude",
         )
         return LoadedTouchstonePlot(
-            name=name, network=network, plot=plot, path=path, port_group=port_group
+            name=name,
+            network=network,
+            plot=plot,
+            path=path,
+            dut_configuration=dut_configuration,
         )
 
     def add_trace(
@@ -108,16 +112,23 @@ class TouchstonePlotService:
     ) -> TraceUpdate:
         """Add a mixed-mode trace, converting the network on the way.
 
-        Requires the DUT topology chosen at import; without it there is no
-        way to know which ports pair up.
+        Requires the DUT configuration chosen at import; without it there
+        is no way to know which ports pair up.
         """
 
-        if loaded.port_group is None:
+        configuration = loaded.dut_configuration
+        if configuration is None:
             raise InputValidationError(
                 "Mixed-mode parameters need a DUT configuration; "
                 "choose one when importing the file."
             )
-        mixed = to_mixed_mode(loaded.network, loaded.port_group)
+        if not configuration.is_differential:
+            raise InputValidationError(
+                f"{configuration.name} has no differential mode across the DUT "
+                f"({configuration.topology_summary}); choose a differential "
+                "configuration to see mixed-mode parameters."
+            )
+        mixed = to_mixed_mode(loaded.network, configuration.port_group)
         fmt = _coerce(data_format)
         trace = create_mixed_mode_trace(
             mixed, response_mode, source_mode, response_port, source_port, fmt

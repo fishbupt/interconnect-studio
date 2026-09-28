@@ -20,19 +20,28 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from interconnect_studio.algorithms.mixed_mode import (
-    DEFAULT_FOUR_PORT_TOPOLOGY,
-    Topology,
+from interconnect_studio.algorithms.mixed_mode import DEFAULT_FOUR_PORT_TOPOLOGY
+from interconnect_studio.core import (
+    DataFormatError,
+    DutConfiguration,
+    InputValidationError,
+    Network,
 )
-from interconnect_studio.core import DataFormatError, InputValidationError, Network
 from interconnect_studio.io import ImportFileType, guess_file_type
 from interconnect_studio.services import ImportedNetwork, ImportService
-from interconnect_studio.ui.dialogs.dut_configuration_dialog import DutConfigurationDialog
+from interconnect_studio.ui.dialogs.dut_configuration_dialog import (
+    DutConfigurationDialog,
+    configuration_choices,
+)
 from interconnect_studio.ui.dialogs.frequency_range_box import FrequencyRangeBox
 
 TIME_DOMAIN_TOOLTIP: Final[str] = "Time-domain import is not available yet."
 DUT_CONFIGURATION_TOOLTIP: Final[str] = (
-    "DUT Configuration applies to four-port data; other port counts import as single-ended."
+    "Choose how the ports are grouped and addressed. It changes differential "
+    "maths only; the data is never remapped."
+)
+NO_CHOICE_TOOLTIP: Final[str] = (
+    "No alternative grouping exists for this port count, so the data imports single-ended."
 )
 
 
@@ -70,7 +79,7 @@ class ImportSingleFileDialog(QDialog):
         self._service = service
         self._network: Network | None = None
         self._imported: ImportedNetwork | None = None
-        self._topology: Topology | None = None
+        self._configuration: DutConfiguration | None = None
 
         self.file_type_combo = file_type_combo(self)
         self.path_edit = QLineEdit(self)
@@ -153,24 +162,24 @@ class ImportSingleFileDialog(QDialog):
         except (DataFormatError, InputValidationError) as exc:
             self.error_label.setText(str(exc))
             return
-        self._imported = replace(
-            imported,
-            port_group=self._topology.port_group if self._topology is not None else None,
-        )
+        self._imported = replace(imported, dut_configuration=self._configuration)
         super().accept()
 
-    def topology(self) -> Topology | None:
-        """DUT topology chosen for this import, if any."""
+    def dut_configuration(self) -> DutConfiguration | None:
+        """DUT configuration chosen for this import, if any."""
 
-        return self._topology
+        return self._configuration
 
     def _change_configuration(self) -> None:
+        if self._network is None:
+            return
         dialog = DutConfigurationDialog(
-            self._topology or DEFAULT_FOUR_PORT_TOPOLOGY,
+            self._network.n_ports,
+            self._configuration,
             parent=self,
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self._topology = dialog.topology()
+            self._configuration = dialog.configuration()
             self._refresh_configuration()
 
     def _browse(self) -> None:
@@ -191,22 +200,38 @@ class ImportSingleFileDialog(QDialog):
                 self._network = self._service.read(path, self.file_type())
             except (DataFormatError, InputValidationError) as exc:
                 self.error_label.setText(str(exc))
-        four_port = self._network is not None and self._network.n_ports == 4
-        self._topology = DEFAULT_FOUR_PORT_TOPOLOGY if four_port else None
-        self.change_button.setEnabled(four_port)
+        self._configuration = self._default_configuration()
+        # More than the plain single-ended entry means there is something to
+        # choose between; with only that entry the button would open a
+        # dialog offering no alternative.
+        choosable = self._network is not None and len(
+            configuration_choices(self._network.n_ports)
+        ) > 1
+        self.change_button.setEnabled(choosable)
+        self.change_button.setToolTip(
+            DUT_CONFIGURATION_TOOLTIP if choosable else NO_CHOICE_TOOLTIP
+        )
         self._refresh_configuration()
         self.range_box.set_network(self._network)
         self._refresh_ok()
 
-    def _refresh_configuration(self) -> None:
+    def _default_configuration(self) -> DutConfiguration | None:
+        """PLTS opens four-port data as a differential pair; the rest single-ended."""
+
         if self._network is None:
+            return None
+        if self._network.n_ports == 4:
+            return DEFAULT_FOUR_PORT_TOPOLOGY.dut_configuration()
+        return DutConfiguration.single_ended(self._network.n_ports)
+
+    def _refresh_configuration(self) -> None:
+        if self._network is None or self._configuration is None:
             self.configuration_label.setText("-")
             return
-        if self._topology is None:
-            self.configuration_label.setText(f"{self._network.n_ports}-port, single-ended")
-            return
+        configuration = self._configuration
         self.configuration_label.setText(
-            f"{self._network.n_ports}-port, differential — {self._topology.label()}"
+            f"{configuration.n_ports}-port, {configuration.topology_summary} "
+            f"— {configuration.through_summary}"
         )
 
     def _refresh_ok(self) -> None:

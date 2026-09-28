@@ -377,7 +377,10 @@ class MainWindow(QMainWindow):
         """Open an imported network in a new window of a view type and show it."""
 
         loaded = self._service.show_network(
-            imported.network, imported.name, imported.source_path, imported.port_group
+            imported.network,
+            imported.name,
+            imported.source_path,
+            imported.dut_configuration,
         )
         self._store_active_session()
         window = self._add_to_hierarchy(loaded, view_type)
@@ -640,13 +643,30 @@ class MainWindow(QMainWindow):
         """
 
         balanced = (
-            view_type is ViewType.FREQUENCY_DOMAIN_BALANCED and loaded.port_group is not None
+            view_type is ViewType.FREQUENCY_DOMAIN_BALANCED
+            and loaded.dut_configuration is not None
+            and loaded.dut_configuration.is_differential
         )
         if balanced:
-            assert loaded.port_group is not None
-            self.parameter_format.set_mixed_mode(loaded.port_group.n_ports // 2)
-        else:
-            self.parameter_format.set_port_count(loaded.network.n_ports)
+            assert loaded.dut_configuration is not None
+            self.parameter_format.set_mixed_mode(loaded.dut_configuration.n_logical_ports)
+            return
+
+        self.parameter_format.set_port_count(loaded.network.n_ports)
+        if view_type is ViewType.FREQUENCY_DOMAIN_BALANCED:
+            # Falling back silently would look like the balanced view is
+            # broken. Say which configuration is in the way.
+            configuration = loaded.dut_configuration
+            reason = (
+                f"{configuration.name} is {configuration.topology_summary}"
+                if configuration is not None
+                else "no DUT configuration was chosen"
+            )
+            self._log(
+                f"Balanced view needs differential logical ports, but {reason}; "
+                "showing single-ended parameters. Change the DUT configuration "
+                "when importing."
+            )
 
     def _build_side_docks(self) -> None:
         self.data_browser_dock = QDockWidget("Data Browser", self)

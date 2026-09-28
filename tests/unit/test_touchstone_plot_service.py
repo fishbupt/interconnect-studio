@@ -58,3 +58,55 @@ def test_touchstone_plot_service_rejects_duplicate_trace() -> None:
 
     with pytest.raises(InputValidationError, match="already exists"):
         service.add_trace(loaded, 0, 0, "log_mag")
+
+
+def _four_port() -> "object":
+    from interconnect_studio.io import read_touchstone
+
+    return read_touchstone(Path(__file__).parents[1] / "data" / "import" / "4port.s4p")
+
+
+def test_mixed_mode_needs_a_dut_configuration() -> None:
+    from interconnect_studio.core import InputValidationError, Mode
+
+    service = TouchstonePlotService()
+    loaded = service.show_network(_four_port(), "4port.s4p")
+
+    with pytest.raises(InputValidationError, match="need a DUT configuration"):
+        service.add_mixed_mode_trace(
+            loaded, Mode.DIFFERENTIAL, Mode.DIFFERENTIAL, 1, 0, "log_mag"
+        )
+
+
+def test_mixed_mode_says_why_a_single_ended_configuration_will_not_do() -> None:
+    """The message has to name the fix, not just refuse."""
+
+    from interconnect_studio.core import DutConfiguration, InputValidationError, Mode
+
+    service = TouchstonePlotService()
+    loaded = service.show_network(
+        _four_port(), "4port.s4p", dut_configuration=DutConfiguration.single_ended(4)
+    )
+
+    with pytest.raises(InputValidationError, match="no differential mode across the DUT"):
+        service.add_mixed_mode_trace(
+            loaded, Mode.DIFFERENTIAL, Mode.DIFFERENTIAL, 1, 0, "log_mag"
+        )
+
+
+def test_mixed_mode_trace_uses_the_configuration_port_group() -> None:
+    from interconnect_studio.algorithms.mixed_mode import DEFAULT_FOUR_PORT_TOPOLOGY
+    from interconnect_studio.core import Mode
+
+    service = TouchstonePlotService()
+    loaded = service.show_network(
+        _four_port(),
+        "4port.s4p",
+        dut_configuration=DEFAULT_FOUR_PORT_TOPOLOGY.dut_configuration(),
+    )
+
+    update = service.add_mixed_mode_trace(
+        loaded, Mode.DIFFERENTIAL, Mode.DIFFERENTIAL, 1, 0, "log_mag"
+    )
+
+    assert update.loaded.plot.traces[-1].name == "SDD21 Log Mag"

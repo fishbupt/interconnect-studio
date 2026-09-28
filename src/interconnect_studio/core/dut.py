@@ -135,6 +135,17 @@ class DutConfiguration:
             "Diff" if port.is_differential else "SE" for port in self.logical_ports
         )
 
+    @property
+    def through_summary(self) -> str:
+        """Through paths in 1-based display ports, e.g. ``1,3 -> 2,4``."""
+
+        paths = [
+            f"{_display(line.near)}\u2192{_display(line.far)}"
+            for line in self.port_group.lines
+            if line.far
+        ]
+        return " , ".join(paths) if paths else "no through paths"
+
     def logical_port_of(self, dut_port: int) -> LogicalPort:
         """Which logical port a physical, 0-based DUT port belongs to."""
 
@@ -182,6 +193,10 @@ class DutConfiguration:
             ),
             port_labels=cls.default_labels(n_ports),
         )
+
+
+def _display(ports: tuple[int, ...]) -> str:
+    return ",".join(str(port + 1) for port in ports)
 
 
 def _configuration(

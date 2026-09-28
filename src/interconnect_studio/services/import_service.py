@@ -24,9 +24,9 @@ from interconnect_studio.algorithms.network import (
 )
 from interconnect_studio.core import (
     DataFormatError,
+    DutConfiguration,
     InputValidationError,
     Network,
-    PortGroup,
 )
 from interconnect_studio.io import (
     ImportFileType,
@@ -52,14 +52,16 @@ class ImportedNetwork:
     """Result of an import: the network, its display name and its source file.
 
     ``source_path`` is ``None`` for networks built from several files.
-    ``port_group`` records the DUT configuration chosen at import; it is
-    ``None`` when the data is treated as plain single-ended ports.
+    ``dut_configuration`` records what was chosen at import; ``None`` means
+    nobody has described the DUT, so the data is read as plain single-ended
+    ports. A configuration never alters the S matrix -- it only says how the
+    ports are grouped and addressed.
     """
 
     name: str
     network: Network
     source_path: Path | None = None
-    port_group: PortGroup | None = None
+    dut_configuration: DutConfiguration | None = None
 
 
 @dataclass(frozen=True, slots=True)

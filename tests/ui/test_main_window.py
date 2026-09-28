@@ -698,7 +698,9 @@ def _balanced_import() -> ImportedNetwork:
     imported = ImportService().import_single(
         IMPORT_DIR / "4port.s4p", ImportFileType.TOUCHSTONE
     )
-    return replace(imported, port_group=DEFAULT_FOUR_PORT_TOPOLOGY.port_group)
+    return replace(
+        imported, dut_configuration=DEFAULT_FOUR_PORT_TOPOLOGY.dut_configuration()
+    )
 
 
 def test_balanced_view_shows_the_mixed_mode_grid(qtbot: QtBot) -> None:
@@ -750,3 +752,20 @@ def test_mixed_mode_without_a_topology_is_reported(qtbot: QtBot) -> None:
     window._on_add_trace_requested(choice, "log_mag")
 
     assert "DUT configuration" in window.message_log.text()
+
+
+def test_balanced_view_explains_a_single_ended_configuration(qtbot: QtBot) -> None:
+    """Falling back without a word would look like the view is broken."""
+
+    from interconnect_studio.core import DutConfiguration
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    imported = replace(
+        _balanced_import(), dut_configuration=DutConfiguration.single_ended(4)
+    )
+
+    window.open_imported(imported, ViewType.FREQUENCY_DOMAIN_BALANCED)
+
+    assert window.parameter_format.is_mixed_mode is False
+    assert "Balanced view needs differential logical ports" in window.message_log.text()
