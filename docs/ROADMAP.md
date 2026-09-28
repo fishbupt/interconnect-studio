@@ -32,7 +32,7 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [ ] 导入多文件时的单端 → 差分映射
 - [x] 多文件拼接（Build：按参数或按端口映射；`.csv` 配置文件驱动；单端 → 单端）
 - [x] 只含平衡参数的数据反算单端参数（`to_single_ended`）
-- [x] Touchstone 2.0 `[Mixed-Mode Order]` 读入
+- [x] Touchstone 2.0 `[Mixed-Mode Order]` 读入，并据此预选 DUT Configuration
 - [ ] Touchstone 2.0 `[Mixed-Mode Order]` 中的单端口描述符（`S<n>`）——需要`MixedModeNetwork` 容纳未配对端口，属核心模型变更
 - [x] DUT Configuration 模型（单端 / 差分拓扑、逻辑端口、端口标签、`.dutcfg` 存取）——预设内部端口归属待对着 PLTS 对话框核对
 - [x] DUT Configuration 接入 Import 对话框（任意端口数可选配置；导入结果携带`DutConfiguration`）

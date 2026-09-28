@@ -373,6 +373,7 @@ class DutConfiguration:
 - `single_ended(n)` 是 Reset 状态，也是文件在用户选拓扑之前的状态：
   每个端口各自一条 `far` 为空的 line，不声明任何直通关系。
 - `is_differential`（每个逻辑端口都是差分对）是混合模式变换的前提。
+- `port_summary` 有直通关系时给直通路径，否则给配对——只声明了配对的配置（如 Touchstone 2.0 `[Mixed-Mode Order]` 读入的）用后者才有信息量。
 
 预设：
 

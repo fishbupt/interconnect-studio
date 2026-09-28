@@ -146,6 +146,18 @@ class DutConfiguration:
         ]
         return " , ".join(paths) if paths else "no through paths"
 
+    @property
+    def port_summary(self) -> str:
+        """Through paths when the DUT has them, otherwise its logical ports.
+
+        A file that declared only a pairing has no through paths to show,
+        and "no through paths" tells a reader less than the pairing does.
+        """
+
+        if any(line.far for line in self.port_group.lines):
+            return self.through_summary
+        return " , ".join(port.display_ports for port in self.logical_ports)
+
     def logical_port_of(self, dut_port: int) -> LogicalPort:
         """Which logical port a physical, 0-based DUT port belongs to."""
 

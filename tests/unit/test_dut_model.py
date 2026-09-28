@@ -197,3 +197,20 @@ def test_renaming_and_relabelling_leave_the_original_alone() -> None:
 def test_a_dut_needs_at_least_one_port(n_ports: int) -> None:
     with pytest.raises(InputValidationError, match="at least one port"):
         DutConfiguration.single_ended(n_ports)
+
+
+def test_port_summary_shows_through_paths_when_there_are_any() -> None:
+    assert DEFAULT_FOUR_PORT_TOPOLOGY.dut_configuration().port_summary == "1,3→2,4"
+
+
+def test_port_summary_falls_back_to_the_pairing() -> None:
+    """A file that declared only a pairing has no through paths to show."""
+
+    config = configuration(
+        Line(name="Pair 1", near=(0, 2)),
+        Line(name="Pair 2", near=(1, 3)),
+        n_ports=4,
+    )
+
+    assert config.through_summary == "no through paths"
+    assert config.port_summary == "1,3 , 2,4"

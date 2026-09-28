@@ -3,11 +3,11 @@
 from enum import Enum
 from pathlib import Path
 
-from interconnect_studio.core import DataFormatError, Network
+from interconnect_studio.core import DataFormatError, Network, PortGroup
 from interconnect_studio.io.citifile import read_citifile
 from interconnect_studio.io.text_network import read_text_network
 from interconnect_studio.io.touchstone import read_touchstone
-from interconnect_studio.io.touchstone2 import read_touchstone2
+from interconnect_studio.io.touchstone2 import read_touchstone2_with_pairs
 
 
 class ImportFileType(Enum):
@@ -41,18 +41,33 @@ class ImportFileType(Enum):
 def read_network(path: str | Path, file_type: ImportFileType) -> Network:
     """Read a frequency-domain S-parameter file of the given type."""
 
+    network, _ = read_network_with_pairs(path, file_type)
+    return network
+
+
+def read_network_with_pairs(
+    path: str | Path,
+    file_type: ImportFileType,
+) -> tuple[Network, PortGroup | None]:
+    """Read a file, reporting any pairing the file itself declared.
+
+    Only Touchstone 2.0 can state one, through ``[Mixed-Mode Order]``. Every
+    other format describes single-ended ports and returns ``None``, leaving
+    the DUT configuration to the user.
+    """
+
     file_path = Path(path)
     if not file_path.is_file():
         raise DataFormatError(f"File not found: {file_path}")
-    if file_type is ImportFileType.CITIFILE:
-        return read_citifile(file_path)
-    if file_type is ImportFileType.TOUCHSTONE:
-        return read_touchstone(file_path)
     if file_type is ImportFileType.TOUCHSTONE_2:
-        return read_touchstone2(file_path)
+        return read_touchstone2_with_pairs(file_path)
+    if file_type is ImportFileType.CITIFILE:
+        return read_citifile(file_path), None
+    if file_type is ImportFileType.TOUCHSTONE:
+        return read_touchstone(file_path), None
     if file_type is ImportFileType.TEXT_TAB:
-        return read_text_network(file_path, "tab")
-    return read_text_network(file_path, "comma")
+        return read_text_network(file_path, "tab"), None
+    return read_text_network(file_path, "comma"), None
 
 
 def guess_file_type(path: str | Path) -> ImportFileType | None:

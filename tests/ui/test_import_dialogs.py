@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialogButtonBox, QListWidget
 from pytestqt.qtbot import QtBot
 
-from interconnect_studio.core import ViewType
+from interconnect_studio.core import DutConfiguration, ViewType
 from interconnect_studio.io import ImportFileType
 from interconnect_studio.services import ImportService
 from interconnect_studio.ui.dialogs import (
@@ -305,3 +305,69 @@ def test_two_port_import_carries_a_single_ended_configuration(qtbot: QtBot) -> N
     assert imported is not None
     assert imported.dut_configuration is not None
     assert imported.dut_configuration.is_differential is False
+
+
+def test_a_file_that_states_its_pairing_wins_over_the_preset(qtbot: QtBot) -> None:
+    """Guessing a topology over the file's own words would be wrong."""
+
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+
+    dialog.set_path(DATA_DIR / "mixed_mode_4port.ts")
+
+    configuration = dialog.dut_configuration()
+    assert configuration is not None
+    assert configuration.name == "Mixed-Mode Order"
+    assert [line.near for line in configuration.port_group.lines] == [(0, 2), (1, 3)]
+    assert "(from file)" in dialog.configuration_label.text()
+
+
+def test_a_declared_pairing_survives_the_import(qtbot: QtBot) -> None:
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+    dialog.set_path(DATA_DIR / "mixed_mode_4port.ts")
+
+    dialog.accept()
+
+    imported = dialog.imported
+    assert imported is not None
+    assert imported.dut_configuration is not None
+    assert imported.dut_configuration.is_differential is True
+
+
+def test_a_declared_pairing_can_still_be_overridden(qtbot: QtBot) -> None:
+    """It is the file's statement, not a lock."""
+
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+    dialog.set_path(DATA_DIR / "mixed_mode_4port.ts")
+
+    dialog._configuration = DutConfiguration.single_ended(4)
+    dialog.accept()
+
+    imported = dialog.imported
+    assert imported is not None
+    assert imported.dut_configuration == DutConfiguration.single_ended(4)
+
+
+def test_a_plain_file_still_gets_the_preset(qtbot: QtBot) -> None:
+    dialog = ImportSingleFileDialog(ImportService())
+    qtbot.addWidget(dialog)
+
+    dialog.set_path(DATA_DIR / "4port.s4p")
+
+    configuration = dialog.dut_configuration()
+    assert configuration is not None
+    assert configuration.name != "Mixed-Mode Order"
+    assert "(from file)" not in dialog.configuration_label.text()
+
+
+def test_importing_programmatically_also_carries_the_declared_pairing() -> None:
+    """load_touchstone_file and the build paths go through import_single."""
+
+    imported = ImportService().import_single(
+        DATA_DIR / "mixed_mode_4port.ts", ImportFileType.TOUCHSTONE_2
+    )
+
+    assert imported.dut_configuration is not None
+    assert imported.dut_configuration.name == "Mixed-Mode Order"

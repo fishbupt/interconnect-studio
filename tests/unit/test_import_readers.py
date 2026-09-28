@@ -10,6 +10,7 @@ from interconnect_studio.io import (
     read_build_config,
     read_citifile,
     read_network,
+    read_network_with_pairs,
     read_text_network,
     read_touchstone,
     read_touchstone2,
@@ -327,3 +328,18 @@ def test_file_types_list_touchstone_1_then_2_then_citifile_first() -> None:
         ImportFileType.CITIFILE,
     ]
     assert ImportFileType.TOUCHSTONE.label == "Touchstone 1.0 (*.sNp)"
+
+
+def test_read_network_with_pairs_reports_a_declared_pairing() -> None:
+    """Only Touchstone 2.0 can state one; the rest leave it to the user."""
+
+    _, paired = read_network_with_pairs(
+        DATA_DIR / "mixed_mode_4port.ts", ImportFileType.TOUCHSTONE_2
+    )
+    _, plain = read_network_with_pairs(
+        DATA_DIR / "4port.s4p", ImportFileType.TOUCHSTONE
+    )
+
+    assert paired is not None
+    assert [line.near for line in paired.lines] == [(0, 2), (1, 3)]
+    assert plain is None

@@ -7,7 +7,12 @@ from interconnect_studio.io.dut_config import (
     read_dut_configuration,
     write_dut_configuration,
 )
-from interconnect_studio.io.importing import ImportFileType, guess_file_type, read_network
+from interconnect_studio.io.importing import (
+    ImportFileType,
+    guess_file_type,
+    read_network,
+    read_network_with_pairs,
+)
 from interconnect_studio.io.template_file import (
     TEMPLATE_SUFFIX,
     read_template,
@@ -28,6 +33,7 @@ __all__ = [
     "read_citifile",
     "read_dut_configuration",
     "read_network",
+    "read_network_with_pairs",
     "read_template",
     "read_text_network",
     "read_touchstone",

@@ -80,6 +80,7 @@ class ImportSingleFileDialog(QDialog):
         self._network: Network | None = None
         self._imported: ImportedNetwork | None = None
         self._configuration: DutConfiguration | None = None
+        self._declared: DutConfiguration | None = None
 
         self.file_type_combo = file_type_combo(self)
         self.path_edit = QLineEdit(self)
@@ -194,10 +195,13 @@ class ImportSingleFileDialog(QDialog):
     def _load(self) -> None:
         path = self.path_edit.text().strip()
         self._network = None
+        self._declared = None
         self.error_label.clear()
         if path:
             try:
-                self._network = self._service.read(path, self.file_type())
+                self._network, self._declared = self._service.read_with_pairs(
+                    path, self.file_type()
+                )
             except (DataFormatError, InputValidationError) as exc:
                 self.error_label.setText(str(exc))
         self._configuration = self._default_configuration()
@@ -216,10 +220,18 @@ class ImportSingleFileDialog(QDialog):
         self._refresh_ok()
 
     def _default_configuration(self) -> DutConfiguration | None:
-        """What this file opens as; the DUT dialog's Reset restores the same."""
+        """What this file opens as.
+
+        A file that stated its own pairing wins: guessing a topology over
+        the file's own words would be wrong, and it is the only source here
+        that actually knows. Everything else falls back to the preset the
+        DUT dialog's Reset also restores.
+        """
 
         if self._network is None:
             return None
+        if self._declared is not None:
+            return self._declared
         return default_configuration(self._network.n_ports)
 
     def _refresh_configuration(self) -> None:
@@ -227,9 +239,10 @@ class ImportSingleFileDialog(QDialog):
             self.configuration_label.setText("-")
             return
         configuration = self._configuration
+        source = " (from file)" if configuration == self._declared else ""
         self.configuration_label.setText(
             f"{configuration.n_ports}-port, {configuration.topology_summary} "
-            f"— {configuration.through_summary}"
+            f"— {configuration.port_summary}{source}"
         )
 
     def _refresh_ok(self) -> None:

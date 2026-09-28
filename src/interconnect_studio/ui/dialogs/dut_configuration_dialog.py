@@ -283,7 +283,7 @@ class DutConfigurationDialog(QDialog):
         radio.setToolTip(
             f"{configuration.topology_summary} — "
             f"{configuration.n_logical_ports} logical port(s); "
-            f"{configuration.through_summary}"
+            f"{configuration.port_summary}"
         )
         self._buttons.addButton(radio, index)
 

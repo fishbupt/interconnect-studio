@@ -15,6 +15,7 @@ import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 from interconnect_studio.algorithms.network import (
     ParameterAssignment,
@@ -27,12 +28,14 @@ from interconnect_studio.core import (
     DutConfiguration,
     InputValidationError,
     Network,
+    PortGroup,
 )
 from interconnect_studio.io import (
     ImportFileType,
     guess_file_type,
     read_build_config,
     read_network,
+    read_network_with_pairs,
     write_touchstone,
 )
 
@@ -55,7 +58,9 @@ class ImportedNetwork:
     ``dut_configuration`` records what was chosen at import; ``None`` means
     nobody has described the DUT, so the data is read as plain single-ended
     ports. A configuration never alters the S matrix -- it only says how the
-    ports are grouped and addressed.
+    ports are grouped and addressed. A Touchstone 2.0 file that declared
+    ``[Mixed-Mode Order]`` arrives with one already filled in, because the
+    file stated the pairing itself.
     """
 
     name: str
@@ -72,6 +77,29 @@ class BuildSource:
     network: Network
 
 
+DECLARED_CONFIGURATION_NAME: Final[str] = "Mixed-Mode Order"
+
+
+def declared_configuration(
+    network: Network,
+    port_group: PortGroup | None,
+) -> DutConfiguration | None:
+    """Turn a pairing a file declared into a DUT configuration.
+
+    Named after where it came from, so the DUT Configuration dialog shows it
+    as the file's own statement rather than as one of our presets.
+    """
+
+    if port_group is None:
+        return None
+    return DutConfiguration(
+        name=DECLARED_CONFIGURATION_NAME,
+        n_ports=network.n_ports,
+        port_group=port_group,
+        port_labels=DutConfiguration.default_labels(network.n_ports),
+    )
+
+
 class ImportService:
     """Reads, narrows and builds networks for the import dialogs."""
 
@@ -79,6 +107,16 @@ class ImportService:
         """Read a file without narrowing, e.g. to show its range in a dialog."""
 
         return read_network(path, file_type)
+
+    def read_with_pairs(
+        self,
+        path: str | Path,
+        file_type: ImportFileType,
+    ) -> tuple[Network, DutConfiguration | None]:
+        """Read a file, with the DUT configuration it declared, if any."""
+
+        network, port_group = read_network_with_pairs(path, file_type)
+        return network, declared_configuration(network, port_group)
 
     def import_single(
         self,
@@ -89,9 +127,15 @@ class ImportService:
         """Import one file; ``frequency_range`` None means "All"."""
 
         file_path = Path(path)
-        network = self._narrow(read_network(file_path, file_type), frequency_range)
+        as_read, port_group = read_network_with_pairs(file_path, file_type)
+        network = self._narrow(as_read, frequency_range)
         logger.info("Imported %s (%d ports, %d points)", file_path, network.n_ports, network.n_freq)
-        return ImportedNetwork(name=file_path.name, network=network, source_path=file_path)
+        return ImportedNetwork(
+            name=file_path.name,
+            network=network,
+            source_path=file_path,
+            dut_configuration=declared_configuration(network, port_group),
+        )
 
     def build(
         self,
