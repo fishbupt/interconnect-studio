@@ -113,11 +113,6 @@ def test_touchstone2_reference_line_overrides_option_line(tmp_path: Path) -> Non
             "Two-Port Data Order",
         ),
         (
-            "[Version] 2.0\n# Hz S RI R 50\n[Number of Ports] 4\n[Number of Frequencies] 1\n"
-            "[Mixed-Mode Order] D2,1 D1,1 C2,1 C1,1\n",
-            "Mixed-mode",
-        ),
-        (
             "[Version] 2.0\n# Hz S RI R 50\n[Number of Ports] 1\n[Number of Frequencies] 2\n"
             "[Network Data]\n1 0 0\n",
             "Number of Frequencies",
@@ -130,6 +125,30 @@ def test_touchstone2_rejects_invalid_files(tmp_path: Path, body: str, message: s
 
     with pytest.raises(DataFormatError, match=message):
         read_touchstone2(path)
+
+
+def test_touchstone2_reads_mixed_mode_data_as_single_ended(tmp_path: Path) -> None:
+    """Mixed-mode files used to be refused; see test_touchstone2_mixed_mode.py.
+
+    Kept here so the reader's one entry point is seen to accept them, which
+    is what lets ImportFileType.TOUCHSTONE_2 offer such a file at all.
+    """
+
+    path = tmp_path / "mixed.ts"
+    path.write_text(
+        "[Version] 2.0\n# Hz S RI R 50\n[Number of Ports] 2\n"
+        "[Two-Port Data Order] 12_21\n[Mixed-Mode Order] D1,2 C1,2\n"
+        "[Number of Frequencies] 1\n[Network Data]\n1 0.5 0 0 0 0 0 0.25 0\n[End]\n",
+        encoding="utf-8",
+    )
+
+    network = read_touchstone2(path)
+
+    assert network.n_ports == 2
+    # Sdd11 = 0.5 and Scc11 = 0.25 with no coupling between the modes means
+    # S11 = S22 = (0.5 + 0.25)/2 and S12 = S21 = (0.25 - 0.5)/2.
+    np.testing.assert_allclose(network.s[0, 0, 0], 0.375, atol=1e-15)
+    np.testing.assert_allclose(network.s[0, 1, 0], -0.125, atol=1e-15)
 
 
 def test_citifile_reads_var_list_and_s_arrays() -> None:

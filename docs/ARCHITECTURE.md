@@ -33,14 +33,14 @@ interconnect-studio/
 │   ├── ui/
 │   │   ├── views/              <planned>  视图容器与网格编排
 │   │   ├── widgets/
-│   │   ├── panels/             <planned>  外围停靠面板
+│   │   ├── panels/
 │   │   ├── models/             <planned>  Qt model-view 适配
 │   │   └── dialogs/
 │   ├── core/
 │   ├── algorithms/
 │   │   ├── network/
-│   │   ├── quality/            <planned>  V0.2  数据质量检查
-│   │   ├── mixed_mode/         <planned>  V0.2
+│   │   ├── quality.py          （在 network/ 下，已实现）
+│   │   ├── mixed_mode/
 │   │   ├── time_domain/        <planned>  V1.0
 │   │   ├── gating/             <planned>  V1.0
 │   │   ├── crosstalk/          <planned>  V1.0
@@ -58,6 +58,18 @@ interconnect-studio/
 ├── docs/
 └── scripts/
 ```
+
+## 3.1 一条记录在案的例外：`io` → `algorithms`
+
+`io/touchstone2.py` 导入 `algorithms.mixed_mode.to_single_ended`。
+
+Touchstone 2.0 的 `[Mixed-Mode Order]` 文件存的是混合模式矩阵，而下游的一切
+（DUT Configuration、Balanced 视图、trace）都以单端 `Network` 为输入。读的时候
+就换回单端，这个文件从此就是一份普通测量，没有任何地方需要判断「数据从哪来」。
+换算本身是 `Mᵀ S_mm M`，属于算法，不应该在 `io` 里再抄一份。
+
+§5 的禁止清单是明确的三条（`Algorithms → UI`、`Core → UI`、`IO → UI`），这条边
+不在其中。记在这里是为了让它成为一个决定，而不是悄悄长出来的依赖。
 
 # 4. Layer Responsibilities
 

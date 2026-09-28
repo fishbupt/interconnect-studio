@@ -52,7 +52,16 @@ Touchstone 2.0 使用显式的 `[Network Data]` 段，≥3 端口为行主序；
 
 - CITIfile：只读 `DATA S[i,j] RI` 数组（CITIfile 定义只有 RI），频率来自 `VAR_LIST` 或单段 `SEG_LIST`；格式无参考阻抗字段，**按 50 Ω 处理（假设，待与实际 PLTS / PNA 导出文件核对）**。多 package 文件拒绝。
 - 文本（tab / 逗号）：PLTS 帮助只给出时域文本的格式，频域格式按其导出约定自定：`!` 注释，`! XDATA UNIT <单位>`（缺省 Hz），`BEGIN` / `END` 忽略；表头一行（可带 `%`），首列 `freq` / `freq(GHz)`，其余列为 `S21(real)`、`S21(imag)`（≥10 端口写 `S[12,3](real)`），列序任意但矩阵须完整；参考阻抗由调用方给定（默认 50 Ω）。
-- Touchstone 2.0 混合模式数据（`[Mixed-Mode Order]`）暂不支持，待 Mixed-Mode 模块落地。
+- Touchstone 2.0 混合模式数据（`[Mixed-Mode Order]`）：每个矩阵行一个描述符，
+  `S<n>` 为单端口，`D<n>,<m>` / `C<n>,<m>` 为端口 n、m 构成的对的两个模式（1-based）。
+  - 读入时换回单端 `Network`（`to_single_ended`，M 正交故精确），此后与普通测量无异。
+  - 文件声明的行序任意，读入时置换到领域模型的分块序（全部差分、再全部共模）。
+  - 文件只说明**配对与极性**，不说明哪两个对是同一条线的两端，因此每个对生成一条
+    `far` 为空的 `Line`，不臆造直通关系。
+  - 同一对的 D 与 C 必须以相同的端口顺序声明，否则正端是谁无从判断，报错。
+  - 含单端口描述符（`S<n>`）的文件暂不支持：`MixedModeNetwork` 要求所有端口成对
+    （`DOMAIN_MODEL.md` §7.5），报错时列出是哪几个端口。
+  - 参考阻抗沿用标准约定：`[Reference]` 给的是单端 `z0`，差分口 `2*z0`、共模口 `z0/2`。
 
 # 3. Precision
 
