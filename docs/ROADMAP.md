@@ -66,6 +66,8 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
   - [x] window 右键 Close View / Close File / Copy File Name / Rename File
   - [x] 点击视图类型为活动文件新开 window
   - [x] Template View 下列出已保存 template（window 右键 Save Template As；点 template 用它打开活动文件）
+- [x] 统一后台 Task Runner（`ui/task_runner.py`）
+- [x] Data Integrity Check 入口
 - [ ] Parameter / Format 面板
   - 数据来源文件下拉、S 参数 / 方程切换、New Plot / New Trace、ALL 与分组快捷（RL / IL / NEXT / FEXT、TDR / TDT、on One / on Many）
   - 多端口参数选择对话框（拖选、按名称批量输入、参数名列表存取）

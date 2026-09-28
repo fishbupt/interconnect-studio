@@ -2,6 +2,7 @@
 
 from interconnect_studio.ui.dialogs.add_trace_dialog import AddTraceDialog, TraceSelection
 from interconnect_studio.ui.dialogs.build_config_dialog import BuildConfigDialog
+from interconnect_studio.ui.dialogs.data_integrity_dialog import DataIntegrityDialog
 from interconnect_studio.ui.dialogs.dut_configuration_dialog import DutConfigurationDialog
 from interconnect_studio.ui.dialogs.frequency_range_box import FrequencyRangeBox
 from interconnect_studio.ui.dialogs.import_multiple_dialog import ImportMultipleFilesDialog
@@ -11,6 +12,7 @@ from interconnect_studio.ui.dialogs.select_analysis_view_dialog import SelectAna
 __all__ = [
     "AddTraceDialog",
     "BuildConfigDialog",
+    "DataIntegrityDialog",
     "DutConfigurationDialog",
     "FrequencyRangeBox",
     "ImportMultipleFilesDialog",

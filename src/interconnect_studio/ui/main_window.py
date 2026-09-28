@@ -45,10 +45,12 @@ from interconnect_studio.services import (
 from interconnect_studio.ui.dialogs import (
     AddTraceDialog,
     BuildConfigDialog,
+    DataIntegrityDialog,
     ImportMultipleFilesDialog,
     ImportSingleFileDialog,
     SelectAnalysisViewDialog,
 )
+from interconnect_studio.ui.dialogs.data_integrity_dialog import check_summary
 from interconnect_studio.ui.models.data_browser_model import DEFAULT_AVAILABLE_VIEW_TYPES
 from interconnect_studio.ui.panels import (
     DataBrowserPanel,
@@ -56,6 +58,7 @@ from interconnect_studio.ui.panels import (
     ParameterFormatPanel,
 )
 from interconnect_studio.ui.panels.parameter_format import ParameterChoice
+from interconnect_studio.ui.task_runner import TaskRunner
 from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, apply_theme
 from interconnect_studio.ui.views import PlotViewArea
 from interconnect_studio.ui.widgets import CartesianPlotWidget
@@ -98,6 +101,7 @@ class MainWindow(QMainWindow):
         self._active_window: int | None = None
         self._theme = DEFAULT_THEME
         self._next_file_number = 1
+        self.tasks = TaskRunner(self)
 
         self.setWindowTitle(APP_TITLE)
         self.resize(1200, 760)
@@ -114,6 +118,9 @@ class MainWindow(QMainWindow):
 
         self.parameter_format.add_trace_requested.connect(self._on_add_trace_requested)
         self.parameter_format.new_plot_requested.connect(self._on_new_plot_requested)
+        self.parameter_format.data_integrity_requested.connect(
+            self.show_data_integrity_check
+        )
         self.data_browser.current_window_changed.connect(self._on_browser_window_changed)
         self.data_browser.close_view_requested.connect(
             lambda number: self._guarded(lambda: self.close_view(number))
@@ -509,6 +516,15 @@ class MainWindow(QMainWindow):
 
     def _on_add_trace_requested(self, choice: ParameterChoice, data_format: str) -> None:
         self._guarded(lambda: self.add_selected_trace(choice, data_format))
+
+    def show_data_integrity_check(self) -> None:
+        """Run passivity and reciprocity on the current file, in the background."""
+
+        if self._loaded is None:
+            raise InputValidationError("Import a file before checking it.")
+        dialog = DataIntegrityDialog(self._loaded.network, self.tasks, self)
+        dialog.finished.connect(lambda _result: self._log(check_summary(dialog.results)))
+        dialog.exec()
 
     def _on_new_plot_requested(self, choice: ParameterChoice, data_format: str) -> None:
         self._guarded(lambda: self.new_selected_plot(choice, data_format))

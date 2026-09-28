@@ -186,6 +186,7 @@ class ParameterFormatPanel(QWidget):
 
     add_trace_requested = pyqtSignal(object, str)
     new_plot_requested = pyqtSignal(object, str)
+    data_integrity_requested = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -202,12 +203,21 @@ class ParameterFormatPanel(QWidget):
         self.points_value = QLabel(PLACEHOLDER)
         self.z0_value = QLabel(PLACEHOLDER)
 
+        self.integrity_button = QPushButton("Data Integrity Check ...", self)
+        self.integrity_button.setToolTip(
+            "Check passivity and reciprocity. Read-only: it reports, it never "
+            "alters the data."
+        )
+        self.integrity_button.setEnabled(False)
+        self.integrity_button.clicked.connect(self.data_integrity_requested)
+
         summary = QGroupBox("Data File", self)
         form = QFormLayout(summary)
         form.addRow("File", self.file_value)
         form.addRow("Ports", self.ports_value)
         form.addRow("Points", self.points_value)
         form.addRow("Z0", self.z0_value)
+        form.addRow(self.integrity_button)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
         self.parameter_box = QGroupBox("S Parameter", self)
@@ -308,6 +318,7 @@ class ParameterFormatPanel(QWidget):
         self.ports_value.setText(str(n_ports))
         self.points_value.setText(str(n_points))
         self.z0_value.setText(f"{z0.real:g} Ω")
+        self.integrity_button.setEnabled(True)
 
     def set_traces(self, names: tuple[str, ...]) -> None:
         """Replace the listed trace names."""
@@ -321,6 +332,7 @@ class ParameterFormatPanel(QWidget):
         for label in (self.file_value, self.ports_value, self.points_value, self.z0_value):
             label.setText(PLACEHOLDER)
         self.trace_list.clear()
+        self.integrity_button.setEnabled(False)
         self.set_port_count(0)
 
     def _rebuild(self, choices: list[ParameterChoice], columns: int) -> None:

@@ -206,7 +206,11 @@ current_trace
 - 缩放 / 平移：鼠标滚轮与拖拽，目标 30 fps（见 `PRODUCT.md` §6）。
 - Autoscale：单图与全局两种触发。
 - 多图联动（共享 X 轴缩放）为可选项，默认关闭。
-- 长任务不得阻塞主线程超过 200 ms，超过走后台 Worker（`AGENTS.md` §8）。
+- 长任务不得阻塞主线程超过 200 ms，超过走 `ui/task_runner.py` 的共用 `TaskRunner`（`AGENTS.md` §8、`ARCHITECTURE.md` §5）。
+- **Data Integrity Check**：Parameter / Format 面板 Data File 区的按钮打开，列出 Passivity / Reciprocity 的判定、最差值、最差频点与越界点数。
+  - **只读**，对话框里不提供任何「修正」入口——修正是 `ALGORITHM_GUIDE.md` §12.5 里单独的显式算法，放个按钮在这儿等于邀请用户悄悄改写实测数据。
+  - 逐频点 SVD 在 32 端口 16001 点上约 4 s，所以走 TaskRunner：对话框先开、显示 Checking...，结果到了再填表；关闭对话框即 disown 这次检查。
+  - 数值按 9 位有效数字显示：打开它就是为了看 1.0000003 这种量级的越界，四舍五入成 1.0003 等于白看。容差旁注明这个阈值是临时值。
 
 # 9.5 Visual Style
 
