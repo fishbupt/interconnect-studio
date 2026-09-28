@@ -1,8 +1,9 @@
 import pytest
 from pytestqt.qtbot import QtBot
 
+from interconnect_studio.algorithms.mixed_mode import DEFAULT_FOUR_PORT_TOPOLOGY
 from interconnect_studio.algorithms.network import SParameterFormat
-from interconnect_studio.core import Mode
+from interconnect_studio.core import DutConfiguration, Mode, quick_topology
 from interconnect_studio.ui.panels import ParameterFormatPanel
 
 
@@ -179,3 +180,99 @@ def test_switching_back_to_single_ended_clears_mixed_mode(qtbot: QtBot) -> None:
 
     assert widget.is_mixed_mode is False
     assert widget._parameter_buttons.button(0).text() == "S11"
+
+
+def labelled_four_port() -> DutConfiguration:
+    return DEFAULT_FOUR_PORT_TOPOLOGY.dut_configuration().with_labels(
+        ("TX+", "RX+", "TX-", "RX-")
+    )
+
+
+def tooltips(widget: ParameterFormatPanel) -> list[str]:
+    return [button.toolTip() for button in widget._parameter_buttons.buttons()]
+
+
+def test_tooltip_names_the_ports_without_a_configuration(qtbot: QtBot) -> None:
+    """A 32-port grid of small buttons needs this even with no DUT labels."""
+
+    widget = panel(qtbot, 2)
+
+    assert tooltips(widget)[1] == "S12: response at port 1, source at port 2"
+
+
+def test_tooltip_carries_the_dut_port_labels(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_port_count(4, labelled_four_port())
+
+    assert tooltips(widget)[4] == "S21: response at port 2 (RX+), source at port 1 (TX+)"
+
+
+def test_reflection_tooltip_names_one_port_only(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_port_count(4, labelled_four_port())
+
+    assert tooltips(widget)[0] == "S11: reflection at port 1 (TX+)"
+
+
+def test_mixed_mode_tooltip_names_the_logical_ports(qtbot: QtBot) -> None:
+    """SDD21 relates the two ends of the pair, each a labelled pair of ports."""
+
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_mixed_mode(2, labelled_four_port())
+
+    assert tooltips(widget)[4] == (
+        "SDD21: response at differential logical port 2 (RX+ / RX-), "
+        "source at differential logical port 1 (TX+ / TX-)"
+    )
+
+
+def test_mode_conversion_tooltip_keeps_both_modes(qtbot: QtBot) -> None:
+    """SDC11 sits on one port but relates two modes, so it is not a reflection."""
+
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_mixed_mode(2, labelled_four_port())
+
+    assert tooltips(widget)[2] == (
+        "SDC11: response at differential logical port 1 (TX+ / TX-), "
+        "source at common logical port 1 (TX+ / TX-)"
+    )
+
+
+def test_mixed_mode_reflection_tooltip_is_one_phrase(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_mixed_mode(2, labelled_four_port())
+
+    assert tooltips(widget)[0] == (
+        "SDD11: reflection at differential logical port 1 (TX+ / TX-)"
+    )
+
+
+def test_a_configuration_of_another_size_is_dropped_whole(qtbot: QtBot) -> None:
+    """Labelling the first two ports and no others would read as fact."""
+
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_port_count(4, DutConfiguration.single_ended(2).with_labels(("IN", "OUT")))
+
+    assert tooltips(widget)[0] == "S11: reflection at port 1"
+    assert tooltips(widget)[-1] == "S44: reflection at port 4"
+
+
+def test_a_mixed_mode_configuration_of_another_size_is_dropped_too(qtbot: QtBot) -> None:
+    widget = ParameterFormatPanel()
+    qtbot.addWidget(widget)
+
+    widget.set_mixed_mode(2, quick_topology("2_diff_reflection"))
+
+    assert tooltips(widget)[0] == "SDD11: reflection at differential logical port 1"

@@ -8,9 +8,14 @@ file.
 The grid shows single-ended parameters for a plain network and the
 mixed-mode block matrix for a differential one, so its layout always matches
 the matrix the data actually has.
+
+Button text stays ``S21`` / ``SDD21`` -- the engineering names, as in PLTS.
+The DUT's port labels go in the tooltip instead, where they answer "which
+end of my board is that?" without making the grid unreadable.
 """
 
 from dataclasses import dataclass
+from typing import Final
 
 from PyQt6.QtCore import pyqtBoundSignal, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -34,9 +39,14 @@ from interconnect_studio.algorithms.mixed_mode import (
 )
 from interconnect_studio.algorithms.network import SParameterFormat, cartesian_formats_for
 from interconnect_studio.algorithms.network.traces import format_display_name
-from interconnect_studio.core import Mode
+from interconnect_studio.core import DutConfiguration, Mode
 
 PLACEHOLDER = "-"
+
+_MODE_NAMES: Final[dict[Mode, str]] = {
+    Mode.DIFFERENTIAL: "differential",
+    Mode.COMMON: "common",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +69,82 @@ class ParameterChoice:
         """Whether this names a mixed-mode parameter."""
 
         return self.response_mode is not None and self.source_mode is not None
+
+
+def _physical_label(configuration: DutConfiguration | None, port: int) -> str | None:
+    """The DUT's label for a physical port, if one is known for it."""
+
+    if configuration is None or port >= configuration.n_ports:
+        return None
+    return configuration.port_labels[port]
+
+
+def _logical_label(configuration: DutConfiguration | None, port: int) -> str | None:
+    """The DUT's label for a logical port, conductors joined for a pair.
+
+    Mode-port indices and logical-port indices are the same thing: both walk
+    the port group line by line, near end first.
+    """
+
+    if configuration is None:
+        return None
+    logical_ports = configuration.logical_ports
+    if port >= len(logical_ports):
+        return None
+    return logical_ports[port].label
+
+
+def _port_description(
+    port: int,
+    mode: Mode | None,
+    configuration: DutConfiguration | None,
+) -> str:
+    if mode is None:
+        text = f"port {port + 1}"
+        label = _physical_label(configuration, port)
+    else:
+        text = f"{_MODE_NAMES[mode]} logical port {port + 1}"
+        label = _logical_label(configuration, port)
+    return f"{text} ({label})" if label else text
+
+
+def parameter_tooltip(
+    choice: ParameterChoice,
+    configuration: DutConfiguration | None,
+) -> str:
+    """Spell out which ends of the DUT a parameter relates.
+
+    Without a configuration this still names the ports, which a 32-port
+    grid of small buttons needs anyway.
+    """
+
+    response = _port_description(choice.response_port, choice.response_mode, configuration)
+    source = _port_description(choice.source_port, choice.source_mode, configuration)
+    if choice.response_port == choice.source_port and choice.response_mode is choice.source_mode:
+        return f"{choice.label}: reflection at {response}"
+    return f"{choice.label}: response at {response}, source at {source}"
+
+
+def _configuration_for(
+    configuration: DutConfiguration | None,
+    *,
+    n_ports: int | None = None,
+    n_logical_ports: int | None = None,
+) -> DutConfiguration | None:
+    """Keep a configuration only if it describes the grid being built.
+
+    A configuration of another size would label the first few ports and
+    leave the rest bare, which reads as fact rather than as a mismatch.
+    Dropping it leaves plain port numbers, which are always true.
+    """
+
+    if configuration is None:
+        return None
+    if n_ports is not None and configuration.n_ports != n_ports:
+        return None
+    if n_logical_ports is not None and configuration.n_logical_ports != n_logical_ports:
+        return None
+    return configuration
 
 
 def single_ended_choices(n_ports: int) -> list[ParameterChoice]:
@@ -106,6 +192,7 @@ class ParameterFormatPanel(QWidget):
 
         self._choices: list[ParameterChoice] = []
         self._columns = 0
+        self._configuration: DutConfiguration | None = None
         self._parameter_buttons = QButtonGroup(self)
         self._parameter_buttons.setExclusive(True)
         self._parameter_buttons.idToggled.connect(self._on_parameter_toggled)
@@ -167,18 +254,31 @@ class ParameterFormatPanel(QWidget):
 
         return bool(self._choices) and self._choices[0].is_mixed_mode
 
-    def set_port_count(self, n_ports: int) -> None:
+    def set_port_count(
+        self,
+        n_ports: int,
+        configuration: DutConfiguration | None = None,
+    ) -> None:
         """Show the single-ended matrix for a port count.
 
         Buttons are labelled with one-based port numbers for display and
-        carry zero-based indices internally.
+        carry zero-based indices internally. ``configuration`` only supplies
+        the port labels shown in tooltips.
         """
 
+        self._configuration = _configuration_for(configuration, n_ports=n_ports)
         self._rebuild(single_ended_choices(n_ports), n_ports)
 
-    def set_mixed_mode(self, n_mode_ports: int) -> None:
+    def set_mixed_mode(
+        self,
+        n_mode_ports: int,
+        configuration: DutConfiguration | None = None,
+    ) -> None:
         """Show the mixed-mode block matrix for a differential DUT."""
 
+        self._configuration = _configuration_for(
+            configuration, n_logical_ports=n_mode_ports
+        )
         self._rebuild(mixed_mode_choices(n_mode_ports), 2 * n_mode_ports)
 
     def selected_choice(self) -> ParameterChoice | None:
@@ -239,6 +339,7 @@ class ParameterFormatPanel(QWidget):
         for index, choice in enumerate(choices):
             button = QToolButton(self.parameter_box)
             button.setText(choice.label)
+            button.setToolTip(parameter_tooltip(choice, self._configuration))
             button.setCheckable(True)
             row, column = divmod(index, columns) if columns else (0, 0)
             self._parameter_grid.addWidget(button, row, column)

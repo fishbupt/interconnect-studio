@@ -649,10 +649,14 @@ class MainWindow(QMainWindow):
         )
         if balanced:
             assert loaded.dut_configuration is not None
-            self.parameter_format.set_mixed_mode(loaded.dut_configuration.n_logical_ports)
+            self.parameter_format.set_mixed_mode(
+                loaded.dut_configuration.n_logical_ports, loaded.dut_configuration
+            )
             return
 
-        self.parameter_format.set_port_count(loaded.network.n_ports)
+        self.parameter_format.set_port_count(
+            loaded.network.n_ports, loaded.dut_configuration
+        )
         if view_type is ViewType.FREQUENCY_DOMAIN_BALANCED:
             # Falling back silently would look like the balanced view is
             # broken. Say which configuration is in the way.

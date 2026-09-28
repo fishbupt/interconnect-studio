@@ -175,6 +175,10 @@ DUT Configuration 对话框（Import 的 Change 按钮）对任意端口数可�
   - 标签描述 DUT，不描述为它选的拓扑，所以**换接线不清空标签**（用户点 radio 的路径），而 Load / Reset 是「整体换成另一个配置」，连标签一起换。
   - 空标签被领域模型拒绝，所以空标签时禁用 OK 与 Save As 并给出提示，而不是等到构造`DutConfiguration` 时抛异常。Load 与 Cancel 保持可用：前者能修好这个状态，后者永远可用。
 
+Parameter / Format 面板的按钮文字保持 `S21` / `SDD21` 这类工程名（与 PLTS 一致），端口标签放在 **tooltip** 里：单端写「response at port 2 (RX+), source at port 1 (TX+)」，混合模式写到逻辑端口「differential logical port 2 (RX+ / RX−)」，同端口同模式写成 reflection 一句。没有配置时仍给出端口号——32 端口的小按钮矩阵本来就需要。
+
+传入的配置与当前网格尺寸不符时**整份丢弃**，只留端口号：给前几个端口贴上标签、其余留空，看上去像事实而不像不匹配。
+
 # 7. Selection Model
 
 任一时刻存在三个"当前对象"：
