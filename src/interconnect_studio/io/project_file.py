@@ -21,6 +21,7 @@ from numpy.typing import NDArray
 from interconnect_studio.core import (
     DataFile,
     DataFormatError,
+    Marker,
     Network,
     PlotKind,
     PlotModel,
@@ -38,7 +39,7 @@ from interconnect_studio.io.dut_config import (
 
 PROJECT_SUFFIX: Final[str] = ".icproj"
 PROJECT_FORMAT: Final[str] = "interconnect-studio-project"
-PROJECT_VERSION: Final[int] = 1
+PROJECT_VERSION: Final[int] = 2
 _MAX_MEMBER: Final[int] = 512 * 1024 * 1024
 _MAX_TOTAL: Final[int] = 2 * 1024 * 1024 * 1024
 
@@ -124,6 +125,15 @@ def _window_document(window: ProjectWindow, arrays: _ArrayWriter) -> dict[str, A
                 "x_label": plot.x_label,
                 "y_label": plot.y_label,
                 "traces": [_trace_document(trace, window.file_id, arrays) for trace in plot.traces],
+                "markers": [
+                    {
+                        "number": m.number,
+                        "trace_index": m.trace_index,
+                        "x": m.x,
+                        "reference_id": m.reference_id,
+                    }
+                    for m in plot.markers
+                ],
             }
             for plot in window.layout.plots
         ],
@@ -167,7 +177,7 @@ def read_project(path: str | Path) -> ProjectSnapshot:
             document = json.loads(archive.read("manifest.json"))
             if not isinstance(document, dict) or document.get("format") != PROJECT_FORMAT:
                 raise DataFormatError("Not an Interconnect Studio project.")
-            if type(document.get("version")) is not int or document["version"] != PROJECT_VERSION:
+            if type(document.get("version")) is not int or document["version"] not in (1, 2):
                 raise DataFormatError(f"Unsupported project version: {document.get('version')!r}.")
             files = tuple(_read_file(item, archive) for item in document["files"])
             windows = tuple(_read_window(item, archive) for item in document["windows"])
@@ -249,6 +259,7 @@ def _read_window(item: dict[str, Any], archive: zipfile.ZipFile) -> ProjectWindo
             x_label=plot["x_label"],
             y_label=plot["y_label"],
             traces=tuple(_read_trace(trace, archive) for trace in plot["traces"]),
+            markers=tuple(Marker(**marker) for marker in plot.get("markers", [])),
         )
         for plot in item["plots"]
     )

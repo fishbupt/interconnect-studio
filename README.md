@@ -17,6 +17,7 @@ Interconnect Studio 是一个基于 **Python + PyQt6** 的 VNA / 高速互联分
 
 > 当前具备频域分析工具雏形：N 端口多格式导入、单端/混模分析、多窗口绘图、
 > 数据质量检查，以及工程保存/恢复、统一导出、最近文件和常用设置。
+> 频域分析支持 Marker、跨文件曲线对比、数据表与 CSV/PNG 导出，见 [操作说明](docs/FREQUENCY_ANALYSIS.md)。
 > 时域、门控和 AFR 尚未实现。文件操作见 [文件工作流程](docs/FILE_WORKFLOW.md)。
 
 ---

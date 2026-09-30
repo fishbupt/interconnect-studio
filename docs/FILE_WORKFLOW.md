@@ -42,10 +42,10 @@
 当前不提供：混模矩阵写出、每参数一文件、时域/门控/平滑结果导出，以及导出重采样。
 它们需要对应的领域能力和独立规格，不会在导出时自动猜测或改变数据。
 
-## 工程格式 v1
+## 工程格式 v2（兼容 v1）
 
 `.icproj` 是 ZIP 容器，包含 UTF-8 `manifest.json` 和 `arrays/<index>.npy`。
-manifest 标识：`format = interconnect-studio-project`、`version = 1`。
+manifest 标识：`format = interconnect-studio-project`、`version = 2`（读取兼容 v1）。
 
 保存内容：
 
@@ -53,7 +53,8 @@ manifest 标识：`format = interconnect-studio-project`、`version = 1`。
 - 频率（Hz）、完整复数 S 矩阵、复数标量 z0，以及 Network 端口名称。
 - DUT 配置、逻辑分组、极性和端口标签。
 - 每个窗口的分析类型、窗口编号、模板名称、网格和全部 plot/trace。
-- Trace 的名称、单位、实际 x/y 数组、来源 ID 和已有的计算配方。
+- Trace 的名称、单位、实际 x/y 数组、来源 ID 和已有的计算配方；允许引用工程中的其他文件。
+- 每个 plot 的 Marker 位置、所属曲线和 Delta 参考。
 - 坐标范围及自动缩放标志；主窗口几何和停靠布局。
 
 数据和实际曲线均嵌入工程，原测量文件移动或删除后仍能恢复。
@@ -99,3 +100,5 @@ output = ExportService().export(network, "channel.ts", options)
 
 设置通过 QSettings 保存；`.icprefs` 是可导入/导出的版本化 JSON，支持多套偏好文件
 及恢复默认值。它与工程分开，不包含测量数据。
+
+频域 Marker、跨文件比较和曲线数据/图片导出见 [频域分析操作](FREQUENCY_ANALYSIS.md)。

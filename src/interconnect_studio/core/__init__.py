@@ -16,6 +16,7 @@ from interconnect_studio.core.hierarchy import (
     ViewWindow,
 )
 from interconnect_studio.core.layout import MAX_PLOTS, ViewLayout
+from interconnect_studio.core.marker import Marker
 from interconnect_studio.core.mixed_mode import MixedModeNetwork, Mode
 from interconnect_studio.core.network import Network
 from interconnect_studio.core.plot import PlotKind, PlotModel
@@ -35,6 +36,7 @@ __all__ = [
     "InputValidationError",
     "Line",
     "LogicalPort",
+    "Marker",
     "MixedModeNetwork",
     "Mode",
     "Network",

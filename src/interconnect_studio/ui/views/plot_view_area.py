@@ -20,6 +20,7 @@ class PlotViewArea(QWidget):
 
     current_index_changed = pyqtSignal(int)
     plot_range_changed = pyqtSignal()
+    marker_moved = pyqtSignal(int, int, float)
 
     def __init__(
         self,
@@ -185,6 +186,9 @@ class PlotViewArea(QWidget):
             plot = CartesianPlotWidget(theme=self._theme)
             plot.set_line_width(self._line_width)
             plot.set_plot_model(model)
+            plot.marker_moved.connect(
+                lambda number, x, cell=index: self.marker_moved.emit(cell, number, x)
+            )
             plot.plot_widget.installEventFilter(self)
             plot.plot_widget.getViewBox().sigRangeChangedManually.connect(
                 lambda _axes: self.plot_range_changed.emit()

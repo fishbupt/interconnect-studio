@@ -2,9 +2,13 @@
 
 import numpy as np
 import pyqtgraph as pg
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QImage
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from pyqtgraph.exporters import ImageExporter
 
 from interconnect_studio.core import PlotKind, PlotModel
+from interconnect_studio.services.frequency_analysis import marker_reading
 from interconnect_studio.ui.theme import DEFAULT_THEME, Palette, Theme, palette_for, trace_color
 
 _LINE_WIDTH = 2
@@ -17,12 +21,15 @@ class CartesianPlotWidget(QWidget):
     of different units belong in separate plots.
     """
 
+    marker_moved = pyqtSignal(int, float)
+
     def __init__(self, parent: QWidget | None = None, theme: Theme = DEFAULT_THEME) -> None:
         super().__init__(parent)
 
         self._model = PlotModel()
         self._theme = theme
         self._line_width = _LINE_WIDTH
+        self.marker_lines: dict[int, pg.InfiniteLine] = {}
 
         self.plot_widget = pg.PlotWidget()
         self._plot_item = self.plot_widget.getPlotItem()
@@ -79,6 +86,7 @@ class CartesianPlotWidget(QWidget):
         palette = palette_for(self._theme)
         self._plot_item.clear()
         self._legend.clear()
+        self.marker_lines.clear()
 
         self._apply_labels(palette)
 
@@ -91,6 +99,44 @@ class CartesianPlotWidget(QWidget):
                 name=trace.name,
             )
             self._plot_item.addItem(curve)
+
+        for marker in self._model.markers:
+            trace = self._model.traces[marker.trace_index]
+            color = trace_color(palette, marker.trace_index)
+            reading = marker_reading(self._model, marker)
+            line = pg.InfiniteLine(
+                pos=reading.x,
+                angle=90,
+                movable=True,
+                bounds=(float(trace.x[0]), float(trace.x[-1])),
+                pen=pg.mkPen(color, width=1, style=Qt.PenStyle.DashLine),
+                label=f"M{marker.number}",
+                labelOpts={"position": 0.95, "color": color},
+            )
+            line.sigPositionChangeFinished.connect(
+                lambda item, number=marker.number: self.marker_moved.emit(
+                    number, float(item.value())
+                )
+            )
+            self._plot_item.addItem(line, ignoreBounds=True)
+            self.marker_lines[marker.number] = line
+            if np.isfinite(reading.y):
+                point = pg.ScatterPlotItem(
+                    [reading.x], [reading.y], symbol="t", size=10, brush=color, pen=color
+                )
+                self._plot_item.addItem(point, ignoreBounds=True)
+
+    def image(self, width: int = 1920) -> QImage:
+        """Render axes, legend, curves and markers at the requested pixel width."""
+
+        if not 320 <= width <= 4096:
+            raise ValueError("Image width must be between 320 and 4096 pixels.")
+        exporter = ImageExporter(self._plot_item)
+        exporter.parameters()["width"] = width
+        result = exporter.export(toBytes=True)
+        if not isinstance(result, QImage) or result.isNull():
+            raise ValueError("Plot image rendering failed.")
+        return result
 
     def _apply_labels(self, palette: Palette) -> None:
         # Units go through pyqtgraph's ``units`` argument rather than baked

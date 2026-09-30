@@ -6,7 +6,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path
 
-from PyQt6.QtCore import QStandardPaths, Qt
+from PyQt6.QtCore import QStandardPaths, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent
 from PyQt6.QtWidgets import (
     QApplication,
@@ -42,6 +42,7 @@ from interconnect_studio.services import (
     TouchstonePlotService,
     TraceUpdate,
 )
+from interconnect_studio.services.frequency_analysis import renamed_trace
 from interconnect_studio.ui.dialogs import (
     AddTraceDialog,
     BuildConfigDialog,
@@ -52,6 +53,7 @@ from interconnect_studio.ui.dialogs import (
 )
 from interconnect_studio.ui.dialogs.data_integrity_dialog import check_summary
 from interconnect_studio.ui.file_workflow import FileWorkflow
+from interconnect_studio.ui.frequency_workflow import FrequencyWorkflow
 from interconnect_studio.ui.models.data_browser_model import DEFAULT_AVAILABLE_VIEW_TYPES
 from interconnect_studio.ui.panels import (
     DataBrowserPanel,
@@ -84,6 +86,8 @@ class MainWindow(QMainWindow):
     centre and is not a dock. Messages live in the status bar, with a
     collapsed panel for their history.
     """
+
+    plot_state_changed = pyqtSignal()
 
     def __init__(
         self,
@@ -147,6 +151,7 @@ class MainWindow(QMainWindow):
         self.add_trace_action.setEnabled(False)
         self.refresh_templates()
         self.status_bar.showMessage("Ready")
+        self.frequency_flow = FrequencyWorkflow(self)
         self.file_flow = FileWorkflow(self, settings)
         self.view_area.plot_range_changed.connect(self.file_flow.modified)
 
@@ -236,6 +241,13 @@ class MainWindow(QMainWindow):
         session = self._sessions.get(number)
         if session is None:
             raise InputValidationError(f"Window {number} is not open.")
+        owner = self.data_browser.browser_tree.window(number).data_file.id
+        if any(
+            trace.source_id and trace.source_id != owner
+            for plot in session.layout.plots
+            for trace in plot.traces
+        ):
+            raise InputValidationError("跨文件对比请保存为工程；当前模板只支持单一数据来源。")
         template = ViewTemplate.from_layout(
             name,
             session.view_type,
@@ -338,6 +350,28 @@ class MainWindow(QMainWindow):
     def _close_windows(self, tree: DataBrowserTree, numbers: tuple[int, ...]) -> None:
         """Drop closed windows; if the shown one closed, show the newest left."""
 
+        self._store_active_session()
+        open_ids = {node.data_file.id for node in tree.windows}
+        affected_ids: set[str] = set()
+        for number, session in tuple(self._sessions.items()):
+            plots = []
+            changed = False
+            for plot in session.layout.plots:
+                for index in range(len(plot.traces) - 1, -1, -1):
+                    if (
+                        plot.traces[index].source_id
+                        and plot.traces[index].source_id not in open_ids
+                    ):
+                        plot = plot.remove_trace(index)
+                        changed = True
+                plots.append(plot)
+            self._sessions[number] = replace(
+                session, layout=replace(session.layout, plots=tuple(plots))
+            )
+            if changed and number not in numbers:
+                affected_ids.add(tree.window(number).data_file.id)
+        for file_id in affected_ids:
+            self.file_flow.modified(file_id)
         for number in numbers:
             self._sessions.pop(number, None)
         if self._active_window in numbers:
@@ -345,6 +379,7 @@ class MainWindow(QMainWindow):
             self._loaded = None
         self._set_browser_tree(tree)
         if self._active_window is not None:
+            self._restore_session(self._sessions[self._active_window])
             return
         remaining = [window.number for window in tree.windows if window.number in self._sessions]
         if remaining:
@@ -371,6 +406,7 @@ class MainWindow(QMainWindow):
         self.parameter_format.clear()
         self.setWindowTitle(APP_TITLE)
         self.add_trace_action.setEnabled(False)
+        self.plot_state_changed.emit()
 
     def load_touchstone_file(self, path: str | Path) -> LoadedTouchstonePlot:
         """Import a whole file, typed by its name, into a Frequency Domain window.
@@ -474,8 +510,12 @@ class MainWindow(QMainWindow):
         )
 
     def _after_trace_update(self, update: TraceUpdate) -> LoadedTouchstonePlot:
-        self._loaded = update.loaded
-        self._apply(update.loaded)
+        loaded = update.loaded
+        if self._active_window is not None:
+            owner = self.data_browser.browser_tree.window(self._active_window).data_file.id
+            loaded = replace(loaded, plot=self._bind_plot_sources(loaded.plot, owner))
+        self._loaded = loaded
+        self._apply(loaded)
         self.file_flow.modified()
 
         trace_name = update.loaded.plot.traces[-1].name
@@ -484,7 +524,7 @@ class MainWindow(QMainWindow):
         else:
             self._log(f"Added trace: {trace_name}")
         self.status_bar.showMessage(trace_name)
-        return update.loaded
+        return loaded
 
     def show_add_trace_dialog(self) -> None:
         """Show Add Trace dialog and apply the selected trace."""
@@ -622,6 +662,10 @@ class MainWindow(QMainWindow):
     def _restore_session(self, session: WindowSession) -> LoadedTouchstonePlot:
         """Put a window's grid, selected cell and data file on screen."""
 
+        owner = self.data_browser.browser_tree.window(session.number).data_file.id
+        plots = tuple(self._bind_plot_sources(plot, owner) for plot in session.layout.plots)
+        session = replace(session, layout=replace(session.layout, plots=plots))
+        self._sessions[session.number] = session
         loaded = session.loaded_for_current_cell()
         self._active_window = session.number
         self._loaded = loaded
@@ -638,7 +682,22 @@ class MainWindow(QMainWindow):
         self.parameter_format.set_traces(tuple(trace.name for trace in loaded.plot.traces))
         self.setWindowTitle(f"{APP_TITLE} - [{session.title}]")
         self.add_trace_action.setEnabled(True)
+        self.plot_state_changed.emit()
         return loaded
+
+    @staticmethod
+    def _bind_plot_sources(plot: PlotModel, owner: str) -> PlotModel:
+        """Attach stable provenance to new traces without changing existing overlays."""
+
+        if all(trace.source_id for trace in plot.traces):
+            return plot
+        return replace(
+            plot,
+            traces=tuple(
+                trace if trace.source_id else renamed_trace(trace, trace.name, owner)
+                for trace in plot.traces
+            ),
+        )
 
     def _on_browser_window_changed(self, window: ViewWindow | None) -> None:
         if window is not None and window.number in self._sessions:
@@ -651,6 +710,7 @@ class MainWindow(QMainWindow):
             return
         self._loaded = replace(self._loaded, plot=self.view_area.current_plot)
         self.parameter_format.set_traces(tuple(trace.name for trace in self._loaded.plot.traces))
+        self.plot_state_changed.emit()
 
     def _apply(self, loaded: LoadedTouchstonePlot) -> None:
         self.view_area.set_current_plot(loaded.plot)
@@ -661,6 +721,7 @@ class MainWindow(QMainWindow):
             loaded.network.z0,
         )
         self.parameter_format.set_traces(tuple(trace.name for trace in loaded.plot.traces))
+        self.plot_state_changed.emit()
 
     def _refresh_parameter_grid(
         self,
@@ -795,6 +856,7 @@ class MainWindow(QMainWindow):
         """Change the view area grid, keeping plots that still have a cell."""
 
         self.view_area.set_grid(rows, cols)
+        self._on_cell_changed(self.view_area.current_index)
         self.file_flow.modified()
         for size, action in self.layout_actions.items():
             action.setChecked(size == (rows, cols))

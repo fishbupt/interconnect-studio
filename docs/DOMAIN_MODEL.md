@@ -171,12 +171,17 @@ class TraceRecipe:
 ```python
 @dataclass(frozen=True, slots=True)
 class Marker:
-    trace_name: str
+    number: int
+    trace_index: int  # 0-based within the plot
     x: float
+    reference_id: int | None = None
 ```
 
 - Marker 保存 x 坐标，y 值由 Trace 实时求值，不冗余存储。
-- 支持 delta marker（相对另一 Marker）。
+- Marker 属于 PlotModel，编号在单个 plot 内唯一；索引必须引用现有 Trace，x 位于该 Trace 范围内。
+- X 吸附到测量点，Y 不冗余保存；搜索和读数由 Frequency Analysis Service 负责。
+- Delta 只引用同 plot 中的绝对 Marker，禁止链和循环。曲线重排时同步调整索引，删除时清理引用。
+- 工程 v2 保存 Marker；读取兼容 v1。跨文件 Trace 的 source_id 可引用工程中任一嵌入文件。
 
 ## Limit Line / Mask
 
@@ -533,7 +538,7 @@ class ViewTemplate:
 - `ProjectSnapshot`：全部文件/窗口，以及不透明的窗口几何/停靠状态 bytes。
 
 引用规则：数据文件 ID 和窗口编号各自唯一；窗口必须引用已存在的文件；一个窗口内的
-trace 只属于该窗口的数据文件。频率、S、z0 和当前 trace 数组都嵌入工程。
+trace 可引用工程中的任一数据文件（source_id 必须存在）。频率、S、z0、当前 trace 数组和 Marker 都嵌入工程。
 布局和坐标持久化，选中对象仍只保存在 UI `WindowSession`，恢复时选中第一窗口/第一格。
 文件格式与生命周期见 `FILE_WORKFLOW.md`。
 
@@ -581,4 +586,4 @@ Project：`.icproj` ZIP（版本化 UTF-8 JSON manifest + 非 pickle NPY），�
 - [x] Mixed-Mode mapping convention: 默认 1-3/2-4，分块排序，1/√2 归一化
 - [x] Mixed-Mode 结果载体: 新增 `MixedModeNetwork`，不扩展 `Network.z0`
 - [ ] metadata schema
-- [x] Project format: `.icproj` v1
+- [x] Project format: `.icproj` v2（读取兼容 v1）

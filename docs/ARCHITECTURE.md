@@ -241,3 +241,15 @@ CartesianPlotWidget
 `io/network_writers.py` / `io/project_file.py` 负责写出/读取，`io/atomic.py` 负责原子替换。
 工程对象位于 `core/project.py`，全局偏好使用 `ui/settings.py` 的 QSettings。
 GUI 文件操作使用同一 TaskRunner，Worker 只处理预先收集的纯数据与服务调用。
+
+## 频域交互
+
+`core/marker.py` 与 `PlotModel.markers` 保存纯领域状态；
+`services/frequency_analysis.py` 负责测量点吸附、搜索、Delta、曲线管理及 CSV。
+`ui/frequency_workflow.py` 组合 MainWindow，管理停靠面板、对比选择和导出入口；
+绘图 Widget 只发出拖动位置，通过服务生成新模型。数据表使用 QAbstractTableModel 虚拟读取。
+Qt 图形渲染在 GUI 线程，CSV 和图片文件写入使用 TaskRunner。
+
+TaskRunner 的内部完成信号先到 QObject 绑定的 GUI slot，再检查取消状态并投递公开结果。
+因此工作已完成但结果仍在排队时，取消也会丢弃回调；销毁 runner 会断开排队的接收 slot。
+TaskHandle 在投递结束前保留临时 runner，避免调用者仅传入临时对象时过早析构线程池。

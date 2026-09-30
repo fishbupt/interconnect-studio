@@ -97,7 +97,7 @@ class ProjectSnapshot:
                 raise InputValidationError("Project window refers to a missing data file.")
             for plot in window.layout.plots:
                 for trace in plot.traces:
-                    if trace.source_id and trace.source_id != window.file_id:
-                        raise InputValidationError("Project trace refers to another data file.")
+                    if trace.source_id and trace.source_id not in ids:
+                        raise InputValidationError("Project trace refers to a missing data file.")
         if not isinstance(self.geometry, bytes) or not isinstance(self.dock_state, bytes):
             raise InputValidationError("Project geometry and dock state must be bytes.")

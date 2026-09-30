@@ -50,7 +50,7 @@ PLTS 各功能与 UI 元素的原文核对清单见 `PLTS_REFERENCE.md`；本文
 - 校准（ECal / SOLT / TRL、差分串扰 TRL、Calibration & Measurement Wizard、适配器表征）
 - MATLAB 导出
 
-CSV / Tab 频域 RI 矩阵导出已随完整文件流程开发纳入；plot/marker 文本导出仍待对应功能落地。MATLAB 不在本次范围。详见 `FILE_WORKFLOW.md`。
+CSV / Tab 频域 RI 矩阵导出已随完整文件流程开发纳入；plot 曲线 CSV 和 PNG 导出已纳入，marker 独立文本导出待扩展。MATLAB 不在本次范围。详见 `FILE_WORKFLOW.md`。
 
 明确排除：
 
@@ -484,7 +484,7 @@ Exit：单元测试通过，且**首批 analytical golden case 已建立**（理
 - 文本导入、导入时单端 → 差分映射、导入 Subset（只截取测量点，不插值）
 - DUT Configuration（单端 / 差分拓扑、逻辑端口、端口标签）
 - 多文件拼接导入（Build）、批量打开 / 导入
-- 数据导出（Touchstone / CITIfile，含 Subset 与端口重映射；文本 / CSV 导出待决策，见 §2 注）
+- 数据导出（Touchstone / CITIfile，含 Subset 与端口重映射；文本 / CSV 导出已实现，见 §2 注）
 - Smith / Polar 及其余频域格式（SWR、阻抗各分量、Q / D）
 - Marker（含搜索、Delta、耦合、marker math 与 marker 表、marker bar、保存 / 回调、导出）/ Autoscale / Multi Plot
 - Scaling bar（Ref / Div 与 Min / Max 两种模式）与工具栏开关、Zoom / Pan、Copy / Paste Plot Format
@@ -533,7 +533,7 @@ PCB Material Characterization（Dk / Df / 表面粗糙度提取，FR-009）排�
 
 ## 待决策（不在版本计划内）
 
-仪器连接与自动测量、校准（ECal / SOLT / TRL、差分串扰 TRL、Calibration & Measurement Wizard）、CSV / MATLAB 导出（见 §2 注）、外部 MATLAB 方程接口。是否实现留待后续决定。
+仪器连接与自动测量、校准（ECal / SOLT / TRL、差分串扰 TRL、Calibration & Measurement Wizard）、MATLAB 导出（见 §2 注）、外部 MATLAB 方程接口。是否实现留待后续决定。
 
 明确排除：COM 对象模型、功能分级授权。
 
@@ -544,3 +544,9 @@ PCB Material Characterization（Dk / Df / 表面粗糙度提取，FR-009）排�
 工程保存/恢复、统一导出、最近 4 文件、常用设置和未保存修改处理已实现。
 `.icproj` 嵌入数据与视图；`.icprefs` 为独立偏好文件。导出当前保留测量频点，
 重采样、每参数一文件、混模矩阵写出及时域导出仍待开发。详见 `FILE_WORKFLOW.md`。
+
+### 当前频域交互交付
+
+Cartesian Marker、曲线重命名/删除/重排、跨文件叠加、曲线数据表、CSV 与 PNG 导出、
+当前图/全部图自动缩放已实现；`.icproj` v2 保存 Marker 和跨文件引用，兼容读取 v1。
+高级 Marker、Smith/Polar、Memory Trace 和独立样式仍待扩展，见 `FREQUENCY_ANALYSIS.md`。

@@ -1,9 +1,10 @@
 """UI-independent plot domain model."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from interconnect_studio.core.errors import InputValidationError
+from interconnect_studio.core.marker import Marker
 from interconnect_studio.core.trace import Trace
 
 
@@ -29,6 +30,7 @@ class PlotModel:
     title: str = ""
     x_label: str = ""
     y_label: str = ""
+    markers: tuple[Marker, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.kind, PlotKind):
@@ -42,6 +44,27 @@ class PlotModel:
 
         self._validate_trace_geometry()
         self._validate_trace_compatibility()
+        if not isinstance(self.markers, tuple) or not all(
+            isinstance(m, Marker) for m in self.markers
+        ):
+            raise InputValidationError("markers must be a tuple of Marker objects.")
+        by_number = {m.number: m for m in self.markers}
+        if len(by_number) != len(self.markers):
+            raise InputValidationError("Marker numbers must be unique within a plot.")
+        for marker in self.markers:
+            if self.kind is not PlotKind.CARTESIAN:
+                raise InputValidationError("Markers currently require Cartesian plots.")
+            if marker.trace_index >= len(self.traces):
+                raise InputValidationError("Marker refers to a missing trace.")
+            trace = self.traces[marker.trace_index]
+            if not trace.x[0] <= marker.x <= trace.x[-1]:
+                raise InputValidationError("Marker lies outside the trace span.")
+            if marker.reference_id is not None:
+                reference = by_number.get(marker.reference_id)
+                if reference is None or reference.reference_id is not None:
+                    raise InputValidationError(
+                        "Delta reference must be an existing absolute marker."
+                    )
 
     @property
     def n_traces(self) -> int:
@@ -63,16 +86,20 @@ class PlotModel:
             raise InputValidationError(
                 f"Trace index must be in the range [0, {self.n_traces - 1}], got {index}."
             )
-        return self._replace(self.traces[:index] + self.traces[index + 1 :])
+        removed = {m.number for m in self.markers if m.trace_index == index}
+        markers = tuple(
+            replace(
+                m,
+                trace_index=m.trace_index - (m.trace_index > index),
+                reference_id=None if m.reference_id in removed else m.reference_id,
+            )
+            for m in self.markers
+            if m.trace_index != index
+        )
+        return replace(self, traces=self.traces[:index] + self.traces[index + 1 :], markers=markers)
 
     def _replace(self, traces: tuple[Trace, ...]) -> "PlotModel":
-        return PlotModel(
-            traces=traces,
-            kind=self.kind,
-            title=self.title,
-            x_label=self.x_label,
-            y_label=self.y_label,
-        )
+        return replace(self, traces=traces)
 
     def _validate_trace_geometry(self) -> None:
         if self.kind is PlotKind.CARTESIAN:

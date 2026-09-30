@@ -4,13 +4,13 @@
 
 ## Phase 0 — Agent-ready Repository
 
-- [ ] 创建 `interconnect-studio`
-- [ ] 包名 `interconnect_studio`
-- [ ] pyproject.toml / uv
-- [ ] src layout
-- [ ] pytest / pytest-qt
-- [ ] ruff / mypy
-- [ ] GitHub Actions
+- [x] 创建 `interconnect-studio`
+- [x] 包名 `interconnect_studio`
+- [x] pyproject.toml / uv
+- [x] src layout
+- [x] pytest / pytest-qt
+- [x] ruff / mypy
+- [x] GitHub Actions
 - [x] AGENTS.md
 - [x] docs
 - [ ] Issue / PR templates
@@ -58,11 +58,11 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 
 先于 Network Core 剩余部分落地。外壳与布局系统与具体领域类型无关，早定可避免按单文件单图设计的外壳在多测量、多视图场景下返工。
 
-- [ ] 迁移到 pyqtgraph，废弃 QPainter 自绘 widget
-- [ ] `ui/` 子结构：views / widgets / panels / models / dialogs
-- [ ] ViewLayout（固定网格）与视图区
-- [ ] 外围面板改为 Qt dock
-- [ ] 数据层级模型（`BrowserCategory` / `ViewType` / `ViewWindow` / `DataFile`）与 Trace 溯源（层级已落地；Trace 已带 `source_id` 与 `recipe` 字段，填写 `source_id` 待做）
+- [x] 迁移到 pyqtgraph，废弃 QPainter 自绘 widget
+- [x] `ui/` 子结构：views / widgets / panels / models / dialogs
+- [x] ViewLayout（固定网格）与视图区
+- [x] 外围面板改为 Qt dock
+- [ ] 数据层级模型（`BrowserCategory` / `ViewType` / `ViewWindow` / `DataFile`）与 Trace 溯源（层级、单端 recipe、稳定 source_id 与跨文件溯源已落地；混模 recipe 待补充）
 - [x] Data Browser 按 PLTS 层级：Data Analysis / RLCG / Calibration / Template View → 视图类型 → window（未实现的视图类型置灰）
   - [x] 点击 window 切换视图区，各 window 保存自己的网格、trace 与选中格
   - [x] window 右键 Close View / Close File / Copy File Name / Rename File
@@ -75,7 +75,7 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
   - 多端口参数选择对话框（拖选、按名称批量输入、参数名列表存取）
   - 格式图标条、Data Integrity Check 入口
 - [ ] Property Panel 由 Parameter / Format 取代，Log Panel 收进状态栏
-- [ ] 选中态 / current 对象模型
+- [x] 选中态 / current 对象模型
 
 - [ ] View → Panes 各面板开关、面板浮动 / 停靠、Reset 布局
 - [ ] 状态栏指示灯（已去嵌、已改参考阻抗 / 端口旋转）
@@ -98,8 +98,9 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [x] 统一导出对话框（Touchstone 1.x / 2.0、CITIfile、CSV / Tab；Subset、端口重映射、完整矩阵）
 - [ ] 导出重采样（Linear / Log / Dec / Oct）和每参数一文件
 - [x] 工程保存 / 恢复（`.icproj`：嵌入测量、DUT 配置、全部窗口/曲线、坐标与停靠布局）
-- [ ] 文本 / CSV 导出，含 plot 内全部 trace 一键存文本（PLTS Save Traces As）——待决策，见 `PRODUCT.md` §2 注
-- [ ] 打印、打印预览、plot 图片导出（剪贴板 / 文件，分辨率可选）
+- [x] 当前 plot 全部 trace 一键导出 CSV（含来源与单位，独立频点长表）
+- [x] plot 图片导出（PNG 文件 / 剪贴板，宽度可选，含 Marker）
+- [ ] 打印、打印预览
 
 ## Phase 3 — Visualization
 
@@ -111,26 +112,31 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] Smith / Polar
 - [ ] 阻抗各分量（Magnitude / Imag Magnitude / Angle）、Quality Factor、Dissipation Factor
 - [ ] Marker（含 marker math、readout 排序、可停靠 marker bar）
-  - [ ] 创建 / 删除 / 移动（滑块、键盘逐点、拖标签、Set At）
-  - [ ] Marker Search：Min / Max / Target / 3 dB，Full / User Span
-  - [ ] Delta marker、Coupled markers（coupling group）
+  - [x] 创建 / 删除 / 移动（左右键逐点、拖动竖线、按 Hz 设置位置；滑块待扩展）
+  - [x] Marker Search：Min / Max / 最近测量 Target，Full / 当前可见 Span
+  - [ ] 插值交点 Target、3 dB 搜索、自定义 User Span
+  - [x] Delta marker（引用同图的绝对 Marker，工程保存/恢复）
+  - [ ] Coupled markers（coupling group）
   - [ ] Smith / Polar 读数（Mag + Phase / R + jX）
   - [ ] marker 表（显示开关、排序、过滤、导出图片）
   - [ ] Save State / Recall、导出到剪贴板；导出为文本（CSV，待决策）
   - [ ] Show LC Values（阻抗格式）
 - [ ] Scaling bar（缩放工具栏；Ref Level + Units/Div 与 Min / Max 两种模式、自定义步进）
 - [ ] View → Toolbars 各工具栏开关（Standard / Plot / Marker / Scaling / Quick Launch / Gating）
-- [ ] Autoscale / Autoscale All、Reset Scale / Reset Scale All
+- [x] Autoscale / Autoscale All（当前图 / 当前窗口全部图）
+- [ ] Reset Scale / Reset Scale All
 - [ ] 框选 Zoom、Pan
 - [ ] Copy / Paste Plot Format
 - [ ] Log X 轴、轴小数位
-- [ ] Multi Plot
+- [x] Multi Plot
 - [ ] 活动 plot 高亮、双击单 plot 放大 / 还原、Delete 删除 plot
 - [ ] plot 拖放重排、Copy to New Plot、Rename Plot
 - [ ] Annotation（多行、字体颜色、拖动、跨 plot 复制）
-- [ ] Trace：Rename / Delete / Refresh / Z-Order / Memory Trace / 来源文件悬停提示 / Legend
-- [ ] Tabular Trace Data 面板
-- [ ] Data Sharing（同一 plot 叠加不同文件的 trace；一键加到所有 plot）
+- [x] Trace：Rename / Delete / Z-Order / Legend / 所选曲线来源显示
+- [ ] Trace：Refresh / Memory Trace / 来源文件悬停提示 / 单曲线样式
+- [x] Tabular Trace Data 面板
+- [x] Data Sharing（同一 plot 叠加其他窗口当前格的曲线，保留独立频点与来源；随工程恢复）
+- [ ] Data Sharing：一键加到所有 plot
 - [ ] Trace Smoothing（平滑孔径：点数或跨度百分比；四种作用范围；导出平滑后数据）
 - [ ] 多窗口管理：Tile / Cascade / Maximize / Minimize
 - [ ] Template / Multi-Data Template（Data Browser 中的独立节点，多数据集同屏对比；导入导出 template）
@@ -320,3 +326,8 @@ L9 Mostly autonomous daily development
 8. 实现 Plot Model（已完成）
 9. 实现首个 PyQt6 MainWindow
 10. 建立首批 Golden Case
+
+## 当前频域交互交付
+
+Marker、曲线管理、跨文件对比、虚拟数据表与 CSV/PNG 导出已落地；
+工程 v2 保存 Marker 和跨文件引用，兼容读取 v1。操作与边界见 `FREQUENCY_ANALYSIS.md`。

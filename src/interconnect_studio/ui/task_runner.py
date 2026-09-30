@@ -21,7 +21,7 @@ import traceback
 from collections.abc import Callable
 from typing import Final
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
 
 _logger: Final[logging.Logger] = logging.getLogger(__name__)
 
@@ -36,10 +36,34 @@ class TaskHandle(QObject):
 
     finished = pyqtSignal(object)
     failed = pyqtSignal(str)
+    _computed = pyqtSignal(object)
+    _error = pyqtSignal(str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._cancelled = False
+        # A temporary runner passed to a dialog must survive its worker and
+        # queued delivery. QObject parenting alone does not retain the Python
+        # wrapper; release this reference after delivery on the GUI thread.
+        self._owner: QObject | None = parent
+
+    @pyqtSlot(object)
+    def _deliver_result(self, result: object) -> None:
+        # Check cancellation on the receiving thread, even if the worker
+        # finished and queued its signal before the caller closed a dialog.
+        try:
+            if not self._cancelled:
+                self.finished.emit(result)
+        finally:
+            self._owner = None
+
+    @pyqtSlot(str)
+    def _deliver_error(self, message: str) -> None:
+        try:
+            if not self._cancelled:
+                self.failed.emit(message)
+        finally:
+            self._owner = None
 
     @property
     def cancelled(self) -> bool:
@@ -70,11 +94,9 @@ class _Task(QRunnable):
             # The message goes to the user; the traceback goes to the log,
             # as AGENTS.md §8 and the GUI conventions both ask.
             _logger.error("Background task failed: %s", traceback.format_exc())
-            if not self._handle.cancelled:
-                self._handle.failed.emit(str(exc) or exc.__class__.__name__)
+            self._handle._error.emit(str(exc) or exc.__class__.__name__)
             return
-        if not self._handle.cancelled:
-            self._handle.finished.emit(result)
+        self._handle._computed.emit(result)
 
 
 class TaskRunner(QObject):
@@ -107,8 +129,12 @@ class TaskRunner(QObject):
             handle.finished.connect(on_result)
         if on_error is not None:
             handle.failed.connect(on_error)
-        handle.finished.connect(lambda _result: self._retire(handle))
-        handle.failed.connect(lambda _message: self._retire(handle))
+        # QObject-bound slots are disconnected on destruction. Context-free
+        # lambdas could survive the runner and call already-deleted widgets.
+        handle._computed.connect(self._retire_result)
+        handle._error.connect(self._retire_error)
+        handle._computed.connect(handle._deliver_result)
+        handle._error.connect(handle._deliver_error)
 
         self._pending.add(handle)
         self._pool.start(_Task(work, handle))
@@ -132,5 +158,15 @@ class TaskRunner(QObject):
 
         return self._pool.waitForDone(timeout_ms)
 
-    def _retire(self, handle: TaskHandle) -> None:
-        self._pending.discard(handle)
+    @pyqtSlot(object)
+    def _retire_result(self, _result: object) -> None:
+        self._retire_sender()
+
+    @pyqtSlot(str)
+    def _retire_error(self, _message: str) -> None:
+        self._retire_sender()
+
+    def _retire_sender(self) -> None:
+        handle = self.sender()
+        if isinstance(handle, TaskHandle):
+            self._pending.discard(handle)

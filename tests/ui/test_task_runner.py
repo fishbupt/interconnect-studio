@@ -130,9 +130,7 @@ def test_tasks_run_concurrently(qtbot: QtBot) -> None:
     qtbot.waitUntil(lambda: len(results) == 2)
 
 
-def test_the_traceback_reaches_the_log(
-    qtbot: QtBot, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_the_traceback_reaches_the_log(qtbot: QtBot, caplog: pytest.LogCaptureFixture) -> None:
     """The user sees one line; the log keeps the whole story."""
 
     runner = TaskRunner()
@@ -147,3 +145,37 @@ def test_the_traceback_reaches_the_log(
 
     assert "Traceback" in caplog.text
     assert "ValueError: boom" in caplog.text
+
+
+def test_cancel_after_worker_finishes_suppresses_queued_result(qtbot: QtBot) -> None:
+    runner = TaskRunner()
+    results: list[object] = []
+    handle = runner.submit(lambda: "already computed", results.append)
+    assert runner.wait_for_done()
+    handle.cancel()
+    qtbot.wait(20)
+    assert results == []
+    assert runner.pending == 0
+
+
+def test_cancel_after_worker_finishes_suppresses_queued_error(qtbot: QtBot) -> None:
+    runner = TaskRunner()
+    errors: list[str] = []
+    handle = runner.submit(lambda: 1 / 0, on_error=errors.append)
+    assert runner.wait_for_done()
+    handle.cancel()
+    qtbot.wait(20)
+    assert errors == []
+    assert runner.pending == 0
+
+
+def test_destroyed_runner_drops_queued_callbacks(qtbot: QtBot) -> None:
+    from PyQt6 import sip
+
+    results: list[object] = []
+    runner = TaskRunner()
+    runner.submit(lambda: "ready", results.append)
+    assert runner.wait_for_done()
+    sip.delete(runner)
+    qtbot.wait(20)
+    assert results == []
