@@ -434,10 +434,10 @@ class MainWindow(QMainWindow):
         self._store_active_session()
         window = self._add_to_hierarchy(loaded, view_type)
 
-        # A new window starts with the grid size currently on screen, empty
-        # apart from the default plot in its first cell.
+        # Two-port Single-Ended imports always start with the full 2x2 matrix.
+        # Other imports retain the displayed grid size.
         shown = self.view_area.layout_model
-        layout = ViewLayout(rows=shown.rows, cols=shown.cols).with_plot(0, 0, loaded.plot)
+        layout = self._service.initial_layout(loaded, view_type, shown.rows, shown.cols)
         session = WindowSession(window.number, view_type, loaded, layout)
         self._sessions[window.number] = session
         shown_data = self._restore_session(session)
@@ -448,7 +448,10 @@ class MainWindow(QMainWindow):
             f"{network.n_ports} ports, {network.n_freq} points, "
             f"{network.frequencies_hz[0]:g}-{network.frequencies_hz[-1]:g} Hz"
         )
-        self._log("Default traces: " + ", ".join(trace.name for trace in loaded.plot.traces))
+        self._log(
+            "Default traces: "
+            + ", ".join(trace.name for plot in layout.plots for trace in plot.traces)
+        )
         self.add_trace_action.setEnabled(True)
         self.status_bar.showMessage(f"Imported {imported.name}")
         self.file_flow.imported(imported)

@@ -110,3 +110,46 @@ def test_mixed_mode_trace_uses_the_configuration_port_group() -> None:
     )
 
     assert update.loaded.plot.traces[-1].name == "SDD21 Log Mag"
+
+
+def test_two_port_single_ended_initial_layout_is_full_matrix_in_row_major_order() -> None:
+    from interconnect_studio.core import Network, TraceRecipe, ViewType
+
+    service = TouchstonePlotService()
+    coefficients = np.array([[[0.1, 0.2], [0.3, 0.4]]], dtype=np.complex128)
+    loaded = service.show_network(Network(np.array([1e9]), coefficients, 50.0), "channel.s2p")
+    layout = service.initial_layout(loaded, ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, 1, 2)
+    assert (layout.rows, layout.cols) == (2, 2)
+    assert [plot.traces[0].name for plot in layout.plots] == [
+        "S11 Log Mag",
+        "S12 Log Mag",
+        "S21 Log Mag",
+        "S22 Log Mag",
+    ]
+    expected = [-20.0, -13.979400086720375, -10.457574905606752, -7.958800173440752]
+    for index, plot in enumerate(layout.plots):
+        assert plot.n_traces == 1
+        assert plot.traces[0].recipe == TraceRecipe(index // 2, index % 2, "log_mag")
+        assert plot.traces[0].x_unit == "Hz" and plot.traces[0].y_unit == "dB"
+        np.testing.assert_allclose(plot.traces[0].y, [expected[index]], rtol=1e-14)
+    assert loaded.plot.n_traces == 2  # The lower-level single-plot service remains compatible.
+
+
+def test_other_port_counts_and_balanced_views_keep_supplied_initial_grid() -> None:
+    from interconnect_studio.core import Network, ViewType
+
+    service = TouchstonePlotService()
+    for n_ports, view_type in (
+        (1, ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED),
+        (3, ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED),
+        (4, ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED),
+        (2, ViewType.FREQUENCY_DOMAIN_BALANCED),
+    ):
+        network = Network(
+            np.array([1e9]), np.full((1, n_ports, n_ports), 0.1, dtype=np.complex128), 50.0
+        )
+        loaded = service.show_network(network, "measurement")
+        layout = service.initial_layout(loaded, view_type, 1, 2)
+        assert (layout.rows, layout.cols) == (1, 2)
+        assert layout.plots[0] is loaded.plot
+        assert layout.plots[1].n_traces == 0

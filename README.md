@@ -302,7 +302,7 @@ File → Open Touchstone
         ↓
 读取 Network
         ↓
-默认生成 S11 / S21 LogMag
+Single-End 默认生成 S11 / S12 / S21 / S22 LogMag，四个绘图区按 2×2 排列
         ↓
 中央 Plot Area 显示曲线
         ↓

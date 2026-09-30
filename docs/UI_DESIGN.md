@@ -135,7 +135,7 @@ Template View
 - 尚未实现的视图类型照样列出、置灰并提示 "Not available yet"，保持与 PLTS 相同的布局；目前只有 Frequency Domain (Single-Ended) 可用，打开文件即在其下新建一个 window。
 - 参数与显示格式的选择**不在树里**，由 Parameter / Format 面板承担（PLTS 即如此）。
 - 树使用 `QAbstractItemModel` 适配领域对象，放在 `ui/models/`。
-- 选中 window 即切换视图区：每个 window 各自保存 plot 网格（`ViewLayout`）、选中格与数据文件（`ui/window_session.py`），切走时保存、切回时恢复；主窗口标题显示「文件名 - 分析类型 : 序号」（PLTS 标题栏同样显示文件名与分析类型）。新 window 沿用当前网格尺寸，默认 plot 放在第一格。
+- 选中 window 即切换视图区：每个 window 各自保存 plot 网格（`ViewLayout`）、选中格与数据文件（`ui/window_session.py`），切走时保存、切回时恢复；主窗口标题显示「文件名 - 分析类型 : 序号」（PLTS 标题栏同样显示文件名与分析类型）。导入两端口数据到 Frequency Domain (Single-End) 时，新 window 默认使用 2×2 网格，分别显示 S11、S12、S21、S22；其他导入沿用当前网格尺寸，默认 plot 放在第一格。通过 Open View 创建的空窗口沿用当前网格尺寸。
 - window 右键菜单（同 PLTS）：
   - **Close View**：关闭该 window；
   - **Close File**：关闭该数据文件的所有 window；
@@ -269,3 +269,9 @@ src/interconnect_studio/ui/
 - [ ] 多图联动的默认行为
 - [ ] 字体与间距规范
 - [x] Data Browser 层级：按 PLTS 改为分类 → 视图类型 → window（见 §6）
+
+## 两端口频域导入默认值
+
+两端口数据导入 Frequency Domain（Single-Ended）默认显示 2×2 网格：
+第一行为 S11 / S12，第二行为 S21 / S22；各格一条 Log Mag 曲线，默认选中左上格。
+其他端口数和分析类型不套用此默认值，后续手动改布局及工程/模板恢复仍使用保存的布局。

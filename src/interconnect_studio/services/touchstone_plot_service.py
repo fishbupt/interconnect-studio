@@ -18,6 +18,8 @@ from interconnect_studio.core import (
     PlotKind,
     PlotModel,
     Trace,
+    ViewLayout,
+    ViewType,
 )
 from interconnect_studio.io import read_touchstone
 
@@ -47,6 +49,33 @@ class TraceUpdate:
 
 class TouchstonePlotService:
     """Build and update two-port S-parameter plots."""
+
+    def initial_layout(
+        self,
+        loaded: LoadedTouchstonePlot,
+        view_type: ViewType,
+        rows: int = 1,
+        cols: int = 1,
+    ) -> ViewLayout:
+        """Default imported view: two-port single-ended data uses four Log Mag plots.
+
+        Row-major order is S11, S12 / S21, S22. Other port counts/views keep
+        the supplied grid size and the existing default plot in its first cell.
+        """
+
+        if loaded.network.n_ports == 2 and view_type is ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED:
+            plots = tuple(
+                PlotModel(
+                    traces=(create_s_parameter_trace(loaded.network, response, source, "log_mag"),),
+                    title=loaded.name,
+                    x_label="Frequency",
+                    y_label="Log Magnitude",
+                )
+                for response in range(2)
+                for source in range(2)
+            )
+            return ViewLayout(rows=2, cols=2, plots=plots)
+        return ViewLayout(rows=rows, cols=cols).with_plot(0, 0, loaded.plot)
 
     def load_s2p(self, path: str | Path) -> LoadedTouchstonePlot:
         """Load a two-port Touchstone file and create its default plot."""

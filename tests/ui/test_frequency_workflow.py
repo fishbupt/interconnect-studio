@@ -24,6 +24,8 @@ def window(qtbot: QtBot) -> MainWindow:
     result = MainWindow()
     qtbot.addWidget(result)
     result.load_touchstone_file(DATA / "import/2port.s2p")
+    # These operation tests deliberately use two curves in the current plot.
+    result.add_trace(1, 0, "log_mag")
     return result
 
 
@@ -107,7 +109,7 @@ def test_cross_file_overlay_survives_recall_and_source_closing_removes_dependant
     overlay = app.plot_widget.model.traces[-1]
     assert overlay.source_id == first_id
     np.testing.assert_array_equal(overlay.y, before)
-    app.frequency_flow.panel.trace_combo.setCurrentIndex(2)
+    app.frequency_flow.panel.trace_combo.setCurrentIndex(1)
     app.frequency_flow._execute("add_marker")
     path = app.file_flow.save_project(tmp_path / "compare.icproj")
     snapshot = read_project(path)
@@ -121,7 +123,7 @@ def test_cross_file_overlay_survives_recall_and_source_closing_removes_dependant
         restored.save_template(2, "comparison")
     restored.close_file(first_id)
     assert restored.active_window == 2
-    assert len(restored.plot_widget.model.traces) == 2
+    assert len(restored.plot_widget.model.traces) == 1
     assert not restored.plot_widget.model.markers
     restored.file_flow.save_project(tmp_path / "after_close.icproj")
 
@@ -257,7 +259,7 @@ def test_closing_one_source_view_retains_comparison_until_last_view_closes(qtbot
     app.load_touchstone_file(DATA / "touchstone/valid_2port_ri.s2p")
     app.frequency_flow.compare_from_window(1, 1)
     app.close_view(1)
-    assert len(app.plot_widget.model.traces) == 3
+    assert len(app.plot_widget.model.traces) == 2
     assert app.plot_widget.model.traces[-1].source_id == source_id
     app.close_view(2)
-    assert len(app.plot_widget.model.traces) == 2
+    assert len(app.plot_widget.model.traces) == 1

@@ -79,8 +79,8 @@ def test_main_window_loads_s2p_and_updates_all_primary_panels(qtbot: QtBot) -> N
     loaded = window.load_touchstone_file(S2P)
 
     assert window.loaded_measurement is loaded
-    assert window.plot_widget.model.n_traces == 2
-    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag"]
+    assert window.plot_widget.model.n_traces == 1
+    assert trace_names(window) == ["S11 Log Mag"]
 
     assert window.parameter_format.file_value.text() == "valid_2port_ri.s2p"
     assert window.parameter_format.ports_value.text() == "2"
@@ -88,7 +88,7 @@ def test_main_window_loads_s2p_and_updates_all_primary_panels(qtbot: QtBot) -> N
     assert window.parameter_format.z0_value.text() == "75 Ω"
 
     assert "Imported:" in window.message_log.text()
-    assert "S11 Log Mag, S21 Log Mag" in window.message_log.text()
+    assert "S11 Log Mag, S12 Log Mag, S21 Log Mag, S22 Log Mag" in window.message_log.text()
 
 
 def test_loading_opens_a_frequency_domain_single_ended_window(qtbot: QtBot) -> None:
@@ -149,8 +149,8 @@ def test_main_window_adds_compatible_trace(qtbot: QtBot) -> None:
 
     loaded = window.add_trace(0, 1, "log_mag")
 
-    assert loaded.plot.n_traces == 3
-    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag", "S12 Log Mag"]
+    assert loaded.plot.n_traces == 2
+    assert trace_names(window) == ["S11 Log Mag", "S12 Log Mag"]
     assert "Added trace: S12 Log Mag" in window.message_log.text()
 
 
@@ -199,10 +199,10 @@ def test_layout_menu_switches_grid(qtbot: QtBot) -> None:
     assert window.view_area.layout_model.n_cells == 4
     assert window.layout_actions[(2, 2)].isChecked() is True
     assert window.layout_actions[(1, 1)].isChecked() is False
-    assert window.view_area.plot_widget_at(0).model.n_traces == 2
+    assert window.view_area.plot_widget_at(0).model.n_traces == 1
 
 
-def test_new_window_uses_the_displayed_grid_and_starts_in_its_first_cell(qtbot: QtBot) -> None:
+def test_two_port_import_uses_2x2_even_if_previous_grid_is_different(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
     window.set_grid(1, 2)
@@ -210,10 +210,15 @@ def test_new_window_uses_the_displayed_grid_and_starts_in_its_first_cell(qtbot: 
 
     window.load_touchstone_file(S2P)
 
-    assert window.view_area.layout_model.n_cells == 2
+    assert window.view_area.layout_model.n_cells == 4
     assert window.view_area.current_index == 0
-    assert window.view_area.plot_widget_at(0).model.n_traces == 2
-    assert window.view_area.plot_widget_at(1).model.n_traces == 0
+    assert window.view_area.plot_widget_at(0).model.n_traces == 1
+    assert [plot.traces[0].name for plot in window.view_area.layout_model.plots] == [
+        "S11 Log Mag",
+        "S12 Log Mag",
+        "S21 Log Mag",
+        "S22 Log Mag",
+    ]
 
 
 def test_panel_add_button_adds_a_trace(qtbot: QtBot) -> None:
@@ -226,7 +231,7 @@ def test_panel_add_button_adds_a_trace(qtbot: QtBot) -> None:
     panel.add_button.click()
 
     assert trace_names(window)[-1] == "S22 Log Mag"
-    assert window.plot_widget.model.n_traces == 3
+    assert window.plot_widget.model.n_traces == 2
 
 
 def test_panel_new_plot_button_replaces_the_plot(qtbot: QtBot) -> None:
@@ -340,20 +345,20 @@ def test_selecting_a_window_in_the_browser_shows_its_data(qtbot: QtBot) -> None:
 def test_each_window_keeps_its_own_grid_and_traces(qtbot: QtBot) -> None:
     window = two_windows(qtbot)
     window.show_window(1)
-    window.set_grid(2, 2)
+    window.set_grid(1, 2)
     window.add_trace(0, 1, "log_mag")
 
     window.show_window(2)
 
-    assert window.view_area.layout_model.n_cells == 1
-    assert window.layout_actions[(1, 1)].isChecked() is True
+    assert window.view_area.layout_model.n_cells == 4
+    assert window.layout_actions[(2, 2)].isChecked() is True
     assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag"]
 
     window.show_window(1)
 
-    assert window.view_area.layout_model.n_cells == 4
-    assert window.layout_actions[(2, 2)].isChecked() is True
-    assert trace_names(window) == ["S11 Log Mag", "S21 Log Mag", "S12 Log Mag"]
+    assert window.view_area.layout_model.n_cells == 2
+    assert window.layout_actions[(1, 2)].isChecked() is True
+    assert trace_names(window) == ["S11 Log Mag", "S12 Log Mag"]
 
 
 def test_each_window_keeps_its_selected_cell(qtbot: QtBot) -> None:
@@ -375,11 +380,11 @@ def test_adding_a_trace_goes_to_the_selected_cell(qtbot: QtBot) -> None:
     window.set_grid(1, 2)
 
     window.view_area.set_current_index(1)
-    assert trace_names(window) == []
+    assert trace_names(window) == ["S12 Log Mag"]
     window.add_trace(1, 0, "phase")
 
     assert window.view_area.plot_widget_at(1).model.n_traces == 1
-    assert window.view_area.plot_widget_at(0).model.n_traces == 2
+    assert window.view_area.plot_widget_at(0).model.n_traces == 1
 
 
 def test_showing_an_unknown_window_is_an_error(qtbot: QtBot) -> None:
@@ -769,3 +774,36 @@ def test_balanced_view_explains_a_single_ended_configuration(qtbot: QtBot) -> No
 
     assert window.parameter_format.is_mixed_mode is False
     assert "Balanced view needs differential logical ports" in window.message_log.text()
+
+
+def test_imported_two_port_matrix_layout_survives_window_switch_and_project_recall(
+    qtbot: QtBot, tmp_path: Path
+) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.load_touchstone_file(S2P)
+    original = window.view_area.layout_model
+    assert (original.rows, original.cols) == (2, 2)
+    assert window.layout_actions[(2, 2)].isChecked()
+    assert [plot.n_traces for plot in original.plots] == [1, 1, 1, 1]
+    owner = window.data_browser.current_file().id
+    assert all(plot.traces[0].source_id == owner for plot in original.plots)
+    window.load_touchstone_file(IMPORT_DIR / "three_port.s3p")
+    window.show_window(1)
+    assert [plot.traces[0].name for plot in window.view_area.layout_model.plots] == [
+        "S11 Log Mag",
+        "S12 Log Mag",
+        "S21 Log Mag",
+        "S22 Log Mag",
+    ]
+    path = window.file_flow.save_project(tmp_path / "matrix.icproj")
+    restored = MainWindow()
+    qtbot.addWidget(restored)
+    restored.file_flow.load_project(path)
+    assert (restored.view_area.layout_model.rows, restored.view_area.layout_model.cols) == (2, 2)
+    assert [plot.traces[0].name for plot in restored.view_area.layout_model.plots] == [
+        "S11 Log Mag",
+        "S12 Log Mag",
+        "S21 Log Mag",
+        "S22 Log Mag",
+    ]
