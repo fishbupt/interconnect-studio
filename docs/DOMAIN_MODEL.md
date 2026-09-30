@@ -526,20 +526,16 @@ class ViewTemplate:
 
 # 10. Project
 
-Project 保存用户工程状态，不保存 QWidget 实例。
+工程领域对象已落地于 `core/project.py`，不持有 QWidget：
 
-```python
-@dataclass
-class Project:
-    data_files: tuple[DataFile, ...]
-    browser: DataBrowserTree        # 已打开的 window；每个 window 持有自己的 ViewLayout
-    fixtures: ...
-    settings: ...
-```
+- `ProjectFile`：`DataFile` 与可选 `DutConfiguration`。
+- `ProjectWindow`：窗口编号、file ID、ViewType、ViewLayout、模板名称、坐标范围与自动缩放标志。
+- `ProjectSnapshot`：全部文件/窗口，以及不透明的窗口几何/停靠状态 bytes。
 
-- 一个 window 只承载单个 `DataFile` 与单一分析类型（见 `UI_DESIGN.md` §4）。
-- 目前每个 window 的网格与选中格保存在 UI 层的 `WindowSession`（`ui/window_session.py`），Project 格式落地时再决定如何持久化。
-- 布局（`ViewLayout`）持久化；选中态属于 UI 状态，不持久化。
+引用规则：数据文件 ID 和窗口编号各自唯一；窗口必须引用已存在的文件；一个窗口内的
+trace 只属于该窗口的数据文件。频率、S、z0 和当前 trace 数组都嵌入工程。
+布局和坐标持久化，选中对象仍只保存在 UI `WindowSession`，恢复时选中第一窗口/第一格。
+文件格式与生命周期见 `FILE_WORKFLOW.md`。
 
 # 11. Analysis Results
 
@@ -576,7 +572,7 @@ class AfrResult:
 
 Network：Touchstone / NPZ（测试）/ `<TODO>`  
 ViewTemplate：JSON（`format: interconnect-studio-template`，`version: 1`，见 `io/template_file.py`）  
-Project：JSON+binary / HDF5 / ZIP project / `<TODO>`
+Project：`.icproj` ZIP（版本化 UTF-8 JSON manifest + 非 pickle NPY），见 `FILE_WORKFLOW.md`
 
 # 15. Decisions To Finalize
 
@@ -585,4 +581,4 @@ Project：JSON+binary / HDF5 / ZIP project / `<TODO>`
 - [x] Mixed-Mode mapping convention: 默认 1-3/2-4，分块排序，1/√2 归一化
 - [x] Mixed-Mode 结果载体: 新增 `MixedModeNetwork`，不扩展 `Network.z0`
 - [ ] metadata schema
-- [ ] Project format
+- [x] Project format: `.icproj` v1

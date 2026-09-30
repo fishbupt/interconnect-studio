@@ -7,7 +7,7 @@ from functools import partial
 from pathlib import Path
 
 from PyQt6.QtCore import QStandardPaths, Qt
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QCloseEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -51,6 +51,7 @@ from interconnect_studio.ui.dialogs import (
     SelectAnalysisViewDialog,
 )
 from interconnect_studio.ui.dialogs.data_integrity_dialog import check_summary
+from interconnect_studio.ui.file_workflow import FileWorkflow
 from interconnect_studio.ui.models.data_browser_model import DEFAULT_AVAILABLE_VIEW_TYPES
 from interconnect_studio.ui.panels import (
     DataBrowserPanel,
@@ -58,6 +59,7 @@ from interconnect_studio.ui.panels import (
     ParameterFormatPanel,
 )
 from interconnect_studio.ui.panels.parameter_format import ParameterChoice
+from interconnect_studio.ui.settings import SettingsStore
 from interconnect_studio.ui.task_runner import TaskRunner
 from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, apply_theme
 from interconnect_studio.ui.views import PlotViewArea
@@ -89,13 +91,12 @@ class MainWindow(QMainWindow):
         parent: QWidget | None = None,
         import_service: ImportService | None = None,
         template_service: TemplateService | None = None,
+        settings: SettingsStore | None = None,
     ) -> None:
         super().__init__(parent)
         self._service = service or TouchstonePlotService()
         self._import_service = import_service or ImportService()
-        self._template_service = template_service or TemplateService(
-            default_template_directory()
-        )
+        self._template_service = template_service or TemplateService(default_template_directory())
         self._loaded: LoadedTouchstonePlot | None = None
         self._sessions: dict[int, WindowSession] = {}
         self._active_window: int | None = None
@@ -118,15 +119,13 @@ class MainWindow(QMainWindow):
 
         self.parameter_format.add_trace_requested.connect(self._on_add_trace_requested)
         self.parameter_format.new_plot_requested.connect(self._on_new_plot_requested)
-        self.parameter_format.data_integrity_requested.connect(
-            self.show_data_integrity_check
-        )
+        self.parameter_format.data_integrity_requested.connect(self.show_data_integrity_check)
         self.data_browser.current_window_changed.connect(self._on_browser_window_changed)
         self.data_browser.close_view_requested.connect(
-            lambda number: self._guarded(lambda: self.close_view(number))
+            lambda number: self._guarded(lambda: self.file_flow.request_close_view(number))
         )
         self.data_browser.close_file_requested.connect(
-            lambda file_id: self._guarded(lambda: self.close_file(file_id))
+            lambda file_id: self._guarded(lambda: self.file_flow.request_close_file(file_id))
         )
         self.data_browser.open_view_requested.connect(
             lambda view_type: self._guarded(lambda: self.open_view(view_type))
@@ -148,6 +147,8 @@ class MainWindow(QMainWindow):
         self.add_trace_action.setEnabled(False)
         self.refresh_templates()
         self.status_bar.showMessage("Ready")
+        self.file_flow = FileWorkflow(self, settings)
+        self.view_area.plot_range_changed.connect(self.file_flow.modified)
 
     @property
     def plot_widget(self) -> CartesianPlotWidget:
@@ -212,6 +213,7 @@ class MainWindow(QMainWindow):
         loaded = self._restore_session(session)
         self.data_browser.select_window(window.number)
         self._log(f"Opened view: {session.title}")
+        self.file_flow.modified(data_file.id)
         return loaded
 
     def refresh_templates(self) -> tuple[ViewTemplate, ...]:
@@ -275,6 +277,7 @@ class MainWindow(QMainWindow):
         loaded = self._restore_session(session)
         self.data_browser.select_window(window.number)
         self._log(f"Opened template: {session.title}")
+        self.file_flow.modified(data_file.id)
         return loaded
 
     def close_view(self, number: int) -> None:
@@ -284,6 +287,7 @@ class MainWindow(QMainWindow):
         title = self._sessions[number].title if number in self._sessions else str(number)
         self._close_windows(tree.close_window(number), (number,))
         self._log(f"Closed view: {title}")
+        self.file_flow.modified()
 
     def close_file(self, file_id: str) -> None:
         """Close every window of one data file (window menu > Close File)."""
@@ -293,6 +297,7 @@ class MainWindow(QMainWindow):
         closed = tree.close_file(file_id)
         self._close_windows(closed, tuple(window.number for window in windows))
         self._log(f"Closed file: {windows[0].data_file.name}")
+        self.file_flow.modified()
 
     def rename_file(self, file_id: str, name: str) -> None:
         """Give a data file a new display name (window menu > Rename File).
@@ -315,6 +320,7 @@ class MainWindow(QMainWindow):
         if self._active_window is not None:
             self._restore_session(self._sessions[self._active_window])
         self._log(f"Renamed file: {old_name} -> {name}")
+        self.file_flow.modified(file_id)
 
     def _on_save_template_requested(self, number: int, name: str) -> None:
         overwrite = False
@@ -406,17 +412,18 @@ class MainWindow(QMainWindow):
             f"{network.n_ports} ports, {network.n_freq} points, "
             f"{network.frequencies_hz[0]:g}-{network.frequencies_hz[-1]:g} Hz"
         )
-        self._log(
-            "Default traces: " + ", ".join(trace.name for trace in loaded.plot.traces)
-        )
+        self._log("Default traces: " + ", ".join(trace.name for trace in loaded.plot.traces))
         self.add_trace_action.setEnabled(True)
         self.status_bar.showMessage(f"Imported {imported.name}")
+        self.file_flow.imported(imported)
         return shown_data
 
     def import_single_file(self) -> None:
         """File > Import > Single File."""
 
         dialog = ImportSingleFileDialog(self._import_service, self)
+        dialog.initial_directory = self.file_flow.preferences.import_directory
+        dialog.runner = self.tasks
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.imported is not None:
             self._open_with_view_selection(dialog.imported)
 
@@ -424,6 +431,9 @@ class MainWindow(QMainWindow):
         """File > Import > Multiple Files (Build a File)."""
 
         dialog = ImportMultipleFilesDialog(self._import_service, self)
+        dialog.initial_directory = self.file_flow.preferences.import_directory
+        dialog.export_directory = self.file_flow.preferences.export_directory
+        dialog.runner = self.tasks
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.imported is not None:
             self._open_with_view_selection(dialog.imported)
 
@@ -431,6 +441,9 @@ class MainWindow(QMainWindow):
         """File > Import > Build with a Config File."""
 
         dialog = BuildConfigDialog(self._import_service, self)
+        dialog.initial_directory = self.file_flow.preferences.import_directory
+        dialog.export_directory = self.file_flow.preferences.export_directory
+        dialog.runner = self.tasks
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.imported is not None:
             self._open_with_view_selection(dialog.imported)
 
@@ -463,6 +476,7 @@ class MainWindow(QMainWindow):
     def _after_trace_update(self, update: TraceUpdate) -> LoadedTouchstonePlot:
         self._loaded = update.loaded
         self._apply(update.loaded)
+        self.file_flow.modified()
 
         trace_name = update.loaded.plot.traces[-1].name
         if update.replaced_plot:
@@ -505,12 +519,7 @@ class MainWindow(QMainWindow):
         if self._loaded is None:
             raise InputValidationError("Import a file before creating a plot.")
 
-        cleared = LoadedTouchstonePlot(
-            name=self._loaded.name,
-            network=self._loaded.network,
-            plot=PlotModel(),
-            path=self._loaded.path,
-        )
+        cleared = replace(self._loaded, plot=PlotModel())
         self._loaded = cleared
         return self.add_trace(response_port, source_port, data_format)
 
@@ -574,9 +583,7 @@ class MainWindow(QMainWindow):
             self._log(f"Error: {exc}")
             self.status_bar.showMessage(str(exc))
 
-    def _add_to_hierarchy(
-        self, loaded: LoadedTouchstonePlot, view_type: ViewType
-    ) -> ViewWindow:
+    def _add_to_hierarchy(self, loaded: LoadedTouchstonePlot, view_type: ViewType) -> ViewWindow:
         """Add a window for the loaded data under its view type; does not select it."""
 
         data_file = DataFile(
@@ -585,6 +592,11 @@ class MainWindow(QMainWindow):
             network=loaded.network,
             source_path=loaded.path,
             imported_at=datetime.now(),
+            port_group=(
+                loaded.dut_configuration.port_group
+                if loaded.dut_configuration is not None
+                else None
+            ),
         )
         self._next_file_number += 1
 
@@ -603,6 +615,8 @@ class MainWindow(QMainWindow):
             loaded=self._loaded,
             layout=self.view_area.layout_model,
             current_index=self.view_area.current_index,
+            plot_ranges=self.view_area.plot_ranges(),
+            plot_autorange=self.view_area.plot_autorange(),
         )
 
     def _restore_session(self, session: WindowSession) -> LoadedTouchstonePlot:
@@ -613,6 +627,7 @@ class MainWindow(QMainWindow):
         self._loaded = loaded
         self.view_area.set_layout_model(session.layout)
         self.view_area.set_current_index(session.current_index)
+        self.view_area.restore_plot_ranges(session.plot_ranges, session.plot_autorange)
         for size, action in self.layout_actions.items():
             action.setChecked(size == (session.layout.rows, session.layout.cols))
         network = session.loaded.network
@@ -670,9 +685,7 @@ class MainWindow(QMainWindow):
             )
             return
 
-        self.parameter_format.set_port_count(
-            loaded.network.n_ports, loaded.dut_configuration
-        )
+        self.parameter_format.set_port_count(loaded.network.n_ports, loaded.dut_configuration)
         if view_type is ViewType.FREQUENCY_DOMAIN_BALANCED:
             # Falling back silently would look like the balanced view is
             # broken. Say which configuration is in the way.
@@ -719,6 +732,7 @@ class MainWindow(QMainWindow):
 
     def _build_actions(self) -> None:
         file_menu = QMenu("&File", self)
+        self.file_menu = file_menu
         self.menu_bar.addMenu(file_menu)
         import_menu = QMenu("&Import", self)
         file_menu.addMenu(import_menu)
@@ -781,6 +795,7 @@ class MainWindow(QMainWindow):
         """Change the view area grid, keeping plots that still have a cell."""
 
         self.view_area.set_grid(rows, cols)
+        self.file_flow.modified()
         for size, action in self.layout_actions.items():
             action.setChecked(size == (rows, cols))
         self._log(f"Layout: {rows} x {cols}")
@@ -805,6 +820,23 @@ class MainWindow(QMainWindow):
 
     def _on_dark_theme_toggled(self, checked: bool) -> None:
         self.set_theme(Theme.DARK if checked else Theme.LIGHT)
+        if hasattr(self, "file_flow"):
+            self.file_flow.preferences = replace(
+                self.file_flow.preferences, theme=self._theme.value
+            )
+            self.file_flow.settings.save_preferences(self.file_flow.preferences)
+
+    def closeEvent(self, event: QCloseEvent | None) -> None:  # noqa: N802
+        """Preserve the workspace on cancelled/failed saves during application exit."""
+
+        if event is None:
+            return
+        if not self.file_flow.confirm_discard():
+            event.ignore()
+            return
+        self.file_flow.persist_layout()
+        self.tasks.cancel_all()
+        event.accept()
 
     def _log(self, message: str) -> None:
         self.message_log.append(message)

@@ -48,9 +48,9 @@ PLTS 各功能与 UI 元素的原文核对清单见 `PLTS_REFERENCE.md`；本文
 
 - 仪器连接与自动测量（含 Test Suite、Continuity Check、Standard Test Wizard 等测量流程功能）
 - 校准（ECal / SOLT / TRL、差分串扰 TRL、Calibration & Measurement Wizard、适配器表征）
-- CSV / MATLAB 导出
+- MATLAB 导出
 
-注：原文核对表明，PLTS 的 Text（comma delimited）导出、plot 右键 Save Traces As、marker 导出都是 CSV，属于其数据分析侧的常规导出；PLTS 没有 MATLAB 导出格式，MATLAB 在 PLTS 中是方程计算接口（见 FR-013）。「CSV 导出」是否仍列待决策需重新确认。
+CSV / Tab 频域 RI 矩阵导出已随完整文件流程开发纳入；plot/marker 文本导出仍待对应功能落地。MATLAB 不在本次范围。详见 `FILE_WORKFLOW.md`。
 
 明确排除：
 
@@ -98,12 +98,12 @@ Touchstone 1.x：
 
 Touchstone 2.0（`.ts`）：
 
-- Reader：支持（`[Two-Port Data Order]`、`[Reference]`、`[Matrix Format]`；混合模式数据暂不支持）；Writer：待做
+- Reader：支持（`[Two-Port Data Order]`、`[Reference]`、`[Matrix Format]`、全配对 `[Mixed-Mode Order]`）；Writer：支持完整单端矩阵
 - per-port z0：**要求各端口一致**，不一致则抛 `DataFormatError`（`Network` 为单标量 z0，见 `DOMAIN_MODEL.md` §5）
 
 CITIfile：
 
-- Reader：支持（Keysight 仪器原生格式；无参考阻抗字段，按 50 Ω 处理，待核对）；Writer：待做
+- Reader / Writer：支持；当前读写约定为 50 Ω。导出非 50 Ω 数据须明确选择重归一化，不隐式改变参考阻抗。
 
 PLTS 对 Touchstone 2.0 / CITIfile 端口阻抗不一致的文件同样拒绝导入（*Importing Data*），行为一致。
 
@@ -538,3 +538,9 @@ PCB Material Characterization（Dk / Df / 表面粗糙度提取，FR-009）排�
 明确排除：COM 对象模型、功能分级授权。
 
 注：RLCG 的模型导出（V1.1）已使「宽带 SPICE 子电路导出」这一早先的排除决定失效，两者是否合并为同一模块待定。
+
+### 当前文件流程交付
+
+工程保存/恢复、统一导出、最近 4 文件、常用设置和未保存修改处理已实现。
+`.icproj` 嵌入数据与视图；`.icprefs` 为独立偏好文件。导出当前保留测量频点，
+重采样、每参数一文件、混模矩阵写出及时域导出仍待开发。详见 `FILE_WORKFLOW.md`。

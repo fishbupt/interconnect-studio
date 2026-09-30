@@ -25,6 +25,8 @@ class WindowSession:
     layout: ViewLayout
     current_index: int = 0
     template: str = ""
+    plot_ranges: tuple[tuple[float, float, float, float] | None, ...] = ()
+    plot_autorange: tuple[tuple[bool, bool], ...] = ()
 
     def __post_init__(self) -> None:
         if not 0 <= self.current_index < self.layout.n_cells:

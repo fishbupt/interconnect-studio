@@ -1,5 +1,6 @@
 """Application services for Interconnect Studio."""
 
+from interconnect_studio.services.export_service import ExportFileType, ExportOptions, ExportService
 from interconnect_studio.services.import_service import (
     BuildSource,
     FrequencyRange,
@@ -16,6 +17,9 @@ from interconnect_studio.services.touchstone_plot_service import (
 __all__ = [
     "BuildSource",
     "FrequencyRange",
+    "ExportFileType",
+    "ExportOptions",
+    "ExportService",
     "ImportService",
     "ImportedNetwork",
     "LoadedTouchstonePlot",

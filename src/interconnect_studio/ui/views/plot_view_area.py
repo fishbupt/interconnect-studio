@@ -19,6 +19,7 @@ class PlotViewArea(QWidget):
     """
 
     current_index_changed = pyqtSignal(int)
+    plot_range_changed = pyqtSignal()
 
     def __init__(
         self,
@@ -29,6 +30,7 @@ class PlotViewArea(QWidget):
         super().__init__(parent)
 
         self._theme = theme
+        self._line_width = 2
         self._layout_model = layout or ViewLayout(rows=1, cols=1)
         self._current_index = 0
         self._cells: list[QFrame] = []
@@ -118,6 +120,48 @@ class PlotViewArea(QWidget):
             plot.apply_theme(theme)
         self._refresh_selection()
 
+    def set_line_width(self, width: int) -> None:
+        """Apply trace width to current and subsequently created plots."""
+
+        self._line_width = width
+        for plot in self._plots:
+            plot.set_line_width(width)
+
+    def plot_ranges(self) -> tuple[tuple[float, float, float, float], ...]:
+        """Capture the visible x/y bounds of every plot."""
+
+        bounds: list[tuple[float, float, float, float]] = []
+        for plot in self._plots:
+            x_range, y_range = plot.plot_widget.getViewBox().viewRange()
+            bounds.append(
+                (float(x_range[0]), float(x_range[1]), float(y_range[0]), float(y_range[1]))
+            )
+        return tuple(bounds)
+
+    def restore_plot_ranges(
+        self,
+        ranges: tuple[tuple[float, float, float, float] | None, ...],
+        autorange: tuple[tuple[bool, bool], ...] = (),
+    ) -> None:
+        """Recall explicitly saved scales after rebuilding a layout."""
+
+        for plot, bounds in zip(self._plots, ranges, strict=False):
+            if bounds is not None:
+                plot.plot_widget.setRange(xRange=bounds[:2], yRange=bounds[2:], padding=0)
+        for plot, axes in zip(self._plots, autorange, strict=False):
+            plot.plot_widget.getViewBox().enableAutoRange(x=axes[0], y=axes[1])
+
+    def plot_autorange(self) -> tuple[tuple[bool, bool], ...]:
+        """Remember which axes should keep following newly added data."""
+
+        return tuple(
+            (
+                bool(plot.plot_widget.getViewBox().autoRangeEnabled()[0]),
+                bool(plot.plot_widget.getViewBox().autoRangeEnabled()[1]),
+            )
+            for plot in self._plots
+        )
+
     def eventFilter(self, source: QObject | None, event: QEvent | None) -> bool:  # noqa: N802
         """Select the cell whose plot was clicked."""
 
@@ -139,8 +183,12 @@ class PlotViewArea(QWidget):
 
         for index, model in enumerate(self._layout_model.plots):
             plot = CartesianPlotWidget(theme=self._theme)
+            plot.set_line_width(self._line_width)
             plot.set_plot_model(model)
             plot.plot_widget.installEventFilter(self)
+            plot.plot_widget.getViewBox().sigRangeChangedManually.connect(
+                lambda _axes: self.plot_range_changed.emit()
+            )
 
             frame = QFrame()
             frame.setFrameShape(QFrame.Shape.NoFrame)

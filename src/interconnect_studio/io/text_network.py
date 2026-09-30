@@ -18,6 +18,7 @@ the matrix must be complete. Text has no reference impedance field, so the
 reference impedance is passed in by the caller.
 """
 
+import csv
 import re
 from pathlib import Path
 from typing import Final, Literal
@@ -44,7 +45,7 @@ _XDATA_UNIT: Final[re.Pattern[str]] = re.compile(r"^!\s*XDATA\s+UNIT\s+(?P<unit>
 def read_text_network(
     path: str | Path,
     delimiter: TextDelimiter,
-    z0: complex = 50.0,
+    z0: complex | None = None,
 ) -> Network:
     """Read a tab- or comma-delimited S-parameter table into a Network.
 
@@ -58,6 +59,7 @@ def read_text_network(
     separator = _SEPARATORS[delimiter]
 
     unit = "hz"
+    reference = 50.0 + 0j
     columns: list[tuple[int, int, str]] | None = None
     rows: list[list[float]] = []
 
@@ -66,6 +68,11 @@ def read_text_network(
         if not line:
             continue
         if line.startswith("!"):
+            if line.startswith("! Reference Impedance "):
+                values = line.removeprefix("! Reference Impedance ").split()
+                if len(values) != 2:
+                    raise DataFormatError("Malformed reference impedance comment.")
+                reference = complex(_float(values[0], line_number), _float(values[1], line_number))
             match = _XDATA_UNIT.match(line)
             if match is not None:
                 unit = _unit(match.group("unit"), line_number)
@@ -73,7 +80,13 @@ def read_text_network(
         if line.upper() in {"BEGIN", "END"}:
             continue
 
-        fields = [field.strip() for field in line.lstrip("%").split(separator)]
+        try:
+            fields = [
+                field.strip()
+                for field in next(csv.reader([line.lstrip("%")], delimiter=separator, strict=True))
+            ]
+        except csv.Error as exc:
+            raise DataFormatError(f"Malformed delimited data at line {line_number}.") from exc
         if columns is None:
             columns, header_unit = _header(fields, line_number, delimiter)
             unit = header_unit or unit
@@ -89,7 +102,9 @@ def read_text_network(
         raise DataFormatError("Text file has no column header line.")
     if not rows:
         raise DataFormatError("Text file contains no data rows.")
-    return _build_network(np.asarray(rows, dtype=np.float64), columns, unit, z0)
+    return _build_network(
+        np.asarray(rows, dtype=np.float64), columns, unit, reference if z0 is None else z0
+    )
 
 
 def _header(
@@ -144,9 +159,9 @@ def _build_network(
     s: NDArray[np.complex128] = np.empty((table.shape[0], n_ports, n_ports), dtype=np.complex128)
     for row in range(n_ports):
         for col in range(n_ports):
-            s[:, row, col] = table[:, parts[(row, col, "real")]] + 1j * table[
-                :, parts[(row, col, "imag")]
-            ]
+            s[:, row, col] = (
+                table[:, parts[(row, col, "real")]] + 1j * table[:, parts[(row, col, "imag")]]
+            )
     try:
         return Network(frequencies_hz=table[:, 0] * FREQUENCY_SCALE[unit], s=s, z0=z0)
     except ValueError as exc:

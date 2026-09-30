@@ -33,7 +33,9 @@ from interconnect_studio.ui.dialogs.dut_configuration_dialog import (
     configuration_choices,
     default_configuration,
 )
+from interconnect_studio.ui.dialogs.file_operation_dialog import run_file_operation
 from interconnect_studio.ui.dialogs.frequency_range_box import FrequencyRangeBox
+from interconnect_studio.ui.task_runner import TaskRunner
 
 TIME_DOMAIN_TOOLTIP: Final[str] = "Time-domain import is not available yet."
 DUT_CONFIGURATION_TOOLTIP: Final[str] = (
@@ -75,6 +77,8 @@ class ImportSingleFileDialog(QDialog):
 
     def __init__(self, service: ImportService, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.initial_directory = ""
+        self.runner: TaskRunner | None = None
         self.setWindowTitle("Import a Single File")
         self._service = service
         self._network: Network | None = None
@@ -157,9 +161,17 @@ class ImportSingleFileDialog(QDialog):
         if self._network is None:
             return
         try:
-            imported = self._service.import_single(
-                self.path_edit.text().strip(), self.file_type(), self.range_box.frequency_range()
+            path = self.path_edit.text().strip()
+            file_type = self.file_type()
+            frequency_range = self.range_box.frequency_range()
+            result = run_file_operation(
+                "正在导入数据",
+                lambda: self._service.import_single(path, file_type, frequency_range),
+                self.runner,
+                self,
             )
+            assert isinstance(result, ImportedNetwork)
+            imported = result
         except (DataFormatError, InputValidationError) as exc:
             self.error_label.setText(str(exc))
             return
@@ -187,7 +199,11 @@ class ImportSingleFileDialog(QDialog):
         filters = ";;".join(file_type.file_filter for file_type in ImportFileType)
         selected_filter = self.file_type().file_filter
         file_name, _ = QFileDialog.getOpenFileName(
-            self, "Select File to Import", "", f"{filters};;All Files (*)", selected_filter
+            self,
+            "Select File to Import",
+            self.initial_directory,
+            f"{filters};;All Files (*)",
+            selected_filter,
         )
         if file_name:
             self.set_path(file_name)
@@ -199,22 +215,26 @@ class ImportSingleFileDialog(QDialog):
         self.error_label.clear()
         if path:
             try:
-                self._network, self._declared = self._service.read_with_pairs(
-                    path, self.file_type()
+                file_type = self.file_type()
+                result = run_file_operation(
+                    "正在读取数据",
+                    lambda: self._service.read_with_pairs(path, file_type),
+                    self.runner,
+                    self,
                 )
+                assert isinstance(result, tuple)
+                self._network, self._declared = result
             except (DataFormatError, InputValidationError) as exc:
                 self.error_label.setText(str(exc))
         self._configuration = self._default_configuration()
         # More than the plain single-ended entry means there is something to
         # choose between; with only that entry the button would open a
         # dialog offering no alternative.
-        choosable = self._network is not None and len(
-            configuration_choices(self._network.n_ports)
-        ) > 1
-        self.change_button.setEnabled(choosable)
-        self.change_button.setToolTip(
-            DUT_CONFIGURATION_TOOLTIP if choosable else NO_CHOICE_TOOLTIP
+        choosable = (
+            self._network is not None and len(configuration_choices(self._network.n_ports)) > 1
         )
+        self.change_button.setEnabled(choosable)
+        self.change_button.setToolTip(DUT_CONFIGURATION_TOOLTIP if choosable else NO_CHOICE_TOOLTIP)
         self._refresh_configuration()
         self.range_box.set_network(self._network)
         self._refresh_ok()

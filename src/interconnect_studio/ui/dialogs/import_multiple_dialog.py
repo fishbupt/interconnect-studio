@@ -36,15 +36,18 @@ from interconnect_studio.algorithms.network import (
     missing_parameters,
     port_assignments,
 )
-from interconnect_studio.core import DataFormatError, InputValidationError
+from interconnect_studio.core import DataFormatError, InputValidationError, Network
 from interconnect_studio.io import ImportFileType, guess_file_type
 from interconnect_studio.services import BuildSource, ImportedNetwork, ImportService
+from interconnect_studio.ui.dialogs.export_dialog import ExportDialog
+from interconnect_studio.ui.dialogs.file_operation_dialog import run_file_operation
 from interconnect_studio.ui.dialogs.frequency_range_box import FrequencyRangeBox
 from interconnect_studio.ui.dialogs.import_single_dialog import (
     DUT_CONFIGURATION_TOOLTIP,
     data_domain_box,
     file_type_combo,
 )
+from interconnect_studio.ui.task_runner import TaskRunner
 
 MAX_DUT_PORTS = 64
 _NOT_YET = "Needs Mixed-Mode and DUT Configuration, which are not available yet."
@@ -63,6 +66,9 @@ class ImportMultipleFilesDialog(QDialog):
 
     def __init__(self, service: ImportService, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.initial_directory = ""
+        self.export_directory = ""
+        self.runner: TaskRunner | None = None
         self.setWindowTitle("Import Multiple Files")
         self._service = service
         self._sources: list[BuildSource] = []
@@ -150,7 +156,11 @@ class ImportMultipleFilesDialog(QDialog):
         file_path = Path(path)
         file_type = guess_file_type(file_path) or self._file_type()
         try:
-            network = self._service.read(file_path, file_type)
+            result = run_file_operation(
+                "正在读取数据", lambda: self._service.read(file_path, file_type), self.runner, self
+            )
+            assert isinstance(result, Network)
+            network = result
         except (DataFormatError, InputValidationError) as exc:
             self.error_label.setText(str(exc))
             return False
@@ -246,13 +256,16 @@ class ImportMultipleFilesDialog(QDialog):
     def _build(self) -> ImportedNetwork | None:
         name = self.name_edit.text().strip() or f"build.s{self.n_ports}p"
         try:
-            return self._service.build(
-                self._sources,
-                self.n_ports,
-                self.assignments,
-                name,
-                self.range_box.frequency_range(),
+            sources, n_ports, assignments = tuple(self._sources), self.n_ports, self.assignments
+            frequency_range = self.range_box.frequency_range()
+            result = run_file_operation(
+                "正在组装数据",
+                lambda: self._service.build(sources, n_ports, assignments, name, frequency_range),
+                self.runner,
+                self,
             )
+            assert isinstance(result, ImportedNetwork)
+            return result
         except (DataFormatError, InputValidationError) as exc:
             self.error_label.setText(str(exc))
             return None
@@ -261,20 +274,18 @@ class ImportMultipleFilesDialog(QDialog):
         imported = self._build()
         if imported is None:
             return
-        file_name, _ = QFileDialog.getSaveFileName(
-            self, "Export Built File", imported.name, f"Touchstone (*.s{self.n_ports}p)"
+        dialog = ExportDialog(
+            [imported], self.runner or TaskRunner(self), self, directory=self.export_directory
         )
-        if not file_name:
-            return
-        try:
-            self._service.export_touchstone(imported.network, file_name)
-        except DataFormatError as exc:
-            self.error_label.setText(str(exc))
+        dialog.exec()
 
     def _browse(self) -> None:
         file_type = self._file_type()
         file_names, _ = QFileDialog.getOpenFileNames(
-            self, "Select Files to Import", "", f"{file_type.file_filter};;All Files (*)"
+            self,
+            "Select Files to Import",
+            self.initial_directory,
+            f"{file_type.file_filter};;All Files (*)",
         )
         for file_name in file_names:
             self.add_file(file_name)
@@ -459,4 +470,3 @@ def _ports(widget: QListWidget) -> list[int]:
         for item in widget.selectedItems()
         if isinstance(value := item.data(Qt.ItemDataRole.UserRole), int)
     ]
-

@@ -83,3 +83,29 @@ def guess_file_type(path: str | Path) -> ImportFileType | None:
     if len(suffix) > 3 and suffix.startswith(".s") and suffix.endswith("p"):
         return ImportFileType.TOUCHSTONE if suffix[2:-1].isdigit() else None
     return None
+
+
+def detect_file_type(path: str | Path) -> ImportFileType:
+    """Resolve .txt delimiter from its header for recent-file reopening.
+
+    Other formats use suffix detection. This reads only the first header,
+    leaving numeric parsing and validation to the existing readers.
+    """
+
+    file_path = Path(path)
+    guessed = guess_file_type(file_path)
+    if guessed is not None:
+        return guessed
+    if file_path.suffix.lower() == ".txt":
+        try:
+            with file_path.open(encoding="utf-8-sig") as stream:
+                for _ in range(1024):
+                    line = stream.readline(65536).strip()
+                    if not line:
+                        continue
+                    if line.startswith("!") or line.upper() in {"BEGIN", "END"}:
+                        continue
+                    return ImportFileType.TEXT_TAB if "\t" in line else ImportFileType.TEXT_COMMA
+        except (OSError, UnicodeError) as exc:
+            raise DataFormatError(f"Cannot identify text file: {file_path}") from exc
+    raise DataFormatError(f"Cannot identify the file type: {file_path.name}")

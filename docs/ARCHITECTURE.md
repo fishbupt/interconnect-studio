@@ -198,7 +198,7 @@ docs/adr/
 
 - [x] 绘图库：pyqtgraph 用于交互视图，matplotlib 仅用于报告导出。第一版的 QPainter 自绘在对标 PLTS 后重新评估并推翻——矩阵视图、眼图、20k 点 30 fps 缩放所需的工作量不成比例
 - [x] 纯 Python UI，不使用 Qt Designer `.ui`
-- [ ] Project 文件格式（含布局状态序列化）
+- [x] Project 文件格式（`.icproj` v1，JSON + NPY ZIP，含布局/曲线/数据；见 `FILE_WORKFLOW.md`）
 - [ ] 是否采用 pydantic
 - [ ] Plugin 机制
 
@@ -233,3 +233,11 @@ CartesianPlotWidget
 - UI 不直接执行 S 参数格式转换。
 - Service 负责编排 IO 与算法。
 - Plot Widget 只消费 PlotModel。
+
+## 文件流程实现
+
+`ui/file_workflow.py` 组合 MainWindow 的文件菜单、脏状态与最近文件；
+`services/export_service.py` 编排范围截取、端口重排与明确的阻抗转换；
+`io/network_writers.py` / `io/project_file.py` 负责写出/读取，`io/atomic.py` 负责原子替换。
+工程对象位于 `core/project.py`，全局偏好使用 `ui/settings.py` 的 QSettings。
+GUI 文件操作使用同一 TaskRunner，Worker 只处理预先收集的纯数据与服务调用。

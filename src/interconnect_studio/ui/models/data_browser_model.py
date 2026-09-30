@@ -31,7 +31,7 @@ _Folder = BrowserCategory | ViewType | ViewTemplate
 # View types the application can display today. The rest of the PLTS
 # catalogue is still shown, greyed out, so the tree keeps the PLTS layout.
 DEFAULT_AVAILABLE_VIEW_TYPES: Final[frozenset[ViewType]] = frozenset(
-    {ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED}
+    {ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, ViewType.FREQUENCY_DOMAIN_BALANCED}
 )
 
 _UNAVAILABLE_TOOLTIP: Final[str] = "Not available yet"

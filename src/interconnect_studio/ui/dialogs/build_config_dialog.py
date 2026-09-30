@@ -14,7 +14,10 @@ from PyQt6.QtWidgets import (
 
 from interconnect_studio.core import DataFormatError, InputValidationError
 from interconnect_studio.services import ImportedNetwork, ImportService
+from interconnect_studio.ui.dialogs.export_dialog import ExportDialog
+from interconnect_studio.ui.dialogs.file_operation_dialog import run_file_operation
 from interconnect_studio.ui.dialogs.import_single_dialog import DUT_CONFIGURATION_TOOLTIP
+from interconnect_studio.ui.task_runner import TaskRunner
 
 _CONFIG_HELP = (
     "CSV: first row 'folder,<path>'; then one row per file: "
@@ -27,6 +30,9 @@ class BuildConfigDialog(QDialog):
 
     def __init__(self, service: ImportService, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.initial_directory = ""
+        self.export_directory = ""
+        self.runner: TaskRunner | None = None
         self.setWindowTitle("Build with a Config File")
         self._service = service
         self._imported: ImportedNetwork | None = None
@@ -91,14 +97,24 @@ class BuildConfigDialog(QDialog):
             self.error_label.setText("Select a build config file.")
             return None
         try:
-            return self._service.build_from_config(path)
+            result = run_file_operation(
+                "正在读取并组装数据",
+                lambda: self._service.build_from_config(path),
+                self.runner,
+                self,
+            )
+            assert isinstance(result, ImportedNetwork)
+            return result
         except (DataFormatError, InputValidationError) as exc:
             self.error_label.setText(str(exc))
             return None
 
     def _browse(self) -> None:
         file_name, _ = QFileDialog.getOpenFileName(
-            self, "Import Build Config File", "", "Build config (*.csv);;All Files (*)"
+            self,
+            "Import Build Config File",
+            self.initial_directory,
+            "Build config (*.csv);;All Files (*)",
         )
         if file_name:
             self.path_edit.setText(file_name)
@@ -108,13 +124,7 @@ class BuildConfigDialog(QDialog):
         imported = self._build()
         if imported is None:
             return
-        n_ports = imported.network.n_ports
-        file_name, _ = QFileDialog.getSaveFileName(
-            self, "Export Built File", imported.name, f"Touchstone (*.s{n_ports}p)"
+        dialog = ExportDialog(
+            [imported], self.runner or TaskRunner(self), self, directory=self.export_directory
         )
-        if not file_name:
-            return
-        try:
-            self._service.export_touchstone(imported.network, file_name)
-        except DataFormatError as exc:
-            self.error_label.setText(str(exc))
+        dialog.exec()

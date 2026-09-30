@@ -22,6 +22,7 @@ class CartesianPlotWidget(QWidget):
 
         self._model = PlotModel()
         self._theme = theme
+        self._line_width = _LINE_WIDTH
 
         self.plot_widget = pg.PlotWidget()
         self._plot_item = self.plot_widget.getPlotItem()
@@ -68,6 +69,12 @@ class CartesianPlotWidget(QWidget):
         self._legend.setLabelTextColor(palette.text)
         self._redraw()
 
+    def set_line_width(self, width: int) -> None:
+        """Apply the user's trace width to this plot."""
+
+        self._line_width = width
+        self._redraw()
+
     def _redraw(self) -> None:
         palette = palette_for(self._theme)
         self._plot_item.clear()
@@ -76,7 +83,7 @@ class CartesianPlotWidget(QWidget):
         self._apply_labels(palette)
 
         for index, trace in enumerate(self._model.traces):
-            pen = pg.mkPen(trace_color(palette, index), width=_LINE_WIDTH)
+            pen = pg.mkPen(trace_color(palette, index), width=self._line_width)
             curve = pg.PlotDataItem(
                 np.asarray(trace.x, dtype=np.float64),
                 np.asarray(trace.y, dtype=np.float64),

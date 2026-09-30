@@ -25,7 +25,7 @@ Exit：Agent 可独立完成小型 Issue → 测试 → CI → PR。
 - [x] Port Mapping
 - [x] Network 基础 S 参数访问接口
 - [x] 通用 N 端口（去掉 1/2/4 限制）
-- [ ] Touchstone 2.0 / CITIfile（读写）——读取已完成，写出待做
+- [x] Touchstone 2.0 / CITIfile 基础读写（2.0 写完整单端矩阵；CITIfile 明确使用 50 Ω）
 - [x] 文本导入（tab / 逗号分隔）
 - [ ] 时域数据导入（文本 / Touchstone 时间轴，需给 FFT Stop Frequency）
 - [x] 导入 Subset（只截取 Start / Stop 范围内的测量点；不改变频点、不插值，产品决策）
@@ -90,11 +90,14 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [x] Property Panel（Phase 1.5 由 Parameter / Format 取代）
 - [x] Log Panel（Phase 1.5 收进状态栏）
 - [x] File Open
-- [ ] Recent Files（PLTS 显示最近 4 个）
-- [ ] Settings（对标 PLTS User Preferences：trace 颜色 / 线型 / 线宽、marker 有效位、轴小数位、Log X、PASS / FAIL 文字、单程时间、默认目录；多套偏好文件、恢复出厂）
-- [ ] Close File / Close All Files，退出时批量处理未保存数据
+- [x] Recent Files（最近 4 个测量/工程，去重、清空、失效路径提示）
+- [x] 常用设置（默认目录、明暗主题、曲线线宽、默认导出类型/单位、布局记忆、`.icprefs` 导入导出、恢复默认值）
+- [ ] 扩展 Settings（对标 PLTS User Preferences：trace 颜色 / 线型 / 线宽、marker 有效位、轴小数位、Log X、PASS / FAIL 文字、单程时间、默认目录；多套偏好文件、恢复出厂）
+- [x] Close File / Close All Files，退出时批量处理未保存工程数据与视图
 - [ ] 批量打开 / 导入（同 DUT 配置、统一 Subset、可自动叠加到同一 plot）
-- [ ] 导出对话框（Touchstone / CITIfile；Subset、点距 Linear / Log / Dec / Oct、端口重映射、每参数一文件或合一）
+- [x] 统一导出对话框（Touchstone 1.x / 2.0、CITIfile、CSV / Tab；Subset、端口重映射、完整矩阵）
+- [ ] 导出重采样（Linear / Log / Dec / Oct）和每参数一文件
+- [x] 工程保存 / 恢复（`.icproj`：嵌入测量、DUT 配置、全部窗口/曲线、坐标与停靠布局）
 - [ ] 文本 / CSV 导出，含 plot 内全部 trace 一键存文本（PLTS Save Traces As）——待决策，见 `PRODUCT.md` §2 注
 - [ ] 打印、打印预览、plot 图片导出（剪贴板 / 文件，分辨率可选）
 

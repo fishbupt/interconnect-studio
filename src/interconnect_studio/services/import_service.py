@@ -38,6 +38,7 @@ from interconnect_studio.io import (
     read_network_with_pairs,
     write_touchstone,
 )
+from interconnect_studio.io.atomic import atomic_destination
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +201,8 @@ class ImportService:
         """Write a network as Touchstone 1.x, fixing the suffix to ``.sNp``."""
 
         target = Path(path).with_suffix(f".s{network.n_ports}p")
-        write_touchstone(network, target)
+        with atomic_destination(target) as temporary:
+            write_touchstone(network, temporary)
         logger.info("Exported %s", target)
         return target
 

@@ -15,9 +15,9 @@ Interconnect Studio 是一个基于 **Python + PyQt6** 的 VNA / 高速互联分
 - 后续 Eye / PAM4 / COM
 - 后续 VNA 仪器控制与自动测量
 
-> 当前工程仍处于早期开发阶段。  
-> 已经具备核心 `Network` 数据模型、Touchstone Reader / Writer，以及首个 PyQt6 GUI：
-> 可打开 `.s2p` 并默认显示 S11/S21 LogMag。
+> 当前具备频域分析工具雏形：N 端口多格式导入、单端/混模分析、多窗口绘图、
+> 数据质量检查，以及工程保存/恢复、统一导出、最近文件和常用设置。
+> 时域、门控和 AFR 尚未实现。文件操作见 [文件工作流程](docs/FILE_WORKFLOW.md)。
 
 ---
 
@@ -322,7 +322,8 @@ Add Trace
 - 右侧属性面板
 - 底部 Log Panel
 
-当前 Open 对话框第一版聚焦 `.s2p`。
+当前 File → Import 支持任意 N 端口 Touchstone、Touchstone 2.0、CITIfile 和文本；
+DUT 配置确定差分配对后，可选择 Balanced 频域视图。
 
 Add Trace 当前支持的 Cartesian Format 包括：
 
@@ -341,6 +342,16 @@ Add Trace 当前支持的 Cartesian Format 包括：
 切换到 Phase(degree)，应用会将当前 Plot 切换为新格式，而不会把不同物理单位硬叠加在同一 Y 轴。
 
 ---
+
+## 文件与工程
+
+- Ctrl+S 保存全部测量与视图到 `.icproj`，Ctrl+Shift+O 恢复工程。
+- Ctrl+E 统一导出 Touchstone 1.x / 2.0、CITIfile 或 CSV / Tab 文本。
+- 支持频率 Subset 和端口重映射，导出不会修改原数据。
+- 最近文件保留 4 项；设置菜单可保存默认目录、主题、线宽和导出偏好。
+- 未保存修改在关闭或退出时提供保存 / 放弃 / 取消。
+
+格式与边界说明见 [FILE_WORKFLOW.md](docs/FILE_WORKFLOW.md)。
 
 ## 12. 开发规范
 
