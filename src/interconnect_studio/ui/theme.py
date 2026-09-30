@@ -137,7 +137,18 @@ def apply_theme(app: QApplication, theme: Theme) -> None:
     qt_palette.setColor(disabled, QPalette.ColorRole.ButtonText, muted)
 
     app.setPalette(qt_palette)
+    # Native menu styles may keep system text colours despite the application palette.
+    # Style menu surfaces and item states explicitly so both themes remain readable.
     app.setStyleSheet(
+        f"QMenuBar {{ background-color: {palette.panel}; color: {palette.text}; }}"
+        f"QMenuBar::item {{ background-color: transparent; color: {palette.text}; }}"
+        f"QMenu {{ background-color: {palette.panel}; color: {palette.text};"
+        f" border: 1px solid {palette.border}; }}"
+        f"QMenu::item {{ color: {palette.text}; }}"
+        f"QMenuBar::item:selected, QMenuBar::item:pressed, QMenu::item:selected {{"
+        f" background-color: {palette.accent}; color: #ffffff; }}"
+        f"QMenuBar::item:disabled, QMenu::item:disabled {{ color: {palette.muted_text}; }}"
+        f"QMenu::separator {{ background-color: {palette.border}; height: 1px; }}"
         f"QMainWindow::separator {{ background: {palette.border}; width: 1px; height: 1px; }}"
         f"QDockWidget {{ titlebar-close-icon: none; color: {palette.text}; }}"
         f"QGroupBox {{ border: 1px solid {palette.border};"
