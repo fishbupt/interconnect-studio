@@ -199,6 +199,7 @@ class ParameterFormatPanel(QWidget):
         self._parameter_buttons.idToggled.connect(self._on_parameter_toggled)
 
         self.file_value = QLabel(PLACEHOLDER)
+        self.file_value.setWordWrap(True)
         self.ports_value = QLabel(PLACEHOLDER)
         self.points_value = QLabel(PLACEHOLDER)
         self.z0_value = QLabel(PLACEHOLDER)
@@ -227,6 +228,7 @@ class ParameterFormatPanel(QWidget):
         self.format_combo = QComboBox(self)
         self.add_button = QPushButton("Add to Plot", self)
         self.new_plot_button = QPushButton("New Plot", self)
+        self.new_plot_button.setObjectName("primary")
         self.add_button.clicked.connect(self._on_add_clicked)
         self.new_plot_button.clicked.connect(self._on_new_plot_clicked)
 
@@ -239,6 +241,7 @@ class ParameterFormatPanel(QWidget):
         format_layout.addLayout(buttons)
 
         self.trace_list = QListWidget(self)
+        self.trace_list.setMaximumHeight(90)
         traces = QGroupBox("Traces", self)
         trace_layout = QVBoxLayout(traces)
         trace_layout.addWidget(self.trace_list)

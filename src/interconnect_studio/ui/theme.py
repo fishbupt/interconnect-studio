@@ -1,20 +1,9 @@
-"""Application colour themes.
-
-Dark is the default: instrument and EDA software is used for long sessions,
-and coloured traces separate better against a dark surface. Light is a fully
-stepped second theme, not an automatic inversion of the first.
-
-The trace colours are a fixed categorical order, assigned by slot and never
-cycled through a generator. Both sets pass colour-vision-deficiency
-separation and normal-vision separation on their own surface. Three light
-slots fall below 3:1 contrast against the light surface, so trace identity
-must never rest on colour alone -- the plot legend names every trace.
-"""
+"""Shared engineering colour tokens and application-wide widget styling."""
 
 from dataclasses import dataclass
 from enum import StrEnum
 
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtGui import QColor, QFont, QFontDatabase, QPalette
 from PyQt6.QtWidgets import QApplication
 
 
@@ -29,8 +18,8 @@ class Theme(StrEnum):
 class Palette:
     """Colour tokens for one theme.
 
-    Colour carries information, not decoration: ``trace_colors`` identifies
-    series, while every piece of text uses ``text`` or ``muted_text``.
+    ``trace_colors`` identifies sources for comparisons and legacy overlays;
+    single-source plots use the first colour consistently across parameters.
     """
 
     surface: str
@@ -41,6 +30,9 @@ class Palette:
     grid: str
     accent: str
     trace_colors: tuple[str, ...]
+    background: str = "#1a1a19"
+    disabled: str = "#858580"
+    selection: str = "#334963"
 
 
 DARK = Palette(
@@ -64,23 +56,26 @@ DARK = Palette(
 )
 
 LIGHT = Palette(
-    surface="#fcfcfb",
-    panel="#f2f2f0",
-    text="#0b0b0b",
-    muted_text="#52514e",
-    border="#d5d4d0",
-    grid="#d5d4d0",
-    accent="#2a78d6",
+    surface="#ffffff",
+    panel="#ffffff",
+    text="#24344a",
+    muted_text="#64748b",
+    border="#cbd5e1",
+    grid="#e7ecf3",
+    accent="#2563eb",
     trace_colors=(
-        "#2a78d6",
-        "#eb6834",
-        "#1baf7a",
-        "#eda100",
-        "#e87ba4",
+        "#2563eb",
+        "#d97706",
+        "#199e70",
+        "#c98500",
+        "#d55181",
         "#008300",
-        "#4a3aa7",
-        "#e34948",
+        "#9085e9",
+        "#e66767",
     ),
+    background="#f3f6fa",
+    disabled="#94a3b8",
+    selection="#dbeafe",
 )
 
 _PALETTES: dict[Theme, Palette] = {Theme.DARK: DARK, Theme.LIGHT: LIGHT}
@@ -111,7 +106,7 @@ def apply_theme(app: QApplication, theme: Theme) -> None:
     palette = palette_for(theme)
     qt_palette = QPalette()
 
-    window = QColor(palette.panel)
+    window = QColor(palette.background)
     base = QColor(palette.surface)
     text = QColor(palette.text)
     muted = QColor(palette.muted_text)
@@ -123,7 +118,7 @@ def apply_theme(app: QApplication, theme: Theme) -> None:
         qt_palette.setColor(group, QPalette.ColorRole.Base, base)
         qt_palette.setColor(group, QPalette.ColorRole.AlternateBase, window)
         qt_palette.setColor(group, QPalette.ColorRole.Text, text)
-        qt_palette.setColor(group, QPalette.ColorRole.Button, window)
+        qt_palette.setColor(group, QPalette.ColorRole.Button, base)
         qt_palette.setColor(group, QPalette.ColorRole.ButtonText, text)
         qt_palette.setColor(group, QPalette.ColorRole.ToolTipBase, window)
         qt_palette.setColor(group, QPalette.ColorRole.ToolTipText, text)
@@ -132,32 +127,82 @@ def apply_theme(app: QApplication, theme: Theme) -> None:
         qt_palette.setColor(group, QPalette.ColorRole.PlaceholderText, muted)
 
     disabled = QPalette.ColorGroup.Disabled
-    qt_palette.setColor(disabled, QPalette.ColorRole.WindowText, muted)
-    qt_palette.setColor(disabled, QPalette.ColorRole.Text, muted)
-    qt_palette.setColor(disabled, QPalette.ColorRole.ButtonText, muted)
+    qt_palette.setColor(disabled, QPalette.ColorRole.WindowText, QColor(palette.disabled))
+    qt_palette.setColor(disabled, QPalette.ColorRole.Text, QColor(palette.disabled))
+    qt_palette.setColor(disabled, QPalette.ColorRole.ButtonText, QColor(palette.disabled))
 
     app.setPalette(qt_palette)
-    # Native menu styles may keep system text colours despite the application palette.
-    # Style menu surfaces and item states explicitly so both themes remain readable.
-    app.setStyleSheet(
-        f"QMenuBar {{ background-color: {palette.panel}; color: {palette.text}; }}"
-        f"QMenuBar::item {{ background-color: transparent; color: {palette.text}; }}"
-        f"QMenu {{ background-color: {palette.panel}; color: {palette.text};"
-        f" border: 1px solid {palette.border}; }}"
-        f"QMenu::item {{ color: {palette.text}; }}"
-        f"QMenuBar::item:selected, QMenuBar::item:pressed, QMenu::item:selected {{"
-        f" background-color: {palette.accent}; color: #ffffff; }}"
-        f"QMenuBar::item:disabled, QMenu::item:disabled {{ color: {palette.muted_text}; }}"
-        f"QMenu::separator {{ background-color: {palette.border}; height: 1px; }}"
-        f"QMainWindow::separator {{ background: {palette.border}; width: 1px; height: 1px; }}"
-        f"QDockWidget {{ titlebar-close-icon: none; color: {palette.text}; }}"
-        f"QGroupBox {{ border: 1px solid {palette.border};"
-        f" border-radius: 4px; margin-top: 8px; padding-top: 8px; }}"
-        f"QGroupBox::title {{ subcontrol-origin: margin; left: 8px;"
-        f" color: {palette.muted_text}; }}"
-        f"QStatusBar {{ color: {palette.muted_text}; }}"
-        f"QToolButton {{ border: 1px solid {palette.border}; border-radius: 3px;"
-        f" padding: 3px 8px; }}"
-        f"QToolButton:checked {{ background: {palette.accent}; color: #ffffff;"
-        f" border-color: {palette.accent}; }}"
+    families = QFontDatabase.families()
+    family = next(
+        (name for name in ("Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI") if name in families),
+        app.font().family(),
     )
+    app.setFont(QFont(family, 10))
+    app.setStyleSheet(_stylesheet(palette))
+
+
+def _stylesheet(p: Palette) -> str:
+    # Explicit menu states avoid native styles retaining black text in dark mode.
+    return f"""
+    QWidget {{ color: {p.text}; }}
+    QWidget:disabled {{ color: {p.disabled}; }}
+    QMainWindow, QDialog, QWidget#analysisWorkspace {{ background: {p.background}; }}
+    QWidget#summaryCard, QWidget#configPanel {{ background: {p.panel};
+        border: 1px solid {p.grid}; border-radius: 6px; }}
+    QLabel#pageTitle {{ font-size: 17pt; font-weight: bold; }}
+    QLabel#secondaryText {{ color: {p.muted_text}; }}
+    QLabel#errorText {{ color: {"#b91c1c" if p is LIGHT else "#e66767"}; }}
+    QLabel#warningBanner {{ background: {"#fff7e6" if p is LIGHT else "#3b3020"};
+        color: {"#92400e" if p is LIGHT else "#edba78"}; padding: 8px;
+        border-radius: 4px; }}
+    QDockWidget {{ color: {p.text}; }}
+    QDockWidget::title {{ background: {p.background}; padding: 6px 8px; }}
+    QMainWindow::separator {{ background: {p.grid}; width: 5px; height: 5px; }}
+    QGroupBox {{ background: {p.panel}; border: 1px solid {p.grid};
+        border-radius: 6px; margin-top: 12px; padding: 12px 8px 8px; }}
+    QGroupBox::title {{ subcontrol-origin: margin; left: 10px; color: {p.muted_text}; }}
+    QTreeView, QListWidget, QTableView, QTextEdit, QPlainTextEdit {{ background: {p.surface};
+        border: 1px solid {p.grid}; border-radius: 4px;
+        selection-background-color: {p.selection}; selection-color: {p.text}; }}
+    QTreeView::item, QListWidget::item {{ padding: 3px 2px; }}
+    QHeaderView::section {{ background: {p.background}; color: {p.muted_text};
+        border: 0; border-right: 1px solid {p.grid}; padding: 6px; }}
+    QScrollArea {{ border: none; background: {p.background}; }}
+    QScrollBar:vertical {{ width: 12px; background: {p.background}; }}
+    QScrollBar::handle:vertical {{ background: {p.border}; min-height: 24px; border-radius: 4px; }}
+    QPushButton {{ background: {p.panel}; border: 1px solid {p.border};
+        border-radius: 5px; padding: 6px 10px; min-height: 20px; }}
+    QPushButton:hover, QToolButton:hover {{ background: {p.selection}; }}
+    QPushButton:disabled {{ color: {p.disabled}; background: {p.background}; }}
+    QPushButton#primary {{ background: {p.accent}; color: #ffffff; border-color: {p.accent}; }}
+    QPushButton#primary:hover {{ background: {p.accent}; border-color: {p.text}; }}
+    QPushButton#primary:disabled {{ background: {p.border}; color: {p.muted_text};
+        border-color: {p.border}; }}
+    QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {{ background: {p.surface};
+        border: 1px solid {p.border}; border-radius: 4px; padding: 4px; min-height: 20px; }}
+    QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {{
+        background: {p.background}; color: {p.disabled}; }}
+    QComboBox QAbstractItemView {{ background: {p.surface}; color: {p.text};
+        selection-background-color: {p.selection}; selection-color: {p.text}; }}
+    QTabWidget::pane {{ background: {p.panel}; border: 1px solid {p.grid}; border-radius: 4px; }}
+    QTabBar::tab {{ padding: 8px 18px; background: {p.background}; color: {p.muted_text}; }}
+    QTabBar::tab:selected {{ background: {p.panel}; color: {p.accent}; }}
+    QMenuBar, QMenu {{ background: {p.panel}; color: {p.text}; }}
+    QMenuBar::item {{ background: transparent; color: {p.text}; padding: 6px 10px; }}
+    QMenu {{ border: 1px solid {p.border}; }}
+    QMenu::item {{ color: {p.text}; padding: 5px 24px; }}
+    QMenuBar::item:selected, QMenuBar::item:pressed, QMenu::item:selected {{
+        background: {p.accent}; color: #ffffff; }}
+    QMenuBar::item:disabled, QMenu::item:disabled {{ color: {p.disabled}; }}
+    QMenu::separator {{ background: {p.grid}; height: 1px; margin: 4px 8px; }}
+    QToolBar {{ background: {p.panel}; border-bottom: 1px solid {p.grid};
+        spacing: 6px; padding: 4px; }}
+    QToolButton {{ background: {p.panel}; border: 1px solid {p.border}; border-radius: 4px;
+        padding: 4px 8px; }}
+    QToolButton:checked {{ background: {p.accent}; color: #ffffff; border-color: {p.accent}; }}
+    QStatusBar {{ background: {p.background}; color: {p.muted_text}; }}
+    QSplitter::handle {{ background: {p.grid}; }}
+    QProgressBar {{ background: {p.surface}; border: 1px solid {p.grid}; border-radius: 4px;
+        text-align: center; }}
+    QProgressBar::chunk {{ background: {p.accent}; }}
+    """

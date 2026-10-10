@@ -39,7 +39,7 @@ class PlotViewArea(QWidget):
 
         self._grid = QGridLayout(self)
         self._grid.setContentsMargins(0, 0, 0, 0)
-        self._grid.setSpacing(2)
+        self._grid.setSpacing(8)
 
         self._rebuild()
 
@@ -99,7 +99,12 @@ class PlotViewArea(QWidget):
     def set_grid(self, rows: int, cols: int) -> None:
         """Resize the grid, keeping plots that still have a cell."""
 
+        histories = [plot.display_ranges() for plot in self._plots]
+        ranges, auto = self.plot_ranges(), self.plot_autorange()
         self.set_layout_model(self._layout_model.resized(rows, cols))
+        for plot, history in zip(self._plots, histories, strict=False):
+            plot.restore_display_ranges(history)
+        self.restore_plot_ranges(ranges, auto)
 
     def set_current_plot(self, plot: PlotModel) -> None:
         """Replace the plot model of the selected cell."""
@@ -179,6 +184,7 @@ class PlotViewArea(QWidget):
             widget = item.widget() if item is not None else None
             if widget is not None:
                 widget.setParent(None)
+                widget.deleteLater()
         self._cells.clear()
         self._plots.clear()
 
@@ -195,6 +201,7 @@ class PlotViewArea(QWidget):
             )
 
             frame = QFrame()
+            frame.setObjectName("plotCell")
             frame.setFrameShape(QFrame.Shape.NoFrame)
             frame_layout = QVBoxLayout(frame)
             frame_layout.setContentsMargins(
@@ -218,4 +225,7 @@ class PlotViewArea(QWidget):
         for index, frame in enumerate(self._cells):
             selected = index == self._current_index and not single_cell
             color = palette.accent if selected else "transparent"
-            frame.setStyleSheet(f"QFrame {{ border: {_SELECTION_WIDTH}px solid {color}; }}")
+            frame.setStyleSheet(
+                f"QFrame#plotCell {{ border: {_SELECTION_WIDTH}px solid {color};"
+                " border-radius: 5px; }"
+            )

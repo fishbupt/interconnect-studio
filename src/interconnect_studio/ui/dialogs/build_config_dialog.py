@@ -45,7 +45,7 @@ class BuildConfigDialog(QDialog):
         self.export_button = QPushButton("Export", self)
         self.error_label = QLabel(self)
         self.error_label.setWordWrap(True)
-        self.error_label.setStyleSheet("color: #c0392b;")
+        self.error_label.setObjectName("errorText")
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,

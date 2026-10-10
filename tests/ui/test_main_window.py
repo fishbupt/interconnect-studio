@@ -47,10 +47,11 @@ def test_view_area_is_central_and_panels_are_docks(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    assert window.centralWidget() is window.view_area
+    assert window.centralWidget() is window.workspace
+    assert window.workspace.view_stack.indexOf(window.view_area) == 1
     assert window.plot_widget is window.view_area.current_plot_widget
     assert window.data_browser_dock.widget() is window.data_browser
-    assert window.parameter_format_dock.widget() is window.parameter_format
+    assert window.parameter_format_dock.widget().widget() is window.parameter_format
 
 
 def test_message_panel_is_collapsed_by_default(qtbot: QtBot) -> None:

@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMenuBar,
     QMessageBox,
+    QScrollArea,
     QStatusBar,
     QToolBar,
     QToolButton,
@@ -43,6 +44,7 @@ from interconnect_studio.services import (
     TraceUpdate,
 )
 from interconnect_studio.services.frequency_analysis import renamed_trace
+from interconnect_studio.ui.analysis_workspace import AnalysisWorkspace
 from interconnect_studio.ui.dialogs import (
     AddTraceDialog,
     BuildConfigDialog,
@@ -81,10 +83,9 @@ def default_template_directory() -> Path:
 class MainWindow(QMainWindow):
     """Application shell.
 
-    The left column holds two docking areas, matching PLTS: the data browser
-    above and the parameter/format panel below. The view area occupies the
-    centre and is not a dock. Messages live in the status bar, with a
-    collapsed panel for their history.
+    The viewer keeps the data browser and parameter/format docks on the left.
+    The central workspace adds a compact summary and a separate A/B page.
+    Messages live in the status bar, with a collapsed panel for their history.
     """
 
     plot_state_changed = pyqtSignal()
@@ -109,7 +110,7 @@ class MainWindow(QMainWindow):
         self.tasks = TaskRunner(self)
 
         self.setWindowTitle(APP_TITLE)
-        self.resize(1200, 760)
+        self.resize(1420, 900)
 
         self.data_browser = DataBrowserPanel(self)
         self.parameter_format = ParameterFormatPanel(self)
@@ -152,8 +153,12 @@ class MainWindow(QMainWindow):
         self.refresh_templates()
         self.status_bar.showMessage("Ready")
         self.frequency_flow = FrequencyWorkflow(self)
+        self.resizeDocks([self.data_browser_dock], [270], Qt.Orientation.Horizontal)
         self.file_flow = FileWorkflow(self, settings)
         self.view_area.plot_range_changed.connect(self.file_flow.modified)
+        self.takeCentralWidget()
+        self.workspace = AnalysisWorkspace(self)
+        self.setCentralWidget(self.workspace)
 
     @property
     def plot_widget(self) -> CartesianPlotWidget:
@@ -660,6 +665,10 @@ class MainWindow(QMainWindow):
             current_index=self.view_area.current_index,
             plot_ranges=self.view_area.plot_ranges(),
             plot_autorange=self.view_area.plot_autorange(),
+            display_ranges=tuple(
+                self.view_area.plot_widget_at(index).display_ranges()
+                for index in range(self.view_area.layout_model.n_cells)
+            ),
         )
 
     def _restore_session(self, session: WindowSession) -> LoadedTouchstonePlot:
@@ -674,6 +683,9 @@ class MainWindow(QMainWindow):
         self._loaded = loaded
         self.view_area.set_layout_model(session.layout)
         self.view_area.set_current_index(session.current_index)
+        for index in range(session.layout.n_cells):
+            history = session.display_ranges[index] if index < len(session.display_ranges) else {}
+            self.view_area.plot_widget_at(index).restore_display_ranges(history)
         self.view_area.restore_plot_ranges(session.plot_ranges, session.plot_autorange)
         for size, action in self.layout_actions.items():
             action.setChecked(size == (session.layout.rows, session.layout.cols))
@@ -705,6 +717,8 @@ class MainWindow(QMainWindow):
     def _on_browser_window_changed(self, window: ViewWindow | None) -> None:
         if window is not None and window.number in self._sessions:
             self.show_window(window.number)
+            if hasattr(self, "workspace"):
+                self.workspace.tabs.setCurrentIndex(0)
 
     def _on_cell_changed(self, index: int) -> None:
         """Point trace operations at the newly selected cell's plot."""
@@ -769,11 +783,15 @@ class MainWindow(QMainWindow):
         self.data_browser_dock = QDockWidget("Data Browser", self)
         self.data_browser_dock.setObjectName("data_browser_dock")
         self.data_browser_dock.setWidget(self.data_browser)
+        self.data_browser_dock.setMinimumWidth(230)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_browser_dock)
 
         self.parameter_format_dock = QDockWidget("Parameter / Format", self)
         self.parameter_format_dock.setObjectName("parameter_format_dock")
-        self.parameter_format_dock.setWidget(self.parameter_format)
+        parameter_scroll = QScrollArea(self.parameter_format_dock)
+        parameter_scroll.setWidgetResizable(True)
+        parameter_scroll.setWidget(self.parameter_format)
+        self.parameter_format_dock.setWidget(parameter_scroll)
         self.splitDockWidget(
             self.data_browser_dock,
             self.parameter_format_dock,
@@ -876,6 +894,8 @@ class MainWindow(QMainWindow):
 
         self._theme = theme
         self.view_area.apply_theme(theme)
+        if hasattr(self, "workspace"):
+            self.workspace.apply_plot_preferences(theme, self.file_flow.preferences.line_width)
         app = QApplication.instance()
         if isinstance(app, QApplication):
             apply_theme(app, theme)

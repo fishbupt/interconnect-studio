@@ -91,7 +91,18 @@ class FrequencyWorkflow:
 
         plot = self.window.view_area.current_plot
         self.panel.sync(plot, self.sources())
+        comparing = (
+            hasattr(self.window, "workspace") and self.window.workspace.tabs.currentIndex() == 1
+        )
+        if comparing and self.window.workspace._comparison is not None:
+            plot = self.window.workspace.comparison.area.current_plot
+        toggle = self.dock.toggleViewAction()
+        if toggle is not None:
+            toggle.setEnabled(not comparing)
         for name, action in self.actions.items():
+            if comparing:
+                action.setEnabled(bool(plot.traces) and name != "add_marker")
+                continue
             action.setEnabled(
                 bool(plot.traces)
                 if name not in {"autoscale_all", "compare"}
@@ -117,6 +128,23 @@ class FrequencyWorkflow:
             QMessageBox.warning(self.window, "频域分析", str(exc))
 
     def _execute(self, action: str) -> None:
+        if hasattr(self.window, "workspace") and self.window.workspace.tabs.currentIndex() == 1:
+            page = self.window.workspace.comparison
+            if action == "compare":
+                return
+            if action == "table":
+                page.table()
+            elif action in {"csv", "image"}:
+                page.export("csv" if action == "csv" else "png")
+            elif action in {"autoscale", "autoscale_all"}:
+                page.autoscale(action == "autoscale_all")
+            elif action == "copy_image" and page.area.current_plot.traces:
+                clipboard = QApplication.clipboard()
+                assert clipboard is not None
+                clipboard.setImage(page.area.current_plot_widget.image())
+            else:
+                raise InputValidationError("请在文件查看页管理曲线和 Marker。")
+            return
         plot = self.window.view_area.current_plot
         index = self.panel.trace_combo.currentIndex()
         number = self.panel.marker_combo.currentData()
@@ -219,23 +247,7 @@ class FrequencyWorkflow:
         self.apply(compare_trace(current, trace, source_id, source_name))
 
     def _compare_dialog(self) -> None:
-        self.window._store_active_session()
-        choices: dict[str, tuple[int, int]] = {}
-        for number, session in self.window._sessions.items():
-            if number == self.window.active_window:
-                continue
-            for index, trace in enumerate(session.layout.plots[session.current_index].traces):
-                choices[f"窗口 {number} · {session.loaded.name} · {index + 1}: {trace.name}"] = (
-                    number,
-                    index,
-                )
-        if not choices:
-            raise InputValidationError("请先在另一个文件窗口中添加要对比的曲线。")
-        label, accepted = QInputDialog.getItem(
-            self.window, "跨文件对比", "选择另一窗口当前格中的曲线", list(choices), 0, False
-        )
-        if accepted:
-            self.compare_from_window(*choices[label])
+        self.window.workspace.open_comparison()
 
     def _destination(self, title: str, suffix: str, filters: str) -> Path | None:
         initial = Path(self.window.file_flow.preferences.export_directory) / f"plot{suffix}"

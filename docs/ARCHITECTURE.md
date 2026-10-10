@@ -253,3 +253,14 @@ Qt 图形渲染在 GUI 线程，CSV 和图片文件写入使用 TaskRunner。
 TaskRunner 的内部完成信号先到 QObject 绑定的 GUI slot，再检查取消状态并投递公开结果。
 因此工作已完成但结果仍在排队时，取消也会丢弃回调；销毁 runner 会断开排队的接收 slot。
 TaskHandle 在投递结束前保留临时 runner，避免调用者仅传入临时对象时过早析构线程池。
+
+## 浅色工程工作台
+
+`ui/analysis_workspace.py` 组合现有查看网格、文件摘要和懒创建的独立 A/B 页。
+`ui/comparison_page.py` 负责比较输入、界面失效和原始曲线/图片导出；
+`services/comparison_view_service.py` 复用现有 S 参数格式化和 Trace API，生成保留各自频率网格的叠加。
+它不匹配、插值或计算差异。比较格式化和写文件复用 TaskRunner/模态忙碌对话框。
+
+样式由 `ui/theme.py` 集中提供，错误提示通过 `errorText` 挂接，曲线样式只在绘图组件中解释来源。
+`WindowSession.display_ranges` 是 UI 会话缓存；未扩展 `.icproj` 或模板格式。
+保存工程/退出时捕获查看页的 dock 状态，避免比较页暂时隐藏的侧栏污染默认查看布局。

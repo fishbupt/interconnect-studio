@@ -429,3 +429,11 @@ uv run ruff check .
 uv run mypy src
 uv run pytest
 ```
+
+### 浅色工程 GUI
+
+界面采用冷灰背景、白色绘图区、蓝色主操作，默认进入“文件查看”。
+使用“与另一文件比较…”可进入独立 A/B 页：A 蓝色实线、B 橙色虚线，支持交换、
+各自原始频率网格叠加、手动 Y 范围、AutoScale 和当前图 CSV/PNG 导出。
+二端口四图继续保持 S11/S12、S21/S22 的既定排列。
+使用方法、兼容边界与真实运行截图见 [工程 GUI](docs/ENGINEERING_GUI.md)。

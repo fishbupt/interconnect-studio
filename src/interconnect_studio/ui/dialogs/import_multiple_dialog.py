@@ -102,7 +102,7 @@ class ImportMultipleFilesDialog(QDialog):
         self.range_box = FrequencyRangeBox("7. Limit Data Range to Import", self)
         self.error_label = QLabel(self)
         self.error_label.setWordWrap(True)
-        self.error_label.setStyleSheet("color: #c0392b;")
+        self.error_label.setObjectName("errorText")
 
         self.export_button = QPushButton("Export", self)
         self.buttons = QDialogButtonBox(

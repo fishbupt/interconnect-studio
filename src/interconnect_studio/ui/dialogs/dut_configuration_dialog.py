@@ -119,7 +119,7 @@ class DutConfigurationDialog(QDialog):
         self.error_label = QLabel(self)
         self.error_label.setWordWrap(True)
         # Matches the Import dialog's error styling.
-        self.error_label.setStyleSheet("color: #c0392b;")
+        self.error_label.setObjectName("errorText")
 
         self.reset_button = QPushButton("Reset", self)
         self.reset_button.setToolTip(
