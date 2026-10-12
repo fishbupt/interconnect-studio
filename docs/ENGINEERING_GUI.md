@@ -22,7 +22,9 @@
   不保存其他格式的历史范围缓存。
 - 底部显示状态和可折叠日志。耗时文件操作继续复用 TaskRunner 与忙碌对话框。
 
-![分析工作台（移除顶部卡片前的截图）](images/engineering-viewer.png)
+![多窗口平铺工作台](images/window-tile.png)
+
+多窗口菜单、浮动及停靠操作见 [窗口管理](WINDOW_MANAGEMENT.md)。
 
 ## 状态与兼容
 

@@ -1,8 +1,8 @@
 """Per-window display state, so windows keep their plots when switched.
 
-PLTS gives every window (one data file in one analysis view) its own grid of
-plots. The view area shows one window at a time; this holds what the others
-were showing: the network, the grid layout and the selected cell.
+Every window (one data file in one analysis view) has its own live plot grid.
+This snapshot supports project IO and layout edits; WindowWorkflow captures
+all live grids before saving, including inactive and floating windows.
 """
 
 from dataclasses import dataclass, replace

@@ -3,15 +3,18 @@
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QMdiArea,
     QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from interconnect_studio.ui.theme import palette_for
 from interconnect_studio.ui.widgets.axis_range_controls import AxisRangeControls
 
 if TYPE_CHECKING:
@@ -54,14 +57,18 @@ class AnalysisWorkspace(QWidget):
         self.empty.setObjectName("secondaryText")
         self.empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.view_stack.addWidget(self.empty)
-        self.view_stack.addWidget(window.view_area)
+        self.mdi = QMdiArea(self)
+        self.mdi.setObjectName("analysisMdiArea")
+        self.mdi.setBackground(QColor(palette_for(window.theme).background))
+        self.mdi.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.mdi.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.view_stack.addWidget(self.mdi)
         view_layout.addWidget(self.view_stack, 1)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
         layout.addWidget(self.view_page, 1)
         window.plot_state_changed.connect(self.sync)
-        window.view_area.current_index_changed.connect(self.axis.sync)
         self.sync()
 
     def sync(self) -> None:
@@ -69,7 +76,8 @@ class AnalysisWorkspace(QWidget):
 
         window = self.host
         loaded = window.loaded_measurement
-        self.view_stack.setCurrentWidget(window.view_area if loaded is not None else self.empty)
+        self.view_stack.setCurrentWidget(self.mdi if window._sessions else self.empty)
+        self.axis.set_area(window.view_area)
         for button in (self.auto_button,):
             button.setEnabled(loaded is not None)
         self.export_button.setEnabled(bool(window._files))

@@ -135,7 +135,7 @@ Template View
 - 尚未实现的视图类型照样列出、置灰并提示 "Not available yet"，保持与 PLTS 相同的布局；目前只有 Frequency Domain (Single-Ended) 可用，打开文件即在其下新建一个 window。
 - 参数与显示格式的选择**不在树里**，由 Parameter / Format 面板承担（PLTS 即如此）。
 - 树使用 `QAbstractItemModel` 适配领域对象，放在 `ui/models/`。
-- 选中 window 即切换视图区：每个 window 各自保存 plot 网格（`ViewLayout`）、选中格与数据文件（`ui/window_session.py`），切走时保存、切回时恢复；主窗口标题显示「文件名 - 分析类型 : 序号」（PLTS 标题栏同样显示文件名与分析类型）。导入两端口数据到 Frequency Domain (Single-End) 时，新 window 默认使用 2×2 网格，分别显示 S11、S12、S21、S22；其他导入沿用当前网格尺寸，默认 plot 放在第一格。通过 Open View 创建的空窗口沿用当前网格尺寸。
+- 选中 window 即激活对应的实时子窗口：每个 window 各自持有 plot 网格（`ViewLayout`）、选中格与数据文件（`ui/window_session.py`），多个窗口可同时显示；切换时保留原绘图区；主窗口标题显示「文件名 - 分析类型 : 序号」（PLTS 标题栏同样显示文件名与分析类型）。导入两端口数据到 Frequency Domain (Single-End) 时，新 window 默认使用 2×2 网格，分别显示 S11、S12、S21、S22；其他导入沿用当前网格尺寸，默认 plot 放在第一格。通过 Open View 创建的空窗口沿用当前网格尺寸。
 - window 右键菜单（同 PLTS）：
   - **Close View**：关闭该 window；
   - **Close File**：关闭该数据文件的所有 window；
@@ -278,3 +278,14 @@ src/interconnect_studio/ui/
 ## Window / Plot 操作补充（2026-10-12）
 
 主区顶部“S 参数分析”卡片及其文件/分析类型选择器、导入、新建/关闭窗口入口已移除。新建窗口通过 Data Browser 的分析类型节点，关闭通过窗口节点的 Close View 右键菜单；关闭最后一个窗口后，仍保留当前文件并支持导出与重新开窗。菜单“图管理”提供新增空图、替换当前参数、复制、重命名、删除、清空、前后移动和放大恢复。图标题为拖动手柄，图内鼠标继续用于缩放/平移；双击图或标题放大/恢复。固定网格指没有可拖动分割线，不禁止重排整个 Plot。缩小布局若将移除有内容的图，拒绝操作并提示先移动或删除。
+
+## Window 菜单与窗口编排
+
+主区为 MDI 工作区。Window 菜单列出全部打开的窗口，用勾选标识活动窗口；点击条目
+激活并恢复最小化窗口。Cascade / Tile 编排分析窗口，不改变窗口内的 Plot 网格。
+标题栏支持最大化、最小化、关闭，拖动标题移动窗口，拖动边框缩放；Window 菜单提供
+相同操作和还原。浮动窗口可移到其他显示器，通过“停靠回工作区”返回。Cascade / Tile
+先把浮动窗口收回、还原最小化/最大化窗口，再编排全部窗口，保持原活动对象。
+
+关闭分析窗口保留已加载文件；关闭文件释放其所有窗口。参数、Marker、图级命令、
+数据表与刻度始终作用于活动窗口。操作与保存边界见 [窗口管理](WINDOW_MANAGEMENT.md)。

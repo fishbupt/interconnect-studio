@@ -190,6 +190,7 @@ class FileWorkflow:
         self._restoring = True
         try:
             window = self.window
+            window.window_flow.reset()
             window._active_window = None
             window._loaded = None
             window._sessions = sessions
@@ -201,6 +202,7 @@ class FileWorkflow:
             while f"file-{window._next_file_number}" in ids:
                 window._next_file_number += 1
             if sessions:
+                window.window_flow.reconcile()
                 first = next(iter(sessions.values()))
                 window._restore_session(first)
                 window.data_browser.select_window(first.number)
@@ -454,6 +456,9 @@ class FileWorkflow:
         self.window.dark_theme_action.setChecked(preferences.theme == Theme.DARK.value)
         self.window.dark_theme_action.blockSignals(False)
         self.window.view_area.set_line_width(preferences.line_width)
+        if hasattr(self.window, "window_flow"):
+            for frame in self.window.window_flow.windows.values():
+                frame.area.set_line_width(preferences.line_width)
 
     def show_preferences(self) -> None:
         """Edit settings, applying only an accepted dialog."""

@@ -7,7 +7,7 @@ from functools import partial
 from pathlib import Path
 
 from PyQt6.QtCore import QStandardPaths, Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QCloseEvent
+from PyQt6.QtGui import QAction, QCloseEvent, QColor
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -66,10 +66,11 @@ from interconnect_studio.ui.panels import (
 from interconnect_studio.ui.panels.parameter_format import ParameterChoice
 from interconnect_studio.ui.settings import SettingsStore
 from interconnect_studio.ui.task_runner import TaskRunner
-from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, apply_theme
+from interconnect_studio.ui.theme import DEFAULT_THEME, Theme, apply_theme, palette_for
 from interconnect_studio.ui.views import PlotViewArea
 from interconnect_studio.ui.widgets import CartesianPlotWidget
 from interconnect_studio.ui.window_session import WindowSession
+from interconnect_studio.ui.window_workflow import WindowWorkflow
 
 APP_TITLE = "Interconnect Studio"
 
@@ -90,6 +91,7 @@ class MainWindow(QMainWindow):
     """
 
     plot_state_changed = pyqtSignal()
+    window_flow: WindowWorkflow
 
     def __init__(
         self,
@@ -118,7 +120,7 @@ class MainWindow(QMainWindow):
         self.data_browser = DataBrowserPanel(self)
         self.parameter_format = ParameterFormatPanel(self)
         self.message_log = MessageLogPanel(self)
-        self.view_area = PlotViewArea(theme=self._theme)
+        self._empty_view_area = PlotViewArea(self, theme=self._theme)
 
         self.status_bar = QStatusBar(self)
         self.setStatusBar(self.status_bar)
@@ -147,7 +149,6 @@ class MainWindow(QMainWindow):
         )
         self.view_area.current_index_changed.connect(self._on_cell_changed)
 
-        self.setCentralWidget(self.view_area)
         self._build_side_docks()
         self._build_message_dock()
         self._build_actions()
@@ -159,12 +160,22 @@ class MainWindow(QMainWindow):
         self.resizeDocks([self.data_browser_dock], [270], Qt.Orientation.Horizontal)
         self.file_flow = FileWorkflow(self, settings)
         self.view_area.plot_range_changed.connect(self.file_flow.modified)
-        self.takeCentralWidget()
         self.workspace = AnalysisWorkspace(self)
         self.setCentralWidget(self.workspace)
         from interconnect_studio.ui.plot_workflow import PlotWorkflow
 
         self.plot_flow = PlotWorkflow(self)
+        self.window_flow = WindowWorkflow(self, self.workspace.mdi)
+
+    @property
+    def view_area(self) -> PlotViewArea:
+        """Plot grid belonging to the active window, or the empty command target."""
+
+        if hasattr(self, "window_flow"):
+            frame = self.window_flow.windows.get(self._active_window or -1)
+            if frame is not None:
+                return frame.area
+        return self._empty_view_area
 
     @property
     def plot_widget(self) -> CartesianPlotWidget:
@@ -191,12 +202,14 @@ class MainWindow(QMainWindow):
         """
 
         if number == self._active_window:
+            self.window_flow.present(number)
             return
+        self._store_active_session()
         session = self._sessions.get(number)
         if session is None:
             raise InputValidationError(f"Window {number} is not open.")
-        self._store_active_session()
         self._restore_session(session)
+        self.data_browser.select_window(number)
         self._log(f"Window: {session.title}")
 
     def open_view(self, view_type: ViewType) -> LoadedTouchstonePlot:
@@ -364,6 +377,7 @@ class MainWindow(QMainWindow):
             if window.number in self._sessions:
                 self._sessions[window.number] = self._sessions[window.number].renamed(name)
         self._set_browser_tree(renamed)
+        self.window_flow.reconcile()
         if self._active_window is not None:
             self._restore_session(self._sessions[self._active_window])
         self._log(f"Renamed file: {old_name} -> {name}")
@@ -413,6 +427,7 @@ class MainWindow(QMainWindow):
             self._active_window = None
             self._loaded = None
         self._set_browser_tree(tree)
+        self.window_flow.reconcile()
         if self._active_window is not None:
             self._restore_session(self._sessions[self._active_window])
             return
@@ -435,6 +450,7 @@ class MainWindow(QMainWindow):
 
         self._active_window = None
         self._loaded = None
+        self.window_flow.reconcile()
         self.view_area.set_layout_model(ViewLayout(rows=1, cols=1))
         for size, action in self.layout_actions.items():
             action.setChecked(size == (1, 1))
@@ -731,23 +747,9 @@ class MainWindow(QMainWindow):
         return window
 
     def _store_active_session(self) -> None:
-        """Remember what the view area shows for the active window."""
+        """Capture all live grids, including inactive and floating windows."""
 
-        if self._active_window is None or self._loaded is None:
-            return
-        session = self._sessions[self._active_window]
-        self._sessions[self._active_window] = replace(
-            session,
-            loaded=self._loaded,
-            layout=self.view_area.layout_model,
-            current_index=self.view_area.current_index,
-            plot_ranges=self.view_area.plot_ranges(),
-            plot_autorange=self.view_area.plot_autorange(),
-            display_ranges=tuple(
-                self.view_area.plot_widget_at(index).display_ranges()
-                for index in range(self.view_area.layout_model.n_cells)
-            ),
-        )
+        self.window_flow.capture()
 
     def _restore_session(self, session: WindowSession) -> LoadedTouchstonePlot:
         """Put a window's grid, selected cell and data file on screen."""
@@ -756,16 +758,12 @@ class MainWindow(QMainWindow):
         plots = tuple(self._bind_plot_sources(plot, owner) for plot in session.layout.plots)
         session = replace(session, layout=replace(session.layout, plots=plots))
         self._sessions[session.number] = session
+        self.window_flow.ensure(session)
         loaded = session.loaded_for_current_cell()
         self._active_window = session.number
         self._active_file_id = owner
         self._loaded = loaded
-        self.view_area.set_layout_model(session.layout)
-        self.view_area.set_current_index(session.current_index)
-        for index in range(session.layout.n_cells):
-            history = session.display_ranges[index] if index < len(session.display_ranges) else {}
-            self.view_area.plot_widget_at(index).restore_display_ranges(history)
-        self.view_area.restore_plot_ranges(session.plot_ranges, session.plot_autorange)
+        self.window_flow.present(session.number)
         for size, action in self.layout_actions.items():
             action.setChecked(size == (session.layout.rows, session.layout.cols))
         network = session.loaded.network
@@ -976,6 +974,11 @@ class MainWindow(QMainWindow):
 
         self._theme = theme
         self.view_area.apply_theme(theme)
+        if hasattr(self, "workspace"):
+            self.workspace.mdi.setBackground(QColor(palette_for(theme).background))
+        if hasattr(self, "window_flow"):
+            for frame in self.window_flow.windows.values():
+                frame.area.apply_theme(theme)
         app = QApplication.instance()
         if isinstance(app, QApplication):
             apply_theme(app, theme)
@@ -1001,6 +1004,7 @@ class MainWindow(QMainWindow):
             return
         self.file_flow.persist_layout()
         self.tasks.cancel_all()
+        self.window_flow.reset()
         event.accept()
 
     def _log(self, message: str) -> None:

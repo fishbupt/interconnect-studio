@@ -35,6 +35,16 @@ class AxisRangeControls(QWidget):
         self.apply_button.clicked.connect(self.apply)
         area.layout_about_to_change.connect(self.detach)
 
+    def set_area(self, area: PlotViewArea) -> None:
+        """Follow the active analysis window without retaining the previous view."""
+
+        if area is self.area:
+            return
+        self.detach()
+        self.area.layout_about_to_change.disconnect(self.detach)
+        self.area = area
+        area.layout_about_to_change.connect(self.detach)
+
     def apply(self) -> None:
         """Reject invalid input without changing the displayed range."""
 

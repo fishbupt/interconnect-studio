@@ -48,7 +48,7 @@ def test_view_area_is_central_and_panels_are_docks(qtbot: QtBot) -> None:
     qtbot.addWidget(window)
 
     assert window.centralWidget() is window.workspace
-    assert window.workspace.view_stack.indexOf(window.view_area) == 1
+    assert window.workspace.view_stack.indexOf(window.workspace.mdi) == 1
     assert window.plot_widget is window.view_area.current_plot_widget
     assert window.data_browser_dock.widget() is window.data_browser
     assert window.parameter_format_dock.widget().widget() is window.parameter_format

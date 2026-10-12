@@ -73,7 +73,6 @@ class FrequencyWorkflow:
             menu.addAction(action)
             self.actions[name] = action
         window.plot_state_changed.connect(self.sync)
-        window.view_area.marker_moved.connect(self._dragged)
         self.sync()
 
     def sources(self) -> dict[str, str]:

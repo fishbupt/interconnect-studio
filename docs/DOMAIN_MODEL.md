@@ -590,9 +590,16 @@ Project：`.icproj` ZIP（版本化 UTF-8 JSON manifest + 非 pickle NPY），�
 
 ## Window / Plot 生命周期实现（2026-10-12）
 
-- 已加载文件独立于 `DataBrowserTree.windows`：UI 工作区维护 `ProjectFile` 注册表及活动文件 ID。浏览器继续表示分类/视图/窗口，主区文件选择器可选择无窗口文件。
+- 已加载文件独立于 `DataBrowserTree.windows`：UI 工作区维护 `ProjectFile` 注册表及活动文件 ID。浏览器继续表示分类/视图/窗口；主区文件选择器已移除，保留当前无窗口文件以支持新开视图和导出。
 - Close View 只删除窗口会话；最后一个窗口关闭后仍可新开 Single-End / Balanced 视图、导出、保存和恢复文件。Close File 才释放数据及关联视图，并清理旧工程的来源引用。
 - `services/plot_layout.py::LayoutEdit` 返回新 `ViewLayout`、活动格和旧格来源映射。插入/删除/移动按整体 Plot 处理，刻度、范围缓存和 Marker 随图移动，不改写 Trace 数据。
 - 新图在活动图之后插入，优先复用无标题无曲线的空格；选中空格时直接填充。没有空格时按列数扩容，最多 144 格；删除后紧凑排列并留下空格。缩小 GUI 布局不得静默删除带数据或标题的图。
 - Plot 自定义名为 1–22 字符；复制继承曲线、Marker 和刻度，保持本工程统一蓝色单文件样式。放大只改变可见布局，不改变领域网格。
 - 不新增 Plot / Trace 持久化 ID；跨图方程引用及四级选择持久化仍待后续设计。本次保留 `.icproj` v2 与选中状态不写工程的约定。
+
+## 多窗口显示状态
+
+每个 `ViewWindow.number` 在 UI 中对应独立的实时 PlotViewArea；WindowWorkflow 管理
+MDI 子窗口与浮动宿主，WindowSession 是它的显示状态快照。活动窗口编号同时驱动
+Data Browser、参数面板与命令目标。窗口移动、尺寸及最小化/最大化/浮动状态不进入
+领域对象或当前 `.icproj` 协议；保存工程前捕获所有窗口的 Plot 布局、Marker 和刻度。

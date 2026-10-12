@@ -36,14 +36,13 @@ class PlotWorkflow:
             ("clear", "清空全部图", self.clear),
             ("previous", "向前移动", lambda: self.move(-1)),
             ("next", "向后移动", lambda: self.move(1)),
-            ("maximize", "放大当前图 / 恢复", window.view_area.toggle_maximized),
+            ("maximize", "放大当前图 / 恢复", lambda: window.view_area.toggle_maximized()),
         ):
             action = QAction(label, window)
             action.triggered.connect(lambda _checked=False, call=callback: window._guarded(call))
             menu.addAction(action)
             self.actions[key] = action
         window.plot_state_changed.connect(self.sync)
-        window.view_area.reorder_requested.connect(self.reorder)
         self.sync()
 
     def sync(self) -> None:

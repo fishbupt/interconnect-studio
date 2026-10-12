@@ -304,7 +304,7 @@ File → Open Touchstone
         ↓
 Single-End 默认生成 S11 / S12 / S21 / S22 LogMag，四个绘图区按 2×2 排列
         ↓
-中央 Plot Area 显示曲线
+中央多窗口工作区显示曲线
         ↓
 Add Trace
         ↓
@@ -436,3 +436,9 @@ uv run pytest
 Parameter / Format 和 Marker 展开，保留手动 Y 范围、AutoScale、数据表及 CSV/PNG 导出。
 二端口四图保持 S11/S12、S21/S22 的既定排列。不提供独立 S 参数文件比较或 A/B 页。
 使用方法、兼容边界与真实运行截图见 [工程 GUI](docs/ENGINEERING_GUI.md)。
+
+### 多窗口管理
+
+Window 菜单支持 Cascade / Tile、最大化 / 最小化 / 还原 / 关闭，列出所有打开窗口并
+勾选当前活动窗口。分析窗口可拖动、调整尺寸、浮动到桌面及停靠回工作区。
+多个窗口同时保留独立曲线、刻度和 Marker；详见 [窗口管理](docs/WINDOW_MANAGEMENT.md)。

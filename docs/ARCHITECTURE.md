@@ -391,7 +391,7 @@ PLTS 模板可包含 Marker、Math、Scale、Plot Name、Limit / Eye Mask 等显
 
 | 能力 | 当前状态 | 后续架构工作 |
 | --- | --- | --- |
-| 数据文件 / 分析视图层级 | 已有 `DataFile`、`ViewWindow` 与独立会话；主区切换显示活动会话 | 多窗口平铺/层叠尚未实现，不把 Plot 网格称为 MDI |
+| 数据文件 / 分析视图层级 | `DataFile`、`ViewWindow` 与独立会话；每窗口独立实时绘图区，支持 MDI 平铺/层叠及浮动 | Window 菜单与浏览器、参数面板使用同一活动窗口编号 |
 | 默认 s2p 频域显示 | Frequency Domain (Single-End) 默认 2×2：上排 S11、S12，下排 S21、S22 | 保持用户规定顺序；每格是 Plot，不是四个独立 Window |
 | Plot 布局容量 | Core 校验最多 144 格；GUI 提供 1×1、1×2、2×1、2×2 | 扩展图集合管理、重排及更多布局入口 |
 | New Plot | 已实现新增、空格复用、自动扩容、满额提示；替换为独立显式命令 | 服务返回旧格来源映射，UI 同步迁移刻度和范围缓存 |
@@ -425,3 +425,14 @@ PLTS 模板可包含 Marker、Math、Scale、Plot Name、Limit / Eye Mask 等显
 `services/plot_layout.py` 执行纯数据的图集合命令，`ui/plot_workflow.py` 编排菜单与显示状态迁移；`PlotViewArea` 提供标题拖动和双击放大。重排以整个不可变 Plot 为单位，Marker 的内部 Trace 索引保持有效。Plot / Trace 稳定身份和完整活动对象选择恢复仍属于后续工作，本次不将其标为完成。
 
 临时无父级 TaskRunner 的结果可能在 QRunnable 返回前投递到 GUI。TaskHandle 使用 QObject 绑定的短计时回调，待线程池活动数为零再释放临时 owner，避免 GUI 持有 GIL 时销毁线程池并等待仍需 GIL 的 Worker 清理。普通由窗口持有的 runner 不增加轮询。绘图区重建先解除旧刻度回调和事件过滤器，旧图框保留父级直到删除，避免窗口销毁后的残留事件访问。
+
+## 多窗口宿主（2026-10-12）
+
+`ui/window_workflow.py` 组合 Window 菜单、QMdiArea、每窗口的 PlotViewArea 与浮动宿主。
+`MainWindow.view_area` 动态指向活动窗口；Marker、图管理和范围控件由窗口编号路由，
+不会捕获初始化时的绘图区。浮动时只迁移已有控件，停靠回来保留曲线、刻度和 Marker。
+
+保存工程前捕获全部实时绘图区，包括非活动及浮动窗口；工程恢复一次创建全部窗口。
+关闭/重命名来源后同步所有实时视图，应用退出处理浮动宿主。窗口外框的位置/尺寸/状态
+仅为当前会话的 UI 状态；`.icproj` v2 继续保存已有数据、Plot 布局、Marker 与刻度，
+未新增公共协议字段。详见 [窗口管理](WINDOW_MANAGEMENT.md)。

@@ -146,7 +146,8 @@ Exit：选择与操作目标一致；空窗口/空图行为明确；切换或删
 - [x] 解耦 DataFile 与最后一个 Window 的生命周期；关闭最后一个 View 保留已加载文件及重新开视图入口
 - [x] 将文件级保存/导出/脏状态从“是否有 Window”中解耦；补无窗口文件的恢复与关闭测试
 - [x] 完善视图分析类型能力判断及关闭后的活动对象回退
-- [ ] Tile / Cascade / Maximize / Minimize（延后；第一轮沿用活动会话切换）
+- [x] Window 菜单、打开窗口列表与活动标记；Tile / Cascade / Maximize / Minimize / Restore / Close
+- [x] 每窗口独立实时绘图区、手动移动/缩放、浮动至独立窗口与停靠回工作区
 
 Exit：Close View 关闭视图，Close File 关闭文件及全部关联视图；数据与显示状态互不冒充。不能把 Plot 网格称为多窗口平铺。
 
@@ -394,4 +395,4 @@ PLTS 在此范围内的能力，供将来决策参考：Calibration & Measuremen
 3. 完成同图同格式及不兼容格式的新图行为、曲线容量、混模配方。
 4. 验收流程：导入 s2p 默认四图 → 新增图 → 添加曲线 → 复制/重排/删除图 → 切换视图 → 关闭最后一个视图后重新打开 → 保存并恢复工程。
 
-Window / Plot 基础操作已落地；四级活动对象/稳定身份、窗口平铺/层叠、批选参数、完整 Marker/Math/Template 和后续算法仍待实现。
+Window / Plot 基础操作已落地；四级活动对象/稳定身份、批选参数、完整 Marker/Math/Template 和后续算法仍待实现。
