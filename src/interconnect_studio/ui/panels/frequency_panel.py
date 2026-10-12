@@ -62,7 +62,7 @@ class FrequencyPanel(QWidget):
         form.addRow("名称", self.rename_edit)
         form.addRow(self._buttons(("重命名", "rename"), ("删除", "delete_trace")))
         form.addRow(self._buttons(("向前", "up"), ("向后", "down")))
-        form.addRow(self._buttons(("跨文件对比…", "compare"), ("数据表…", "table")))
+        form.addRow(self._buttons(("数据表…", "table")))
         layout.addWidget(trace_box)
         marker_box = QGroupBox("Marker", self)
         form = QFormLayout(marker_box)

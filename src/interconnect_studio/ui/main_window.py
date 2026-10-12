@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
     """Application shell.
 
     The viewer keeps the data browser and parameter/format docks on the left.
-    The central workspace adds a compact summary and a separate A/B page.
+    The central workspace adds a compact summary and plot controls.
     Messages live in the status bar, with a collapsed panel for their history.
     """
 
@@ -252,7 +252,9 @@ class MainWindow(QMainWindow):
             for plot in session.layout.plots
             for trace in plot.traces
         ):
-            raise InputValidationError("跨文件对比请保存为工程；当前模板只支持单一数据来源。")
+            raise InputValidationError(
+                "含外部数据来源的历史曲线请保存为工程；当前模板只支持单一数据来源。"
+            )
         template = ViewTemplate.from_layout(
             name,
             session.view_type,
@@ -717,8 +719,6 @@ class MainWindow(QMainWindow):
     def _on_browser_window_changed(self, window: ViewWindow | None) -> None:
         if window is not None and window.number in self._sessions:
             self.show_window(window.number)
-            if hasattr(self, "workspace"):
-                self.workspace.tabs.setCurrentIndex(0)
 
     def _on_cell_changed(self, index: int) -> None:
         """Point trace operations at the newly selected cell's plot."""
@@ -894,8 +894,6 @@ class MainWindow(QMainWindow):
 
         self._theme = theme
         self.view_area.apply_theme(theme)
-        if hasattr(self, "workspace"):
-            self.workspace.apply_plot_preferences(theme, self.file_flow.preferences.line_width)
         app = QApplication.instance()
         if isinstance(app, QApplication):
             apply_theme(app, theme)

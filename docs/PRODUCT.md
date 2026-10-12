@@ -175,7 +175,7 @@ State 文件：保存并回调当前全部分析设置（PLTS `.dsta`；不含 R
 
 显示格式（时域）：激励 Impulse / Step；纵轴 Volts / Real / LogMag / Impedance（Impedance 仅 Step 激励的反射参数）；横轴时间或距离（距离由 Velocity Factor 换算，可按 Vf 或 εr 输入）；反射参数可选单程时间 / 距离。
 
-**一个 plot 承载一种显示格式，其中所有 Trace 共用该格式，因此只有一个 Y 轴**（对标 PLTS）。不同单位的量通过多个 plot 比较。
+**一个 plot 承载一种显示格式，其中所有 Trace 共用该格式，因此只有一个 Y 轴**（对标 PLTS）。不同单位的量通过多个 plot 分别显示。
 
 Scale：
 
@@ -223,7 +223,7 @@ Parameter / Format 面板（对标 PLTS Parameter Format Selection）：
 
 窗口与工具栏：多窗口 Tile / Cascade / Maximize / Minimize；可停靠的 marker bar；scaling bar；View → Toolbars 各项开关（Standard / Plot / Marker / Scaling / Quick Launch / Gating）；View → Panes 各面板开关；面板停靠、浮动与 Reset 布局；状态栏指示灯（已去嵌、已改参考阻抗 / 端口旋转）。PLTS 上限：每 window 144 个 plot，每 plot 36 个 trace（偏好可设每 window 最多 16–144 个 plot）。
 
-Template / Multi-Data Template：Data Browser 中的独立节点，用于多数据集同屏对比。Template 保存 marker、方程、刻度、plot 名、limit / mask 等分析设置，可导入导出；Multi-Data Template 以文件夹为数据源，可选「每参数一个 plot 汇总所有文件」或「每文件每参数一个 plot」。
+Template：Data Browser 中的独立节点，保存 marker、方程、刻度、plot 名、limit / mask 等分析设置，可导入导出。当前仅实现单数据来源的分析布局模板；独立 S 参数文件比较、A/B 页面和跨文件曲线比较不属于本工程范围。
 
 眼图等二维密度显示需要独立的数据模型，不通过扩展 `Trace` 实现（见 `DOMAIN_MODEL.md` §6）。
 
@@ -547,6 +547,8 @@ PCB Material Characterization（Dk / Df / 表面粗糙度提取，FR-009）排�
 
 ### 当前频域交互交付
 
-Cartesian Marker、曲线重命名/删除/重排、跨文件叠加、曲线数据表、CSV 与 PNG 导出、
+Cartesian Marker、曲线重命名/删除/重排、曲线数据表、CSV 与 PNG 导出、
 当前图/全部图自动缩放已实现；`.icproj` v2 保存 Marker 和跨文件引用，兼容读取 v1。
 高级 Marker、Smith/Polar、Memory Trace 和独立样式仍待扩展，见 `FREQUENCY_ANALYSIS.md`。
+
+独立 S 参数文件比较和主动跨文件叠加入口已移除；历史工程中的多来源引用保持读取兼容。

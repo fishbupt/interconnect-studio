@@ -29,7 +29,6 @@ class CartesianPlotWidget(QWidget):
         self._model = PlotModel()
         self._theme = theme
         self._line_width = _LINE_WIDTH
-        self._comparison_sources: tuple[str, str] | None = None
         self._display_ranges: dict[str, tuple[float, float, float, float, bool, bool]] = {}
         self.marker_lines: dict[int, pg.InfiniteLine] = {}
 
@@ -132,14 +131,8 @@ class CartesianPlotWidget(QWidget):
         self._line_width = width
         self._redraw()
 
-    def set_comparison_sources(self, sources: tuple[str, str] | None) -> None:
-        """Pin A/B appearance without storing presentation in numerical trace models."""
-
-        self._comparison_sources = sources
-        self._redraw()
-
     def _trace_style(self, index: int, palette: Palette) -> tuple[str, Qt.PenStyle]:
-        sources = self._comparison_sources or tuple(
+        sources = tuple(
             dict.fromkeys(trace.source_id for trace in self._model.traces)
         )
         source = self._model.traces[index].source_id

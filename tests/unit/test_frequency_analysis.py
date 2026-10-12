@@ -11,7 +11,6 @@ import pytest
 from interconnect_studio.core import InputValidationError, Marker, PlotModel, Trace, TraceRecipe
 from interconnect_studio.services.frequency_analysis import (
     add_marker,
-    compare_trace,
     export_plot_csv,
     marker_reading,
     move_marker,
@@ -148,18 +147,6 @@ def test_delete_reorder_and_rename_keep_marker_attachments() -> None:
     assert deleted.markers[0].trace_index == 0 and deleted.markers[0].reference_id is None
     assert not remove_marker(deleted, 2).markers
     assert marked.traces[0].name == "S21"
-
-
-def test_compare_preserves_source_and_unequal_frequency_grids() -> None:
-    source = plot().traces[1]
-    combined = compare_trace(PlotModel(traces=(plot().traces[0],)), source, "b", "测量 B")
-    assert combined.traces[1].source_id == "b"
-    assert combined.traces[1].name == "测量 B · S11"
-    np.testing.assert_array_equal(combined.traces[1].x, [1, 3, 7])
-    assert combined.traces[1].recipe == source.recipe
-    bad = Trace("real", [1, 2], [0, 1], y_unit="dB", recipe=TraceRecipe(1, 0, "real"))
-    with pytest.raises(InputValidationError):
-        compare_trace(combined, bad, "c", "wrong format")
 
 
 def test_trace_csv_roundtrip_preserves_values_units_names_sources_and_unequal_grids(

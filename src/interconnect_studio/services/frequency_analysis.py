@@ -179,21 +179,6 @@ def reorder_trace(plot: PlotModel, index: int, destination: int) -> PlotModel:
     return replace(plot, traces=tuple(plot.traces[i] for i in order), markers=markers)
 
 
-def compare_trace(plot: PlotModel, trace: Trace, source_id: str, source_name: str) -> PlotModel:
-    """Overlay an existing trace from an open source, preserving its original grid.
-
-    Require identical display format when recipes exist. For older mixed-mode
-    traces without recipes, axis labels supplied by the caller must also match.
-    """
-
-    for current in plot.traces:
-        if current.recipe is not None and trace.recipe is not None:
-            if current.recipe.data_format != trace.recipe.data_format:
-                raise InputValidationError("请选择相同显示格式的曲线进行对比。")
-    copied = renamed_trace(trace, f"{source_name} · {trace.name}", source_id)
-    return plot.add_trace(copied)
-
-
 def export_plot_csv(plot: PlotModel, path: str | Path, sources: Mapping[str, str]) -> None:
     """Atomically write all trace samples as long-form UTF-8 CSV.
 

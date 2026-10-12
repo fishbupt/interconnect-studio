@@ -18,7 +18,7 @@ class Theme(StrEnum):
 class Palette:
     """Colour tokens for one theme.
 
-    ``trace_colors`` identifies sources for comparisons and legacy overlays;
+    ``trace_colors`` identifies sources in legacy multi-source plots;
     single-source plots use the first colour consistently across parameters.
     """
 
@@ -147,7 +147,7 @@ def _stylesheet(p: Palette) -> str:
     QWidget {{ color: {p.text}; }}
     QWidget:disabled {{ color: {p.disabled}; }}
     QMainWindow, QDialog, QWidget#analysisWorkspace {{ background: {p.background}; }}
-    QWidget#summaryCard, QWidget#configPanel {{ background: {p.panel};
+    QWidget#summaryCard, QWidget#configPanel, QWidget#analysisView {{ background: {p.panel};
         border: 1px solid {p.grid}; border-radius: 6px; }}
     QLabel#pageTitle {{ font-size: 17pt; font-weight: bold; }}
     QLabel#secondaryText {{ color: {p.muted_text}; }}

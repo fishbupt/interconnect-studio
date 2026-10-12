@@ -12,6 +12,8 @@
 
 项目目标：构建面向 VNA 与高速互联分析的桌面软件，覆盖 Touchstone、S 参数、Mixed-Mode、时域、TDR/TDT、Gating、Fixture De-embedding、2X-Thru/AFR，并为 Eye/PAM4/COM 与仪器控制预留扩展能力。
 
+当前产品以 Keysight PLTS 的分析流程为参照。独立 S 参数文件比较、A/B 比较页及跨文件曲线比较入口不属于本工程范围，不因通用 GUI Skill 再引入。
+
 ## 2. Required Reading
 
 开始任务前，根据任务范围阅读：

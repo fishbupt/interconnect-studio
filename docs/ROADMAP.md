@@ -139,7 +139,7 @@ Exit：完整 Unit Test + 基础 Golden Data + 无 GUI 依赖。
 - [ ] Data Sharing：一键加到所有 plot
 - [ ] Trace Smoothing（平滑孔径：点数或跨度百分比；四种作用范围；导出平滑后数据）
 - [ ] 多窗口管理：Tile / Cascade / Maximize / Minimize
-- [ ] Template / Multi-Data Template（Data Browser 中的独立节点，多数据集同屏对比；导入导出 template）
+- [ ] Template（Data Browser 中的独立节点；单数据来源分析布局，导入导出 template）
   - [x] 保存 / 列出 / 应用 template（布局、plot 标题、trace 参数与格式）
   - [ ] Save Template（覆盖当前 template）、Import / Export Template、marker / 方程 / limit / 刻度入 template、Multi-Data Template
 
@@ -329,5 +329,7 @@ L9 Mostly autonomous daily development
 
 ## 当前频域交互交付
 
-Marker、曲线管理、跨文件对比、虚拟数据表与 CSV/PNG 导出已落地；
+Marker、曲线管理、虚拟数据表与 CSV/PNG 导出已落地；
 工程 v2 保存 Marker 和跨文件引用，兼容读取 v1。操作与边界见 `FREQUENCY_ANALYSIS.md`。
+
+独立 S 参数文件比较、A/B 页和跨文件曲线比较不在开发范围；界面与流程以 PLTS 分析工作台为参照。

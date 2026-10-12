@@ -90,7 +90,7 @@ class ViewLayout:
 
 对标 PLTS：**一个 window 只承载单个数据文件、单一分析类型**。
 
-比较不同文件或不同分析类型需要开多个 window，而不是在同一个网格里混放。这条约束决定了 `ViewLayout` 归属于 window 而非全局。
+不同文件或不同分析类型使用各自的 window，不在同一个网格里混放。这条约束决定了 `ViewLayout` 归属于 window 而非全局。
 
 # 5. Plot Axes
 
@@ -98,7 +98,7 @@ class ViewLayout:
 
 - 一个 plot 承载一种显示格式，其中所有 Trace 共用该格式，与 PLTS 一致（*Data Format and Scale*：「Each plot can have a different format, and all traces within the plot have the same format」）。
 - 因此同一 plot 内所有 Trace 的 `x_unit` 与 `y_unit` 都必须一致。
-- 要同屏比较不同单位的量（如幅度与相位），开两个 plot，而不是加第二个 Y 轴。
+- 要同屏显示不同单位的量（如幅度与相位），开两个 plot，而不是加第二个 Y 轴。
 
 > 曾短暂实现过左右双 Y 轴，依据是「PLTS 常态是幅度+相位同屏」——该前提有误，已按上述规范回退。
 
@@ -241,12 +241,11 @@ current_trace
 主按钮和当前参数使用 `#2563EB`。保留可切换深色主题，菜单及禁用态显式主题化。
 正文约 10 pt，页面标题 17 pt；优先微软雅黑，其次 Noto Sans CJK SC、Segoe UI、系统字体。
 
-单文件各参数统一蓝色实线、无采样点标记；参数由标题区分。独立比较页使用 A 蓝色实线、
-B 橙色虚线（浅色 `#D97706`），图例及选择器标明来源。旧工程中的跨文件叠加仍可显示，
-按来源分配样式；同一来源的多条参数保持一致。配色实现保留八槽 API，供多来源旧工程使用。
+当前文件各参数统一蓝色实线、无采样点标记；参数由标题区分。旧工程中的多来源曲线
+仍可显示，按来源分配样式；保留八槽配色 API 用于历史数据的来源辨识。
 
-主区为顶部摘要与“文件查看 / 文件比较 · A/B”页签；左侧 dock 仍可拖动调整，
-长参数表单使用滚动容器。比较页使用自己的 A/B 输入栏，切回查看时恢复原 dock 可见性。
+主区为顶部文件摘要与 Analysis View 图网格；左侧 dock 可拖动调整，长参数表单使用滚动容器。
+独立文件比较页、A/B 选择器及跨文件比较入口已移除。产品以 PLTS 的分析流程为参照。
 详细操作、状态边界和实际截图见 [ENGINEERING_GUI.md](ENGINEERING_GUI.md)。
 
 # 10. Directory Layout

@@ -246,7 +246,7 @@ GUI 文件操作使用同一 TaskRunner，Worker 只处理预先收集的纯数�
 
 `core/marker.py` 与 `PlotModel.markers` 保存纯领域状态；
 `services/frequency_analysis.py` 负责测量点吸附、搜索、Delta、曲线管理及 CSV。
-`ui/frequency_workflow.py` 组合 MainWindow，管理停靠面板、对比选择和导出入口；
+`ui/frequency_workflow.py` 组合 MainWindow，管理停靠面板、曲线/Marker 和导出入口；
 绘图 Widget 只发出拖动位置，通过服务生成新模型。数据表使用 QAbstractTableModel 虚拟读取。
 Qt 图形渲染在 GUI 线程，CSV 和图片文件写入使用 TaskRunner。
 
@@ -254,13 +254,12 @@ TaskRunner 的内部完成信号先到 QObject 绑定的 GUI slot，再检查取
 因此工作已完成但结果仍在排队时，取消也会丢弃回调；销毁 runner 会断开排队的接收 slot。
 TaskHandle 在投递结束前保留临时 runner，避免调用者仅传入临时对象时过早析构线程池。
 
-## 浅色工程工作台
+## PLTS 分析工作台
 
-`ui/analysis_workspace.py` 组合现有查看网格、文件摘要和懒创建的独立 A/B 页。
-`ui/comparison_page.py` 负责比较输入、界面失效和原始曲线/图片导出；
-`services/comparison_view_service.py` 复用现有 S 参数格式化和 Trace API，生成保留各自频率网格的叠加。
-它不匹配、插值或计算差异。比较格式化和写文件复用 TaskRunner/模态忙碌对话框。
+`ui/analysis_workspace.py` 组合文件摘要、现有 Analysis View 网格、数据表和刻度入口。
+不建立独立文件比较页面；比较 UI、专用展示服务及主动跨文件叠加操作已移除。
+保留旧工程中多来源曲线的读取、来源清理和导出，未修改公共文件格式。
 
-样式由 `ui/theme.py` 集中提供，错误提示通过 `errorText` 挂接，曲线样式只在绘图组件中解释来源。
-`WindowSession.display_ranges` 是 UI 会话缓存；未扩展 `.icproj` 或模板格式。
-保存工程/退出时捕获查看页的 dock 状态，避免比较页暂时隐藏的侧栏污染默认查看布局。
+`ui/theme.py` 集中提供样式，错误提示通过 `errorText` 挂接。
+`WindowSession.display_ranges` 是 UI 会话缓存，保存工程仍只写当前范围与停靠状态。
+文件导入、格式化和写出继续使用现有服务和 TaskRunner。

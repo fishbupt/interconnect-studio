@@ -29,6 +29,15 @@ def window(qtbot: QtBot) -> MainWindow:
     return result
 
 
+def attach_legacy_trace_fixture(app: MainWindow, number: int, trace_index: int) -> None:
+    """Emulate an old project's multi-source plot without exposing a comparison operation."""
+
+    app._store_active_session()
+    session = app._sessions[number]
+    trace = session.layout.plots[session.current_index].traces[trace_index]
+    app.frequency_flow.apply(app.view_area.current_plot.add_trace(trace))
+
+
 def test_marker_controls_drag_readout_delete_and_reorder(qtbot: QtBot) -> None:
     app = window(qtbot)
     flow = app.frequency_flow
@@ -98,20 +107,20 @@ def test_legacy_version_one_project_without_markers_still_opens(
     assert app.plot_widget.model.traces and not app.plot_widget.model.markers
 
 
-def test_cross_file_overlay_survives_recall_and_source_closing_removes_dependants(
+def test_legacy_multi_source_plot_survives_recall_and_source_closing_removes_dependants(
     qtbot: QtBot, tmp_path: Path
 ) -> None:
     app = window(qtbot)
     first_id = app.data_browser.browser_tree.window(1).data_file.id
     before = app.plot_widget.model.traces[1].y.copy()
     app.load_touchstone_file(DATA / "touchstone/valid_2port_ri.s2p")
-    app.frequency_flow.compare_from_window(1, 1)
+    attach_legacy_trace_fixture(app, 1, 1)
     overlay = app.plot_widget.model.traces[-1]
     assert overlay.source_id == first_id
     np.testing.assert_array_equal(overlay.y, before)
     app.frequency_flow.panel.trace_combo.setCurrentIndex(1)
     app.frequency_flow._execute("add_marker")
-    path = app.file_flow.save_project(tmp_path / "compare.icproj")
+    path = app.file_flow.save_project(tmp_path / "legacy_sources.icproj")
     snapshot = read_project(path)
     assert len(snapshot.files) == 2
     restored = MainWindow()
@@ -120,22 +129,12 @@ def test_cross_file_overlay_survives_recall_and_source_closing_removes_dependant
     restored.show_window(2)
     assert restored.plot_widget.model.traces[-1].source_id == first_id
     with pytest.raises(InputValidationError):
-        restored.save_template(2, "comparison")
+        restored.save_template(2, "legacy_sources")
     restored.close_file(first_id)
     assert restored.active_window == 2
     assert len(restored.plot_widget.model.traces) == 1
     assert not restored.plot_widget.model.markers
     restored.file_flow.save_project(tmp_path / "after_close.icproj")
-
-
-def test_compare_rejects_different_formats_without_replacing_plot(qtbot: QtBot) -> None:
-    app = window(qtbot)
-    app.new_plot(0, 0, "phase")
-    app.load_touchstone_file(DATA / "touchstone/valid_2port_ri.s2p")
-    previous = app.plot_widget.model
-    with pytest.raises(InputValidationError):
-        app.frequency_flow.compare_from_window(1, 0)
-    assert app.plot_widget.model is previous
 
 
 def test_data_table_is_virtual_and_copy_selection_has_correct_cells(qtbot: QtBot) -> None:
@@ -232,32 +231,32 @@ def test_marker_keyboard_moves_one_measured_point(qtbot: QtBot) -> None:
     assert app.plot_widget.model.markers[0].x == 1e9
 
 
-def test_closing_source_marks_inactive_comparison_dirty_and_cancel_preserves_it(
+def test_closing_source_marks_inactive_legacy_plot_dirty_and_cancel_preserves_it(
     qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     app = window(qtbot)
     source_id = app.data_browser.browser_tree.window(1).data_file.id
     app.load_touchstone_file(DATA / "touchstone/valid_2port_ri.s2p")
-    comparison_id = app.data_browser.browser_tree.window(2).data_file.id
-    app.frequency_flow.compare_from_window(1, 1)
+    dependent_id = app.data_browser.browser_tree.window(2).data_file.id
+    attach_legacy_trace_fixture(app, 1, 1)
     app.load_touchstone_file(DATA / "import/2port.s2p")
     app.file_flow.save_project(tmp_path / "three.icproj")
     app.close_file(source_id)
     assert app.active_window == 3
     monkeypatch.setattr(QMessageBox, "question", lambda *_args: QMessageBox.StandardButton.Cancel)
-    app.file_flow.request_close_file(comparison_id)
-    assert len(app.data_browser.browser_tree.windows_of_file(comparison_id)) == 1
+    app.file_flow.request_close_file(dependent_id)
+    assert len(app.data_browser.browser_tree.windows_of_file(dependent_id)) == 1
     monkeypatch.setattr(QMessageBox, "question", lambda *_args: QMessageBox.StandardButton.Discard)
 
 
-def test_closing_one_source_view_retains_comparison_until_last_view_closes(qtbot: QtBot) -> None:
+def test_closing_one_source_view_retains_legacy_plot_until_last_view_closes(qtbot: QtBot) -> None:
     from interconnect_studio.core import ViewType
 
     app = window(qtbot)
     source_id = app.data_browser.browser_tree.window(1).data_file.id
     app.open_view(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
     app.load_touchstone_file(DATA / "touchstone/valid_2port_ri.s2p")
-    app.frequency_flow.compare_from_window(1, 1)
+    attach_legacy_trace_fixture(app, 1, 1)
     app.close_view(1)
     assert len(app.plot_widget.model.traces) == 2
     assert app.plot_widget.model.traces[-1].source_id == source_id

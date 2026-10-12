@@ -121,11 +121,8 @@ class FileWorkflow:
         """Keep menu availability and the project status synchronized."""
 
         has_data = bool(self.window.data_browser.browser_tree.windows)
-        viewing = (
-            not hasattr(self.window, "workspace") or self.window.workspace.tabs.currentIndex() == 0
-        )
-        self.export_action.setEnabled(has_data and viewing)
-        self.close_file_action.setEnabled(has_data and viewing)
+        self.export_action.setEnabled(has_data)
+        self.close_file_action.setEnabled(has_data)
         self.close_all_action.setEnabled(has_data)
         name = self.project_path.name if self.project_path else "未命名工程"
         self.status.setText(f"{name}{' *' if self.dirty else ''}")
@@ -155,7 +152,7 @@ class FileWorkflow:
             files=tuple(files.values()),
             windows=tuple(windows),
             geometry=window.saveGeometry().data(),
-            dock_state=window.workspace.viewer_dock_state().data(),
+            dock_state=window.saveState().data(),
         )
 
     def restore(self, snapshot: ProjectSnapshot, path: Path) -> None:
@@ -209,7 +206,6 @@ class FileWorkflow:
                 window._clear_view()
             if snapshot.geometry:
                 window.restoreGeometry(QByteArray(snapshot.geometry))
-            window.workspace.tabs.setCurrentIndex(0)
             if snapshot.dock_state:
                 window.restoreState(QByteArray(snapshot.dock_state))
         finally:
@@ -460,10 +456,6 @@ class FileWorkflow:
         self.window.dark_theme_action.setChecked(preferences.theme == Theme.DARK.value)
         self.window.dark_theme_action.blockSignals(False)
         self.window.view_area.set_line_width(preferences.line_width)
-        if hasattr(self.window, "workspace"):
-            self.window.workspace.apply_plot_preferences(
-                Theme(preferences.theme), preferences.line_width
-            )
 
     def show_preferences(self) -> None:
         """Edit settings, applying only an accepted dialog."""
@@ -477,19 +469,10 @@ class FileWorkflow:
 
         if self.preferences.remember_layout:
             self.settings.backend.setValue("geometry", self.window.saveGeometry())
-            self.settings.backend.setValue("dock_state", self.window.workspace.viewer_dock_state())
-            comparison = self.window.workspace._comparison
-            if comparison is not None:
-                self.settings.backend.setValue(
-                    "comparison_splitter", comparison.splitter.saveState()
-                )
+            self.settings.backend.setValue("dock_state", self.window.saveState())
         else:
             self.settings.backend.remove("geometry")
             self.settings.backend.remove("dock_state")
-            self.settings.backend.remove("comparison_splitter")
-        comparison = self.window.workspace._comparison
-        if comparison is not None:
-            self.settings.backend.setValue(
-                "comparison_format", comparison.format_combo.currentData()
-            )
+        self.settings.backend.remove("comparison_splitter")
+        self.settings.backend.remove("comparison_format")
         self.settings.backend.sync()

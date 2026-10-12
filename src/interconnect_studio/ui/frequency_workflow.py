@@ -21,7 +21,6 @@ from interconnect_studio.core import InputValidationError, PlotModel
 from interconnect_studio.io.atomic import atomic_destination
 from interconnect_studio.services.frequency_analysis import (
     add_marker,
-    compare_trace,
     export_plot_csv,
     move_marker,
     remove_marker,
@@ -62,7 +61,6 @@ class FrequencyWorkflow:
         menu.addAction(self.dock.toggleViewAction())
         for name, label in (
             ("add_marker", "添加 Marker"),
-            ("compare", "跨文件曲线对比…"),
             ("table", "曲线数据表…"),
             ("csv", "导出当前图全部曲线 CSV…"),
             ("image", "导出当前图 PNG…"),
@@ -79,7 +77,7 @@ class FrequencyWorkflow:
         self.sync()
 
     def sources(self) -> dict[str, str]:
-        """Names for stable source IDs, including curves overlaid from other files."""
+        """Names for stable source IDs, including references restored from legacy projects."""
 
         return {
             node.data_file.id: node.data_file.name
@@ -91,21 +89,10 @@ class FrequencyWorkflow:
 
         plot = self.window.view_area.current_plot
         self.panel.sync(plot, self.sources())
-        comparing = (
-            hasattr(self.window, "workspace") and self.window.workspace.tabs.currentIndex() == 1
-        )
-        if comparing and self.window.workspace._comparison is not None:
-            plot = self.window.workspace.comparison.area.current_plot
-        toggle = self.dock.toggleViewAction()
-        if toggle is not None:
-            toggle.setEnabled(not comparing)
         for name, action in self.actions.items():
-            if comparing:
-                action.setEnabled(bool(plot.traces) and name != "add_marker")
-                continue
             action.setEnabled(
                 bool(plot.traces)
-                if name not in {"autoscale_all", "compare"}
+                if name != "autoscale_all"
                 else self.window.active_window is not None
             )
 
@@ -128,23 +115,6 @@ class FrequencyWorkflow:
             QMessageBox.warning(self.window, "频域分析", str(exc))
 
     def _execute(self, action: str) -> None:
-        if hasattr(self.window, "workspace") and self.window.workspace.tabs.currentIndex() == 1:
-            page = self.window.workspace.comparison
-            if action == "compare":
-                return
-            if action == "table":
-                page.table()
-            elif action in {"csv", "image"}:
-                page.export("csv" if action == "csv" else "png")
-            elif action in {"autoscale", "autoscale_all"}:
-                page.autoscale(action == "autoscale_all")
-            elif action == "copy_image" and page.area.current_plot.traces:
-                clipboard = QApplication.clipboard()
-                assert clipboard is not None
-                clipboard.setImage(page.area.current_plot_widget.image())
-            else:
-                raise InputValidationError("请在文件查看页管理曲线和 Marker。")
-            return
         plot = self.window.view_area.current_plot
         index = self.panel.trace_combo.currentIndex()
         number = self.panel.marker_combo.currentData()
@@ -186,8 +156,6 @@ class FrequencyWorkflow:
             else:
                 result = search_marker(plot, number, "target", target=target, span=span)
             self.apply(result)
-        elif action == "compare":
-            self._compare_dialog()
         elif action == "table":
             TraceDataDialog(plot, self.sources(), self.window).exec()
         elif action == "csv":
@@ -217,37 +185,6 @@ class FrequencyWorkflow:
             self.apply(move_marker(self.window.view_area.current_plot, number, x))
         except ValueError as exc:
             logger.warning("Marker move failed: %s", exc)
-
-    def compare_from_window(self, number: int, trace_index: int) -> None:
-        """Overlay a rendered source trace; requires matching geometry and axis format."""
-
-        self.window._store_active_session()
-        session = self.window._sessions.get(number)
-        if session is None:
-            raise InputValidationError("来源窗口已关闭。")
-        source_plot = session.layout.plots[session.current_index]
-        if not 0 <= trace_index < len(source_plot.traces):
-            raise InputValidationError("来源曲线已删除。")
-        current = self.window.view_area.current_plot
-        if current.traces and (
-            current.kind != source_plot.kind or current.y_label != source_plot.y_label
-        ):
-            raise InputValidationError("请选择相同显示格式的曲线进行对比。")
-        node = self.window.data_browser.browser_tree.window(number)
-        trace = source_plot.traces[trace_index]
-        source_id = trace.source_id or node.data_file.id
-        source_name = self.sources().get(source_id, node.data_file.name)
-        if not current.traces:
-            current = replace(
-                current,
-                kind=source_plot.kind,
-                x_label=source_plot.x_label,
-                y_label=source_plot.y_label,
-            )
-        self.apply(compare_trace(current, trace, source_id, source_name))
-
-    def _compare_dialog(self) -> None:
-        self.window.workspace.open_comparison()
 
     def _destination(self, title: str, suffix: str, filters: str) -> Path | None:
         initial = Path(self.window.file_flow.preferences.export_directory) / f"plot{suffix}"

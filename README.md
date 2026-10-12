@@ -17,7 +17,7 @@ Interconnect Studio 是一个基于 **Python + PyQt6** 的 VNA / 高速互联分
 
 > 当前具备频域分析工具雏形：N 端口多格式导入、单端/混模分析、多窗口绘图、
 > 数据质量检查，以及工程保存/恢复、统一导出、最近文件和常用设置。
-> 频域分析支持 Marker、跨文件曲线对比、数据表与 CSV/PNG 导出，见 [操作说明](docs/FREQUENCY_ANALYSIS.md)。
+> 频域分析支持 Marker、曲线管理、数据表与 CSV/PNG 导出，见 [操作说明](docs/FREQUENCY_ANALYSIS.md)。
 > 时域、门控和 AFR 尚未实现。文件操作见 [文件工作流程](docs/FILE_WORKFLOW.md)。
 
 ---
@@ -430,10 +430,9 @@ uv run mypy src
 uv run pytest
 ```
 
-### 浅色工程 GUI
+### PLTS 分析工作台
 
-界面采用冷灰背景、白色绘图区、蓝色主操作，默认进入“文件查看”。
-使用“与另一文件比较…”可进入独立 A/B 页：A 蓝色实线、B 橙色虚线，支持交换、
-各自原始频率网格叠加、手动 Y 范围、AutoScale 和当前图 CSV/PNG 导出。
-二端口四图继续保持 S11/S12、S21/S22 的既定排列。
+界面采用冷灰背景、白色绘图区与蓝色主操作，围绕 Data Browser → Analysis View →
+Parameter / Format 和 Marker 展开，保留手动 Y 范围、AutoScale、数据表及 CSV/PNG 导出。
+二端口四图保持 S11/S12、S21/S22 的既定排列。不提供独立 S 参数文件比较或 A/B 页。
 使用方法、兼容边界与真实运行截图见 [工程 GUI](docs/ENGINEERING_GUI.md)。
