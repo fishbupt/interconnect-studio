@@ -256,7 +256,7 @@ TaskHandle 在投递结束前保留临时 runner，避免调用者仅传入临�
 
 ## PLTS 分析工作台
 
-`ui/analysis_workspace.py` 组合文件摘要、现有 Analysis View 网格、数据表和刻度入口。
+`ui/analysis_workspace.py` 组合现有 Analysis View 网格、数据表和刻度入口；顶部文件摘要与窗口操作卡片已移除。
 不建立独立文件比较页面；比较 UI、专用展示服务及主动跨文件叠加操作已移除。
 保留旧工程中多来源曲线的读取、来源清理和导出，未修改公共文件格式。
 
@@ -420,7 +420,7 @@ PLTS 模板可包含 Marker、Math、Scale、Plot Name、Limit / Eye Mask 等显
 
 ### Window / Plot 命令实现补充（2026-10-12）
 
-`MainWindow._files` 注册表保存全部 `ProjectFile`；窗口会话只持有显示上下文。关闭最后一个 View 不释放文件，主区文件/分析类型选择器负责重新开窗；FileWorkflow 保存全部注册文件，沿用现有工程格式。
+`MainWindow._files` 注册表保存全部 `ProjectFile`；窗口会话只持有显示上下文。关闭最后一个 View 不释放文件，点击 Data Browser 的分析类型节点可为当前文件重新开窗；FileWorkflow 保存全部注册文件，沿用现有工程格式。
 
 `services/plot_layout.py` 执行纯数据的图集合命令，`ui/plot_workflow.py` 编排菜单与显示状态迁移；`PlotViewArea` 提供标题拖动和双击放大。重排以整个不可变 Plot 为单位，Marker 的内部 Trace 索引保持有效。Plot / Trace 稳定身份和完整活动对象选择恢复仍属于后续工作，本次不将其标为完成。
 

@@ -7,9 +7,11 @@
 ## 布局与操作
 
 - 无需创建工程即可导入 Touchstone/CITI。
-- 左侧为 Data Browser 和 Parameter / Format，主区为文件摘要和 Analysis View 图网格。
+- 左侧为 Data Browser 和 Parameter / Format，主区为 Analysis View 图网格及图操作控件。
   停靠面板可调整、浮动或关闭；长参数表单可滚动。
-- 摘要显示当前文件、端口数、频点数、频段和参考阻抗。
+- 绘图区上方不再显示“S 参数分析”卡片及其导入、文件/分析类型选择、新建/关闭窗口控件。
+  文件信息由左侧 Parameter / Format 显示，导入使用 File 菜单；新建窗口点击 Data Browser
+  的分析类型，关闭窗口使用窗口节点的 Close View 右键菜单。
 - 二端口 Single-End 默认 2×2：上排 S11/S12，下排 S21/S22，点击图框选择当前图。
 - 当前文件的参数曲线统一蓝色实线、无采样点标记；图标题区分参数，图例保留曲线名。
 - 当前图可手动设 Y 最小/最大，拒绝非有限数及倒置范围。
@@ -20,7 +22,7 @@
   不保存其他格式的历史范围缓存。
 - 底部显示状态和可折叠日志。耗时文件操作继续复用 TaskRunner 与忙碌对话框。
 
-![分析工作台](images/engineering-viewer.png)
+![分析工作台（移除顶部卡片前的截图）](images/engineering-viewer.png)
 
 ## 状态与兼容
 

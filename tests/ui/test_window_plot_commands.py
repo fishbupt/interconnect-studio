@@ -25,17 +25,18 @@ def test_last_view_keeps_file_export_and_reopen_after_recall(qtbot: QtBot, tmp_p
     assert app.active_window is None
     assert file_id in app._files
     assert app.file_flow.export_action.isEnabled()
-    assert app.workspace.open_view_button.isEnabled()
+    assert app.workspace.view_stack.currentWidget() is app.workspace.empty
     path = app.file_flow.save_project(tmp_path / "no-windows.icproj")
     app.file_flow.load_project(path)
     assert app.active_window is None
     assert app._active_file_id == file_id
-    app.open_view(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+    view_index = app.data_browser.model.index_of_view_type(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+    app.data_browser.tree.clicked.emit(view_index)
     assert app.data_browser.browser_tree.window(app.active_window).data_file.id == file_id
     app.file_flow.request_close_view(app.active_window)
     app.file_flow.close_current_file()
     assert not app.file_flow.snapshot().files
-    assert not app.workspace.open_view_button.isEnabled()
+    assert not app.workspace.export_button.isEnabled()
 
 
 def test_copy_move_rename_restore_keep_marker_and_scale(qtbot: QtBot, tmp_path: Path) -> None:

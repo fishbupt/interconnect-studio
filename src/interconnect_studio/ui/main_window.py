@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
     """Application shell.
 
     The viewer keeps the data browser and parameter/format docks on the left.
-    The central workspace adds a compact summary and plot controls.
+    The central workspace contains the analysis view and plot controls.
     Messages live in the status bar, with a collapsed panel for their history.
     """
 

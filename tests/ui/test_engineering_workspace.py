@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import numpy as np
-from PyQt6.QtWidgets import QPushButton, QTabWidget
+from PyQt6.QtWidgets import QLabel, QPushButton, QTabWidget
 from pytestqt.qtbot import QtBot
 
 from interconnect_studio.ui import MainWindow
@@ -16,6 +16,13 @@ def test_workspace_has_analysis_controls_without_file_comparison(qtbot: QtBot) -
     window = MainWindow()
     qtbot.addWidget(window)
     assert not window.workspace.findChildren(QTabWidget)
+    assert window.workspace.layout().count() == 1
+    assert window.workspace.layout().itemAt(0).widget() is window.workspace.view_page
+    assert not window.workspace.findChild(QLabel, "pageTitle")
+    assert all(
+        button.text() not in {"导入测量文件…", "新建分析窗口", "关闭当前窗口"}
+        for button in window.workspace.findChildren(QPushButton)
+    )
     assert not hasattr(window.workspace, "open_comparison")
     assert "compare" not in window.frequency_flow.actions
     assert not hasattr(window.frequency_flow, "compare_from_window")
