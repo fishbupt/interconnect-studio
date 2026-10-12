@@ -53,9 +53,9 @@ def test_project_recall_keeps_multi_window_state_without_source_files(
     assert len(restored.data_browser.browser_tree.windows) == 2
     assert restored.active_window == 1
     assert restored.view_area.current_index == 0
-    assert restored.view_area.layout_model.rows == 2
-    assert restored.view_area.layout_model.plots[3].traces[0].name == "S21 Phase"
-    bounds = restored.view_area.plot_widget_at(3).plot_widget.getViewBox().viewRange()
+    assert restored.view_area.layout_model.rows == 3
+    assert restored.view_area.layout_model.plots[4].traces[0].name == "S21 Phase"
+    bounds = restored.view_area.plot_widget_at(4).plot_widget.getViewBox().viewRange()
     np.testing.assert_allclose(bounds, [[1e6, 2e6], [-180, 180]])
     restored.show_window(2)
     assert restored.plot_widget.model.traces[0].name == "S11 Real"
@@ -81,10 +81,12 @@ def test_balanced_traces_and_dut_labels_survive_recall(qtbot: QtBot, tmp_path: P
     choice = ParameterChoice("SDD21", 1, 0, Mode.DIFFERENTIAL, Mode.DIFFERENTIAL)
     window.new_selected_plot(choice, "log_mag")
     before = window.plot_widget.model.traces[0].y.copy()
+    plot_index = window.view_area.current_index
     path = window.file_flow.save_project(tmp_path / "pair.icproj")
     restored = make_window(qtbot)
     restored.file_flow.load_project(path)
     assert restored.loaded_measurement.dut_configuration == config
+    restored.view_area.set_current_index(plot_index)
     np.testing.assert_array_equal(restored.plot_widget.model.traces[0].y, before)
     assert restored.parameter_format.is_mixed_mode
 

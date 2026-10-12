@@ -67,9 +67,13 @@ def test_delta_and_markers_restore_in_their_own_grid_cells(qtbot: QtBot, tmp_pat
     first = add_marker(add_marker(app.plot_widget.model, 0, 1e9), 1, 2e9)
     app.frequency_flow.apply(set_delta(first, 2, 1))
     expected = marker_reading(app.plot_widget.model, app.plot_widget.model.markers[1])
+    for _ in range(2):
+        app.view_area.set_current_index(2)
+        app.plot_flow.delete()
+    app.view_area.set_current_index(0)
     app.set_grid(1, 2)
     app.view_area.set_current_index(1)
-    app.new_plot(1, 0, "phase")
+    app.replace_plot(1, 0, "phase")
     app.frequency_flow._execute("add_marker")
     app.view_area.set_current_index(0)
     assert len(app.frequency_flow.panel._plot.markers) == 2
@@ -205,6 +209,10 @@ def test_plot_png_has_requested_resolution_and_clipboard_image(
 
 def test_autoscale_all_enables_both_axes_and_empty_workspace_actions_disable(qtbot: QtBot) -> None:
     app = window(qtbot)
+    for _ in range(2):
+        app.view_area.set_current_index(2)
+        app.plot_flow.delete()
+    app.view_area.set_current_index(0)
     app.set_grid(1, 2)
     for cell in (0, 1):
         app.view_area.plot_widget_at(cell).plot_widget.setRange(xRange=(1, 2), yRange=(0, 1))
@@ -249,7 +257,7 @@ def test_closing_source_marks_inactive_legacy_plot_dirty_and_cancel_preserves_it
     monkeypatch.setattr(QMessageBox, "question", lambda *_args: QMessageBox.StandardButton.Discard)
 
 
-def test_closing_one_source_view_retains_legacy_plot_until_last_view_closes(qtbot: QtBot) -> None:
+def test_closing_source_views_retains_legacy_plot_until_file_closes(qtbot: QtBot) -> None:
     from interconnect_studio.core import ViewType
 
     app = window(qtbot)
@@ -261,4 +269,6 @@ def test_closing_one_source_view_retains_legacy_plot_until_last_view_closes(qtbo
     assert len(app.plot_widget.model.traces) == 2
     assert app.plot_widget.model.traces[-1].source_id == source_id
     app.close_view(2)
+    assert len(app.plot_widget.model.traces) == 2
+    app.close_file(source_id)
     assert len(app.plot_widget.model.traces) == 1

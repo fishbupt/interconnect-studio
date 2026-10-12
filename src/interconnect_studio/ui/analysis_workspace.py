@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from interconnect_studio.core import ViewType
 from interconnect_studio.ui.widgets.axis_range_controls import AxisRangeControls
 
 if TYPE_CHECKING:
@@ -45,6 +47,33 @@ class AnalysisWorkspace(QWidget):
         card_layout.addLayout(heading)
         card_layout.addWidget(description)
         card_layout.addWidget(self.summary)
+        files_row = QHBoxLayout()
+        self.files = QComboBox(self)
+        self.files.setMinimumContentsLength(15)
+        self.files.currentIndexChanged.connect(self._select_file)
+        self.view_type = QComboBox(self)
+        for kind in (ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED, ViewType.FREQUENCY_DOMAIN_BALANCED):
+            self.view_type.addItem(kind.label, kind)
+        self.open_view_button = QPushButton("新建分析窗口", self)
+        self.open_view_button.clicked.connect(
+            lambda: window._guarded(lambda: window.open_view(self.view_type.currentData()))
+        )
+        self.close_view_button = QPushButton("关闭当前窗口", self)
+        self.close_view_button.clicked.connect(
+            lambda: window._guarded(
+                lambda: (
+                    window.close_view(window.active_window)
+                    if window.active_window is not None
+                    else None
+                )
+            )
+        )
+        files_row.addWidget(QLabel("当前文件", self))
+        files_row.addWidget(self.files, 1)
+        files_row.addWidget(self.view_type)
+        files_row.addWidget(self.open_view_button)
+        files_row.addWidget(self.close_view_button)
+        card_layout.addLayout(files_row)
 
         self.view_page = QWidget(self)
         self.view_page.setObjectName("analysisView")
@@ -86,17 +115,41 @@ class AnalysisWorkspace(QWidget):
         window.view_area.current_index_changed.connect(self.axis.sync)
         self.sync()
 
+    def _select_file(self, index: int) -> None:
+        file_id = self.files.itemData(index)
+        if file_id is not None:
+            self.host._guarded(lambda: self.host.select_data_file(file_id))
+
     def sync(self) -> None:
         """Reflect the active analysis window, current plot and file summary."""
 
         window = self.host
         loaded = window.loaded_measurement
+        self.files.blockSignals(True)
+        self.files.clear()
+        for file_id, item in window._files.items():
+            self.files.addItem(item.data_file.name, file_id)
+            self.files.setItemData(
+                self.files.count() - 1,
+                str(item.data_file.source_path or ""),
+                Qt.ItemDataRole.ToolTipRole,
+            )
+        self.files.setCurrentIndex(self.files.findData(window._active_file_id))
+        self.files.blockSignals(False)
+        self.open_view_button.setEnabled(bool(window._files))
+        self.close_view_button.setEnabled(window.active_window is not None)
         self.view_stack.setCurrentWidget(window.view_area if loaded is not None else self.empty)
-        for button in (self.export_button, self.auto_button):
+        for button in (self.auto_button,):
             button.setEnabled(loaded is not None)
+        self.export_button.setEnabled(bool(window._files))
         self.table_button.setEnabled(bool(window.view_area.current_plot.traces))
         if loaded is None:
-            self.summary.setText("尚未导入文件 · 支持 Touchstone / CITI")
+            selected = window._files.get(window._active_file_id or "")
+            self.summary.setText(
+                f"{selected.data_file.name} · 数据已保留，请新建分析窗口"
+                if selected
+                else "尚未导入文件 · 支持 Touchstone / CITI"
+            )
         else:
             network = loaded.network
             self.summary.setText(

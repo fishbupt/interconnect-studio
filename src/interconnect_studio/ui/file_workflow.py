@@ -120,7 +120,7 @@ class FileWorkflow:
     def update_actions(self) -> None:
         """Keep menu availability and the project status synchronized."""
 
-        has_data = bool(self.window.data_browser.browser_tree.windows)
+        has_data = bool(self.window._files)
         self.export_action.setEnabled(has_data)
         self.close_file_action.setEnabled(has_data)
         self.close_all_action.setEnabled(has_data)
@@ -132,7 +132,7 @@ class FileWorkflow:
 
         window = self.window
         window._store_active_session()
-        files: dict[str, ProjectFile] = {}
+        files = dict(window._files)
         windows: list[ProjectWindow] = []
         for node in window.data_browser.browser_tree.windows:
             session = window._sessions[node.number]
@@ -193,6 +193,8 @@ class FileWorkflow:
             window._active_window = None
             window._loaded = None
             window._sessions = sessions
+            window._files = files
+            window._active_file_id = next(iter(files), None)
             window.data_browser.set_browser_tree(tree)
             ids = set(files)
             window._next_file_number = 1
@@ -359,6 +361,8 @@ class FileWorkflow:
         if not self.confirm_discard():
             return
         self.window._sessions.clear()
+        self.window._files.clear()
+        self.window._active_file_id = None
         self.window.data_browser.set_browser_tree(DataBrowserTree())
         self.window._clear_view()
         self.window._next_file_number = 1
@@ -373,6 +377,8 @@ class FileWorkflow:
         if not self.confirm_discard():
             return
         self.window._sessions.clear()
+        self.window._files.clear()
+        self.window._active_file_id = None
         self.window.data_browser.set_browser_tree(DataBrowserTree())
         self.window._clear_view()
         self._dirty_files.clear()
@@ -389,38 +395,30 @@ class FileWorkflow:
             return
         self.window.close_file(file_id)
         self._dirty_files.discard(file_id)
-        if not self.window.data_browser.browser_tree.windows:
+        if not self.window._files:
             self.project_path = None
             self.dirty = False
         self.update_actions()
 
     def request_close_view(self, number: int) -> None:
-        """Closing the last view of unsaved data uses the same save decision."""
+        """Close display state while keeping the loaded measurement available."""
 
-        tree = self.window.data_browser.browser_tree
-        file_id = tree.window(number).data_file.id
-        if len(tree.windows_of_file(file_id)) == 1:
-            self.request_close_file(file_id)
-        else:
-            self.window.close_view(number)
+        self.window.close_view(number)
 
     def close_current_file(self) -> None:
-        """Close the data file behind the current view."""
+        """Close the selected measurement, including a file with no windows."""
 
-        number = self.window.active_window
-        if number is not None:
-            self.request_close_file(
-                self.window.data_browser.browser_tree.window(number).data_file.id
-            )
+        file_id = self.window._active_file_id
+        if file_id is not None:
+            self.request_close_file(file_id)
 
     def export_dialog(self) -> None:
         """Export any open data file with current-file selection first."""
 
         snapshot = self.snapshot()
         files = list(snapshot.files)
-        number = self.window.active_window
-        if number is not None:
-            active_id = self.window.data_browser.browser_tree.window(number).data_file.id
+        active_id = self.window._active_file_id
+        if active_id is not None:
             files.sort(key=lambda item: item.data_file.id != active_id)
         sources = [
             ImportedNetwork(

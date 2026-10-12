@@ -21,7 +21,7 @@ import traceback
 from collections.abc import Callable
 from typing import Final
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal, pyqtSlot
 
 _logger: Final[logging.Logger] = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class TaskHandle(QObject):
             if not self._cancelled:
                 self.finished.emit(result)
         finally:
-            self._owner = None
+            self._release_owner()
 
     @pyqtSlot(str)
     def _deliver_error(self, message: str) -> None:
@@ -63,7 +63,21 @@ class TaskHandle(QObject):
             if not self._cancelled:
                 self.failed.emit(message)
         finally:
-            self._owner = None
+            self._release_owner()
+
+    @pyqtSlot()
+    def _release_owner(self) -> None:
+        # A queued result may arrive before QRunnable has returned. Destroying
+        # a temporary runner here would wait for its pool while holding the GIL,
+        # preventing the worker from completing Python/SIP cleanup.
+        if (
+            isinstance(self._owner, TaskRunner)
+            and self._owner.parent() is None
+            and self._owner._pool.activeThreadCount()
+        ):
+            QTimer.singleShot(1, self._release_owner)
+            return
+        self._owner = None
 
     @property
     def cancelled(self) -> bool:

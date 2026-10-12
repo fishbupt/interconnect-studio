@@ -2,7 +2,7 @@
 
 # Interconnect Studio Roadmap
 
-本路线图以 [ARCHITECTURE.md §11](ARCHITECTURE.md#11-plts-核心概念规格与操作) 的 Window / Plot / Trace 语义为开发依据。状态核查日期：**2026-10-12**，核查基线：`5947f37`；依据为当前代码、已有测试和文件协议，不以目录存在或模型枚举存在代替端到端完成。
+本路线图以 [ARCHITECTURE.md §11](ARCHITECTURE.md#11-plts-核心概念规格与操作) 的 Window / Plot / Trace 语义为开发依据。状态核查日期：**2026-10-12**，文档核查基线：`5947f37`（下述 Window / Plot 状态已随 2026-10-12 实现更新）；依据为当前代码、已有测试和文件协议，不以目录存在或模型枚举存在代替端到端完成。
 
 状态规则：`[x]` 表示该条描述范围已有实现与验证；`[ ]` 表示尚未完成。部分完成的工作拆成独立条目。阶段只有通过 Exit 才算完成，单个基础能力完成不代表整阶段完成。
 
@@ -28,9 +28,9 @@
 | Network、读写、Build、Subset、端口映射 | 基础实现完成；时域导入、混模未配对端口和导出重采样仍未完成 | `core/network.py`、`io/`、`algorithms/network/`；`test_import_readers.py`、`test_import_algorithms.py`、`test_network_writers.py` |
 | DUT 配置与 Mixed Mode | 配置模型/对话框、变换及 Balanced 显示完成；混模 TraceRecipe、常驻配置面板仍未完成 | `core/dut.py`、`algorithms/mixed_mode/`；`test_dut_configuration.py`、`test_mixed_mode.py`、`test_main_window.py` |
 | GUI 外壳 | pyqtgraph、docks、Parameter / Format 基础面板、底部可折叠日志、明暗主题已完成 | `ui/main_window.py`、`ui/theme.py`；`test_main_window.py`、`test_engineering_workspace.py` |
-| 文件生命周期 | 多视图切换、关闭入口、未保存处理完成；最后一个 View 与文件关闭仍耦合 | `FileWorkflow.request_close_view()`、`MainWindow._close_windows()`；`test_file_workflow.py` |
+| 文件生命周期 | 多视图切换、关闭入口、未保存处理完成；最后一个 View 与文件生命周期已解耦，无窗口文件可保存/导出/重新开窗 | `FileWorkflow.request_close_view()`、`MainWindow._close_windows()`；`test_file_workflow.py` |
 | 默认 s2p 显示 | Single-End 默认 2×2：S11/S12 上排，S21/S22 下排；切换及工程恢复有测试 | `test_two_port_import_uses_2x2_even_if_previous_grid_is_different`、`test_imported_two_port_matrix_layout_survives_window_switch_and_project_recall` |
-| Plot 管理 | 活动图高亮、固定网格完成；New Plot 仍替换选中格；复制/删除/重排/放大未完成 | `ui/views/plot_view_area.py`、`MainWindow.new_plot()`；`test_plot_view_area.py`、`test_panel_new_plot_button_replaces_the_plot` |
+| Plot 管理 | 活动图高亮、固定网格完成；New Plot 新增、显式替换、复制/删除/重排/放大已完成；完整活动对象身份待补 | `ui/views/plot_view_area.py`、`services/plot_layout.py`；`test_plot_view_area.py`、`test_window_plot_commands.py` |
 | 频域格式 | 所有 Cartesian 格式，包括阻抗幅值/虚部幅值/角度、Q/D，已有算法与选择入口；Smith / Polar 只有模型与数据转换 | `algorithms/network/formats.py`、`ui/panels/parameter_format.py`；`test_s_parameter_formats.py`、`test_parameter_format_panel.py` |
 | 刻度 | Y Min/Max、格式范围会话缓存、当前图/全部图 autoRange 完成；80% 纵向 Autoscale 与 Reset 语义仍需对齐 | `axis_range_controls.py`、`frequency_workflow.py`；`test_engineering_workspace.py`、`test_autoscale_all_enables_both_axes_and_empty_workspace_actions_disable` |
 | Marker、Trace、数据表与导出 | 基础 Marker/Delta/Search、Trace 编辑、虚拟表、CSV/PNG 已完成；图级多曲线读数和高级 Marker 未完成 | `services/frequency_analysis.py`；`test_frequency_analysis.py`、`test_frequency_workflow.py` |
@@ -143,9 +143,9 @@ Exit：选择与操作目标一致；空窗口/空图行为明确；切换或删
 
 - [x] 创建、激活、切换；同一文件打开多个视图
 - [x] Close View / Close File、Rename File / Copy File Name 入口
-- [ ] 解耦 DataFile 与最后一个 Window 的生命周期；关闭最后一个 View 保留已加载文件及重新开视图入口
-- [ ] 将文件级保存/导出/脏状态从“是否有 Window”中解耦；补无窗口文件的恢复与关闭测试
-- [ ] 完善视图分析类型能力判断及关闭后的活动对象回退
+- [x] 解耦 DataFile 与最后一个 Window 的生命周期；关闭最后一个 View 保留已加载文件及重新开视图入口
+- [x] 将文件级保存/导出/脏状态从“是否有 Window”中解耦；补无窗口文件的恢复与关闭测试
+- [x] 完善视图分析类型能力判断及关闭后的活动对象回退
 - [ ] Tile / Cascade / Maximize / Minimize（延后；第一轮沿用活动会话切换）
 
 Exit：Close View 关闭视图，Close File 关闭文件及全部关联视图；数据与显示状态互不冒充。不能把 Plot 网格称为多窗口平铺。
@@ -155,13 +155,13 @@ Exit：Close View 关闭视图，Close File 关闭文件及全部关联视图；
 - [x] 固定多图网格、活动 Plot 高亮
 - [x] s2p Single-End 默认 2×2：S11/S12 上排、S21/S22 下排，切换/保存恢复保持顺序
 - [x] Core 每 Window 最多 144 格校验
-- [ ] New Plot 真正新增；原“替换当前格子”拆为明确的 Replace Current Plot 操作
-- [ ] 新图插入活动图之后，定义空格复用、自动扩容及满额提示
-- [ ] Delete Plot、All Clear；缩小布局时不静默丢失有数据的图
+- [x] New Plot 真正新增；原“替换当前格子”拆为明确的 Replace Current Plot 操作
+- [x] 新图插入活动图之后，定义空格复用、自动扩容及满额提示
+- [x] Delete Plot、All Clear；缩小布局时不静默丢失有数据的图
 - [ ] 参数批选：ALL、RL / IL / NEXT / FEXT、on One / on Many；TDR / TDT 分组随时域阶段接入
-- [ ] Copy to New Plot、Rename Plot（参考 22 字符限制）、拖动重排
-- [ ] 双击单图放大/还原；保持原布局与活动图
-- [ ] 图复制、删除和重排时同步处理刻度、Marker、曲线身份及工程脏状态
+- [x] Copy to New Plot、Rename Plot（参考 22 字符限制）、拖动重排
+- [x] 双击单图放大/还原；保持原布局与活动图
+- [x] 图复制、删除和重排时同步处理刻度、Marker、曲线身份及工程脏状态
 
 Exit：新增图保留原图，所有图管理操作可保存恢复；到达上限不丢失已有内容。
 
@@ -387,11 +387,11 @@ PLTS 在此范围内的能力，供将来决策参考：Calibration & Measuremen
 - UI 不执行数值算法；耗时任务使用统一 TaskRunner；Worker 不访问 Widget。
 - 保留原始 Network、显式单位与端口约定；Golden Reference 不自动覆盖。
 
-## 下一轮推荐任务（M1）
+## 下一轮推荐任务（M1 收尾 / M2）
 
 1. 明确活动对象命令与稳定身份方案，更新领域设计。
-2. 解耦最后一个 View 与文件生命周期，覆盖无窗口文件的导航、保存和重新开视图。
-3. 完成 New Plot / Replace Current Plot、删除/清空、复制/重命名、重排及放大恢复。
+2. 完善每个窗口的 Trace / Marker 活动选择恢复及后台命令有效性。
+3. 完成同图同格式及不兼容格式的新图行为、曲线容量、混模配方。
 4. 验收流程：导入 s2p 默认四图 → 新增图 → 添加曲线 → 复制/重排/删除图 → 切换视图 → 关闭最后一个视图后重新打开 → 保存并恢复工程。
 
-本次路线图整理仅更新计划及状态。窗口平铺/层叠、完整 Marker/Math/Template 和后续算法不因列入计划而标记完成。
+Window / Plot 基础操作已落地；四级活动对象/稳定身份、窗口平铺/层叠、批选参数、完整 Marker/Math/Template 和后续算法仍待实现。

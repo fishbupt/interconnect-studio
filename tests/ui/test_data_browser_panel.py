@@ -121,3 +121,19 @@ def test_clicking_an_unavailable_view_type_does_nothing(qtbot: QtBot) -> None:
 
     with qtbot.assertNotEmitted(panel.open_view_requested):
         click(panel, ViewType.TIME_DOMAIN_SINGLE_ENDED)
+
+
+def test_view_click_does_not_reuse_index_after_handler_resets_model(qtbot: QtBot) -> None:
+    panel = DataBrowserPanel()
+    qtbot.addWidget(panel)
+    index = panel.model.index_of_view_type(ViewType.FREQUENCY_DOMAIN_SINGLE_ENDED)
+    accessed_after_reset = []
+
+    def reset(_kind: object) -> None:
+        panel.set_browser_tree(DataBrowserTree())
+        # Any lookup on the old QModelIndex after reset is unsafe.
+        panel.model.template_at = lambda _index: accessed_after_reset.append(True)
+
+    panel.open_view_requested.connect(reset)
+    panel._on_clicked(index)
+    assert not accessed_after_reset

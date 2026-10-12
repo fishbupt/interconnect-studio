@@ -235,15 +235,18 @@ def test_panel_add_button_adds_a_trace(qtbot: QtBot) -> None:
     assert window.plot_widget.model.n_traces == 2
 
 
-def test_panel_new_plot_button_replaces_the_plot(qtbot: QtBot) -> None:
+def test_panel_new_plot_button_inserts_without_replacing_the_plot(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
     window.load_touchstone_file(S2P)
     panel = window.parameter_format
     panel._parameter_buttons.button(3).setChecked(True)
 
+    original = window.view_area.layout_model.plots
     panel.new_plot_button.click()
 
+    assert window.view_area.layout_model.n_cells == 6
+    assert window.view_area.layout_model.plots[0] is original[0]
     assert trace_names(window) == ["S22 Log Mag"]
     assert window.plot_widget.model.n_traces == 1
 
@@ -346,6 +349,10 @@ def test_selecting_a_window_in_the_browser_shows_its_data(qtbot: QtBot) -> None:
 def test_each_window_keeps_its_own_grid_and_traces(qtbot: QtBot) -> None:
     window = two_windows(qtbot)
     window.show_window(1)
+    for _ in range(2):
+        window.view_area.set_current_index(2)
+        window.plot_flow.delete()
+    window.view_area.set_current_index(0)
     window.set_grid(1, 2)
     window.add_trace(0, 1, "log_mag")
 
@@ -378,7 +385,6 @@ def test_adding_a_trace_goes_to_the_selected_cell(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
     window.load_touchstone_file(S2P)
-    window.set_grid(1, 2)
 
     window.view_area.set_current_index(1)
     assert trace_names(window) == ["S12 Log Mag"]
@@ -647,8 +653,8 @@ def test_open_template_needs_an_active_file(qtbot: QtBot) -> None:
     window = two_windows(qtbot)
     window.save_template(1, "t")
     template = window.data_browser.model.templates[0]
-    window.close_view(1)
-    window.close_view(2)
+    for file_id in tuple(window._files):
+        window.close_file(file_id)
 
     with pytest.raises(InputValidationError, match="Import a file"):
         window.open_template(template)

@@ -33,6 +33,7 @@ class AxisRangeControls(QWidget):
             layout.addWidget(widget)
         layout.addWidget(self.error, 1)
         self.apply_button.clicked.connect(self.apply)
+        area.layout_about_to_change.connect(self.detach)
 
     def apply(self) -> None:
         """Reject invalid input without changing the displayed range."""
@@ -47,6 +48,16 @@ class AxisRangeControls(QWidget):
         self.error.clear()
         self.area.current_plot_widget.plot_widget.setYRange(low, high, padding=0)
         self.changed.emit()
+
+    def detach(self) -> None:
+        """Disconnect the old view before a grid rebuild destroys its widgets."""
+
+        if self._bound_view is not None:
+            try:
+                self._bound_view.sigRangeChanged.disconnect(self.sync)
+            except (RuntimeError, TypeError):
+                pass
+            self._bound_view = None
 
     def sync(self) -> None:
         """Reflect the selected plot's actual bounds and unit."""

@@ -394,12 +394,12 @@ PLTS 模板可包含 Marker、Math、Scale、Plot Name、Limit / Eye Mask 等显
 | 数据文件 / 分析视图层级 | 已有 `DataFile`、`ViewWindow` 与独立会话；主区切换显示活动会话 | 多窗口平铺/层叠尚未实现，不把 Plot 网格称为 MDI |
 | 默认 s2p 频域显示 | Frequency Domain (Single-End) 默认 2×2：上排 S11、S12，下排 S21、S22 | 保持用户规定顺序；每格是 Plot，不是四个独立 Window |
 | Plot 布局容量 | Core 校验最多 144 格；GUI 提供 1×1、1×2、2×1、2×2 | 扩展图集合管理、重排及更多布局入口 |
-| New Plot | `MainWindow.new_plot()` 替换活动格子的图 | 对齐 PLTS 时改为新增图；明确插入位置、扩容和满额行为 |
+| New Plot | 已实现新增、空格复用、自动扩容、满额提示；替换为独立显式命令 | 服务返回旧格来源映射，UI 同步迁移刻度和范围缓存 |
 | 曲线容量及删除 | 支持添加、管理曲线；未校验 36 条上限，允许删除最后一条留下空图 | 决定是否严格对齐容量及菜单可用性，再实现验证 |
 | Format / 绘图类型 | Trace 配方保存格式；Plot 校验单位；Core 已有 Cartesian / Smith / Polar 类型，当前交互路径主要为 Cartesian | 显式保证同图同格式；补齐复杂平面绘图及格式能力，不能仅以单位相同判定 |
 | 缩放 | 已有范围、缩放、当前图及当前窗口全部图自动范围入口 | 对齐纵向 80% Autoscale 与 Reset 语义，补充格式/刻度复制；已有 Autoscale All 入口仍需核对具体范围策略 |
 | Marker | 已有新增、拖动、吸附、Delta、Min / Max / Target；绑定单条曲线 | 图级多曲线读数、Target 搜索规则、3 dB、Coupling、Math、集合存取待补齐 |
-| 图级编辑 | 尚未完整覆盖复制图、注释、图例、名称限制及拖动重排 | 先明确对象所有权，再补服务命令、交互与状态保存 |
+| 图级编辑 | 已实现删除/清空、复制、重命名（1–22 字符）、重排及放大恢复 | 注释和完整图例配置仍待实现 |
 | Equation / Memory Trace | 未形成完整对标能力 | 定义计算配方、引用解析及更新策略；Memory Trace 先核实官方语义 |
 | 模板 | 已有单来源布局/配方复用 | Marker 等完整配置覆盖需独立设计；不引入 Multi-Data 比较模板 |
 | 文件比较 | 明确排除，专用界面与服务已移除 | 仅保持旧工程兼容，不增加主动比较入口 |
@@ -417,3 +417,11 @@ PLTS 模板可包含 Marker、Math、Scale、Plot Name、Limit / Eye Mask 等显
 - [R7：Templates](https://helpfiles.keysight.com/csg/N1930xB/Analyzing/Templates.htm)
 - [R8：File Save and Open](https://helpfiles.keysight.com/csg/N1930xB/FilePrint/File_Save_and_Open.htm)
 - [R9：User Preferences](https://helpfiles.keysight.com/csg/N1930xB/ToolsAndUtilities/User_Preferences.htm)
+
+### Window / Plot 命令实现补充（2026-10-12）
+
+`MainWindow._files` 注册表保存全部 `ProjectFile`；窗口会话只持有显示上下文。关闭最后一个 View 不释放文件，主区文件/分析类型选择器负责重新开窗；FileWorkflow 保存全部注册文件，沿用现有工程格式。
+
+`services/plot_layout.py` 执行纯数据的图集合命令，`ui/plot_workflow.py` 编排菜单与显示状态迁移；`PlotViewArea` 提供标题拖动和双击放大。重排以整个不可变 Plot 为单位，Marker 的内部 Trace 索引保持有效。Plot / Trace 稳定身份和完整活动对象选择恢复仍属于后续工作，本次不将其标为完成。
+
+临时无父级 TaskRunner 的结果可能在 QRunnable 返回前投递到 GUI。TaskHandle 使用 QObject 绑定的短计时回调，待线程池活动数为零再释放临时 owner，避免 GUI 持有 GIL 时销毁线程池并等待仍需 GIL 的 Worker 清理。普通由窗口持有的 runner 不增加轮询。绘图区重建先解除旧刻度回调和事件过滤器，旧图框保留父级直到删除，避免窗口销毁后的残留事件访问。

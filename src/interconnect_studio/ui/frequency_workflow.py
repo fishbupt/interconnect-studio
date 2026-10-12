@@ -79,10 +79,7 @@ class FrequencyWorkflow:
     def sources(self) -> dict[str, str]:
         """Names for stable source IDs, including references restored from legacy projects."""
 
-        return {
-            node.data_file.id: node.data_file.name
-            for node in self.window.data_browser.browser_tree.windows
-        }
+        return {item.data_file.id: item.data_file.name for item in self.window._files.values()}
 
     def sync(self) -> None:
         """Refresh controls when the current file, window or plot changes."""

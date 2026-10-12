@@ -102,3 +102,9 @@ output = ExportService().export(network, "channel.ts", options)
 及恢复默认值。它与工程分开，不包含测量数据。
 
 频域 Marker、跨文件比较和曲线数据/图片导出见 [频域分析操作](FREQUENCY_ANALYSIS.md)。
+
+## 无窗口文件与图管理（2026-10-12）
+
+Close View 不再等同于关闭最后一个文件。文件注册表独立于显示会话；保存时 `ProjectSnapshot.files` 包含全部已加载文件，即使 `windows` 为空。该能力使用现有 v2 协议，不新增字段，继续读取 v1。当前文件选择、导出与 Close File 在无窗口状态同样可用；Close All / New Project 同时清空注册表及窗口。
+
+New Plot 新增图；“替换为当前参数”是独立显式命令。图管理支持新增空图、删除、清空、复制、重命名、前后移动、标题拖动重排、双击放大/恢复。图的顺序、标题、曲线、Marker 和当前刻度随工程保存；放大状态及格式历史缓存只在 UI 中使用。

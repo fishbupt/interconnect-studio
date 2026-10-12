@@ -179,3 +179,23 @@ def test_destroyed_runner_drops_queued_callbacks(qtbot: QtBot) -> None:
     sip.delete(runner)
     qtbot.wait(20)
     assert results == []
+
+
+def test_temporary_owner_release_waits_for_worker_exit(qtbot: QtBot) -> None:
+    from threading import Event
+
+    started, release = Event(), Event()
+    runner = TaskRunner()
+
+    def work() -> None:
+        started.set()
+        release.wait(5)
+
+    handle = runner.submit(work)
+    try:
+        assert started.wait(1)
+        handle._release_owner()
+        assert handle._owner is runner
+    finally:
+        release.set()
+    qtbot.waitUntil(lambda: handle._owner is None)

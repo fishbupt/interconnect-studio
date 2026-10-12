@@ -187,6 +187,8 @@ class DataBrowserPanel(QWidget):
         view_type = self.model.view_type_at(index)
         if view_type is not None and self.model.is_available(view_type):
             self.open_view_requested.emit(view_type)
+            # The handler resets the model: the old index no longer owns its node.
+            return
         template = self.model.template_at(index)
         if template is not None and self.model.is_available(template.view_type):
             self.open_template_requested.emit(template)

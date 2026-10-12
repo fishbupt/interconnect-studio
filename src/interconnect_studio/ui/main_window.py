@@ -34,6 +34,7 @@ from interconnect_studio.core import (
     ViewType,
     ViewWindow,
 )
+from interconnect_studio.core.project import ProjectFile
 from interconnect_studio.io import ImportFileType, guess_file_type
 from interconnect_studio.services import (
     ImportedNetwork,
@@ -104,6 +105,8 @@ class MainWindow(QMainWindow):
         self._template_service = template_service or TemplateService(default_template_directory())
         self._loaded: LoadedTouchstonePlot | None = None
         self._sessions: dict[int, WindowSession] = {}
+        self._files: dict[str, ProjectFile] = {}
+        self._active_file_id: str | None = None
         self._active_window: int | None = None
         self._theme = DEFAULT_THEME
         self._next_file_number = 1
@@ -159,6 +162,9 @@ class MainWindow(QMainWindow):
         self.takeCentralWidget()
         self.workspace = AnalysisWorkspace(self)
         self.setCentralWidget(self.workspace)
+        from interconnect_studio.ui.plot_workflow import PlotWorkflow
+
+        self.plot_flow = PlotWorkflow(self)
 
     @property
     def plot_widget(self) -> CartesianPlotWidget:
@@ -202,12 +208,19 @@ class MainWindow(QMainWindow):
         plots.
         """
 
-        if self._active_window is None:
+        if self._active_file_id is None:
             raise InputValidationError("Import a file before opening a view.")
         if not self.data_browser.model.is_available(view_type):
             raise InputValidationError(f"{view_type.label} is not available yet.")
-        data_file = self.data_browser.browser_tree.window(self._active_window).data_file
-        active = self._sessions[self._active_window].loaded
+        item = self._files[self._active_file_id]
+        data_file = item.data_file
+        active = LoadedTouchstonePlot(
+            data_file.name,
+            data_file.network,
+            PlotModel(),
+            data_file.source_path,
+            item.dut_configuration,
+        )
 
         self._store_active_session()
         tree, window = self.data_browser.browser_tree.open(view_type, data_file)
@@ -274,10 +287,17 @@ class MainWindow(QMainWindow):
         window is listed under the template.
         """
 
-        if self._active_window is None:
+        if self._active_file_id is None:
             raise InputValidationError("Import a file before opening a template.")
-        data_file = self.data_browser.browser_tree.window(self._active_window).data_file
-        active = self._sessions[self._active_window].loaded
+        item = self._files[self._active_file_id]
+        data_file = item.data_file
+        active = LoadedTouchstonePlot(
+            data_file.name,
+            data_file.network,
+            PlotModel(),
+            data_file.source_path,
+            item.dut_configuration,
+        )
         layout = self._template_service.apply(template, data_file.network, data_file.name)
 
         self._store_active_session()
@@ -306,16 +326,21 @@ class MainWindow(QMainWindow):
         title = self._sessions[number].title if number in self._sessions else str(number)
         self._close_windows(tree.close_window(number), (number,))
         self._log(f"Closed view: {title}")
-        self.file_flow.modified()
+        self.file_flow.modified(tree.window(number).data_file.id)
 
     def close_file(self, file_id: str) -> None:
         """Close every window of one data file (window menu > Close File)."""
 
         tree = self.data_browser.browser_tree
         windows = tree.windows_of_file(file_id)
-        closed = tree.close_file(file_id)
+        item = self._files.pop(file_id, None)
+        if item is None:
+            raise InputValidationError("Data file is not open.")
+        closed = tree.close_file(file_id) if windows else tree
+        if self._active_file_id == file_id:
+            self._active_file_id = next(iter(self._files), None)
         self._close_windows(closed, tuple(window.number for window in windows))
-        self._log(f"Closed file: {windows[0].data_file.name}")
+        self._log(f"Closed file: {item.data_file.name}")
         self.file_flow.modified()
 
     def rename_file(self, file_id: str, name: str) -> None:
@@ -328,8 +353,11 @@ class MainWindow(QMainWindow):
         name = name.strip()
         tree = self.data_browser.browser_tree
         windows = tree.windows_of_file(file_id)
-        renamed = tree.rename_file(file_id, name)
-        old_name = windows[0].data_file.name if windows else name
+        item = self._files[file_id]
+        data = replace(item.data_file, name=name)
+        self._files[file_id] = replace(item, data_file=data)
+        renamed = tree.rename_file(file_id, name) if windows else tree
+        old_name = item.data_file.name
 
         self._store_active_session()
         for window in windows:
@@ -358,7 +386,7 @@ class MainWindow(QMainWindow):
         """Drop closed windows; if the shown one closed, show the newest left."""
 
         self._store_active_session()
-        open_ids = {node.data_file.id for node in tree.windows}
+        open_ids = set(self._files)
         affected_ids: set[str] = set()
         for number, session in tuple(self._sessions.items()):
             plots = []
@@ -521,6 +549,8 @@ class MainWindow(QMainWindow):
 
     def _after_trace_update(self, update: TraceUpdate) -> LoadedTouchstonePlot:
         loaded = update.loaded
+        if loaded.plot.kind.value != "cartesian":
+            raise InputValidationError("This version can display Cartesian plots only.")
         if self._active_window is not None:
             owner = self.data_browser.browser_tree.window(self._active_window).data_file.id
             loaded = replace(loaded, plot=self._bind_plot_sources(loaded.plot, owner))
@@ -564,14 +594,24 @@ class MainWindow(QMainWindow):
         source_port: int,
         data_format: SParameterFormat | str,
     ) -> LoadedTouchstonePlot:
-        """Replace the current cell's plot with a single new trace."""
+        """Create a new plot without replacing any existing plot."""
+
+        return self.new_selected_plot(
+            ParameterChoice(f"S{response_port + 1}{source_port + 1}", response_port, source_port),
+            data_format,
+        )
+
+    def replace_plot(
+        self, response_port: int, source_port: int, data_format: SParameterFormat | str
+    ) -> LoadedTouchstonePlot:
+        """Explicitly replace the active plot, keeping its per-format range cache."""
 
         if self._loaded is None:
-            raise InputValidationError("Import a file before creating a plot.")
-
-        cleared = replace(self._loaded, plot=PlotModel())
-        self._loaded = cleared
-        return self.add_trace(response_port, source_port, data_format)
+            raise InputValidationError("Open a view before replacing a plot.")
+        update = self._service.add_trace(
+            replace(self._loaded, plot=PlotModel()), response_port, source_port, data_format
+        )
+        return self._after_trace_update(update)
 
     def _on_add_trace_requested(self, choice: ParameterChoice, data_format: str) -> None:
         self._guarded(lambda: self.add_selected_trace(choice, data_format))
@@ -618,13 +658,47 @@ class MainWindow(QMainWindow):
         choice: ParameterChoice,
         data_format: SParameterFormat | str,
     ) -> LoadedTouchstonePlot:
-        """Replace the current cell's plot with the selected parameter alone."""
+        """Compute before inserting, so failed requests leave the window unchanged."""
 
         if self._loaded is None:
-            raise InputValidationError("Import a file before creating a plot.")
+            raise InputValidationError("Open a view before creating a plot.")
+        empty = replace(self._loaded, plot=PlotModel())
+        if choice.is_mixed_mode:
+            assert choice.response_mode is not None and choice.source_mode is not None
+            update = self._service.add_mixed_mode_trace(
+                empty,
+                choice.response_mode,
+                choice.source_mode,
+                choice.response_port,
+                choice.source_port,
+                data_format,
+            )
+        else:
+            update = self._service.add_trace(
+                empty,
+                choice.response_port,
+                choice.source_port,
+                data_format,
+            )
+        assert self._active_file_id is not None
+        plot = self._bind_plot_sources(update.loaded.plot, self._active_file_id)
+        self.plot_flow.insert(plot)
+        assert self._loaded is not None
+        return self._loaded
 
-        self._loaded = replace(self._loaded, plot=PlotModel())
-        return self.add_selected_trace(choice, data_format)
+    def select_data_file(self, file_id: str) -> None:
+        """Select a loaded file even when it has no open analysis window."""
+
+        if file_id not in self._files:
+            raise InputValidationError("Data file is not open.")
+        self._store_active_session()
+        self._active_file_id = file_id
+        windows = self.data_browser.browser_tree.windows_of_file(file_id)
+        if windows:
+            self._restore_session(self._sessions[windows[-1].number])
+            self.data_browser.select_window(windows[-1].number)
+        else:
+            self._clear_view()
 
     def _guarded(self, action: Callable[[], object]) -> None:
         try:
@@ -649,6 +723,8 @@ class MainWindow(QMainWindow):
             ),
         )
         self._next_file_number += 1
+        self._files[data_file.id] = ProjectFile(data_file, loaded.dut_configuration)
+        self._active_file_id = data_file.id
 
         tree, window = self.data_browser.browser_tree.open(view_type, data_file)
         self.data_browser.set_browser_tree(tree)
@@ -682,6 +758,7 @@ class MainWindow(QMainWindow):
         self._sessions[session.number] = session
         loaded = session.loaded_for_current_cell()
         self._active_window = session.number
+        self._active_file_id = owner
         self._loaded = loaded
         self.view_area.set_layout_model(session.layout)
         self.view_area.set_current_index(session.current_index)
@@ -876,6 +953,11 @@ class MainWindow(QMainWindow):
     def set_grid(self, rows: int, cols: int) -> None:
         """Change the view area grid, keeping plots that still have a cell."""
 
+        layout = self.view_area.layout_model
+        for i, plot in enumerate(layout.plots):
+            row, col = divmod(i, layout.cols)
+            if (row >= rows or col >= cols) and (plot.traces or plot.title):
+                raise InputValidationError("Delete or move plots before shrinking the layout.")
         self.view_area.set_grid(rows, cols)
         self._on_cell_changed(self.view_area.current_index)
         self.file_flow.modified()
